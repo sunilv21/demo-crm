@@ -1,0 +1,70 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user1",
+      "description": "Admin user avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MzAwMjIxMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user2",
+      "description": "Client John Smith avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1596664762943-0467a2f79be0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtYWxlJTIwcGVyc29ufGVufDB8fHx8MTc2MjkzMDgwOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "male person"
+    },
+    {
+      "id": "user3",
+      "description": "Client Jane Doe avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1675099349120-3ea5154e862b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZmVtYWxlJTIwcGVyc29ufGVufDB8fHx8MTc2MjkzMDgwOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "female person"
+    },
+    {
+      "id": "user4",
+      "description": "Client Peter Jones avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1594672830234-ba4cfe1202dc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFuJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzYyOTUyNjAyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "user5",
+      "description": "Client Mary Johnson avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1609505848912-b7c3b8b4beda?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2MzAwMzk1MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "user6",
+      "description": "Lead Sam Wilson avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBzbWlsaW5nfGVufDB8fHx8MTc2Mjk0NDgzN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person smiling"
+    },
+    {
+      "id": "user7",
+      "description": "Lead Bucky Barnes avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1624395213043-fa2e123b2656?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYW4lMjBmYWNlfGVufDB8fHx8MTc2MzAxNzkxOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man face"
+    },
+    {
+      "id": "user8",
+      "description": "Lead Wanda Maximoff avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1544717304-a2db4a7b16ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3b21hbiUyMGZhY2V8ZW58MHx8fHwxNzYyOTQ2NzEzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman face"
+    },
+    {
+      "id": "user9",
+      "description": "Lead Vision avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1642776187116-cbda8b21113b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhYnN0cmFjdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc2Mjk4NzE1N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract portrait"
+    },
+    {
+      "id": "user10",
+      "description": "Lead Natasha Romanoff avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1573496358961-3c82861ab8f4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx3b21hbiUyMHByb2Zlc3Npb25hbHxlbnwwfHx8fDE3NjI5NjYwNTJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman professional"
+    },
+    {
+      "id": "hero1",
+      "description": "Itinerary builder hero image",
+      "imageUrl": "https://images.unsplash.com/photo-1682685797857-97de838c192e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx0cmF2ZWwlMjBkZXN0aW5hdGlvbnxlbnwwfHx8fDE3NjI5NTcyMjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "travel destination"
+    }
+  ]
+}

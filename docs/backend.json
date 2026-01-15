@@ -1,0 +1,884 @@
+
+{
+  "entities": {
+    "Client": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a customer profile, including contact information, preferences, and travel history.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Client entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the client."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the client.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the client."
+        },
+        "dateOfBirth": {
+          "type": "string",
+          "description": "Client's date of birth.",
+          "format": "date"
+        },
+        "gender": {
+          "type": "string",
+          "description": "Client's gender.",
+          "enum": ["male", "female", "other"]
+        },
+        "nationality": {
+          "type": "string",
+          "description": "Client's nationality."
+        },
+        "preferredDestination": {
+          "type": "string",
+          "description": "Client's preferred travel destination(s)."
+        },
+        "travelPurpose": {
+          "type": "string",
+          "description": "Purpose of the client's travel."
+        },
+        "preferredTravelDates": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string", "format": "date" },
+            "to": { "type": "string", "format": "date" }
+          }
+        },
+        "budget": {
+          "type": "number",
+          "description": "Client's travel budget."
+        },
+        "hotelPreference": {
+          "type": "string",
+          "description": "Client's hotel preference."
+        },
+        "services": {
+          "type": "string",
+          "enum": ["visa", "fullPackage", "packageOnly"]
+        },
+        "additionalServices": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["travelInsurance", "airportPickup", "localTours"] }
+        },
+        "preferences": {
+          "type": "string",
+          "description": "Notes about the client's preferences and travel history."
+        },
+        "status": {
+          "type": "string",
+          "description": "Client's current status in the pipeline.",
+           "enum": ["active", "inactive", "lead", "prospect"]
+        },
+        "visaStatus": {
+          "type": "string",
+          "description": "Visa status for the client.",
+          "enum": ["toStart", "inProcess", "approved", "rejected", "travelling"]
+        },
+        "visaHistory": {
+            "type": "array",
+            "description": "A list of past visa applications for the client.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "country": { "type": "string" },
+                    "status": { "type": "string", "enum": ["approved", "rejected"] },
+                    "date": { "type": "string", "format": "date-time" },
+                    "rejectionReason": { "type": "string" }
+                },
+                "required": ["country", "status", "date"]
+            }
+        },
+        "previousTrips": {
+            "type": "array",
+            "description": "A list of past trips the client has taken.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "country": { "type": "string" },
+                    "startDate": { "type": "string", "format": "date" },
+                    "endDate": { "type": "string", "format": "date" }
+                },
+                "required": ["country", "startDate", "endDate"]
+            }
+        },
+        "assignedEmployee": {
+          "type": "string",
+          "description": "ID of the employee assigned to this client."
+        },
+        "avatar": {
+          "type": "string",
+          "format": "uri"
+        },
+        "requiredDocuments": {
+            "type": "array",
+            "description": "A list of documents required from the client.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string" },
+                    "status": { "type": "string", "enum": ["pending", "uploaded", "verified", "received"] }
+                },
+                "required": ["name", "status"]
+            }
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the client was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the client was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the client."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the client."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phone",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "Itinerary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Itinerary",
+      "type": "object",
+      "description": "Represents a customized travel itinerary with flights, hotels, and activities.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Itinerary entity."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:N Itinerary)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the itinerary."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the itinerary."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start date of the itinerary.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "End date of the itinerary.",
+          "format": "date-time"
+        },
+        "flights": {
+          "type": "string",
+          "description": "Details of flights in the itinerary."
+        },
+        "hotels": {
+          "type": "string",
+          "description": "Details of hotels in the itinerary."
+        },
+        "activities": {
+          "type": "string",
+          "description": "Details of activities in the itinerary."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the itinerary was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the itinerary was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the itinerary."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the itinerary."
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "name",
+        "startDate",
+        "endDate",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "Lead": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Lead",
+      "type": "object",
+      "description": "Represents a new lead through the sales pipeline, from initial contact to conversion.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Lead entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the lead."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the lead.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the lead."
+        },
+        "source": {
+          "type": "string",
+          "description": "Source of the lead (e.g., website, referral)."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the lead (e.g., contacted, qualified)."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:N Lead)"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the lead was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the lead was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the lead."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the lead."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phone",
+        "source",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents all booking details, including flights, hotels, and other travel arrangements.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Booking entity."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:N Booking)"
+        },
+        "itineraryId": {
+          "type": "string",
+          "description": "Reference to Itinerary. (Relationship: Itinerary 1:N Booking)"
+        },
+        "bookingDate": {
+          "type": "string",
+          "description": "Date of the booking.",
+          "format": "date-time"
+        },
+        "flightDetails": {
+          "type": "string",
+          "description": "Details of the flight booking."
+        },
+        "hotelDetails": {
+          "type": "string",
+          "description": "Details of the hotel booking."
+        },
+        "otherArrangements": {
+          "type": "string",
+          "description": "Details of other travel arrangements."
+        },
+        "processTrackingId": {
+          "type": "string",
+          "description": "Reference to ProcessTracking. (Relationship: ProcessTracking 1:N Booking)"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the booking was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the booking was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the booking."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the booking."
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "itineraryId",
+        "bookingDate",
+        "flightDetails",
+        "hotelDetails",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "Invoice": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invoice",
+      "type": "object",
+      "description": "Represents invoices and tracks payments for travel bookings.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Invoice entity."
+        },
+        "bookingId": {
+          "type": "string",
+          "description": "Reference to Booking. (Relationship: Booking 1:N Invoice)"
+        },
+        "invoiceDate": {
+          "type": "string",
+          "description": "Date of the invoice.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the invoice."
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Date of the payment.",
+          "format": "date-time"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Method of payment."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the invoice (e.g., paid, unpaid)."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the invoice was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the invoice was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the invoice."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the invoice."
+        }
+      },
+      "required": [
+        "id",
+        "bookingId",
+        "invoiceDate",
+        "amount",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "ProcessTracking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProcessTracking",
+      "type": "object",
+      "description": "Represents the progress of each booking through a series of steps.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ProcessTracking entity."
+        },
+        "bookingStage": {
+          "type": "string",
+          "description": "The Stage of booking"
+        },
+        "stageCompleted": {
+          "type": "boolean",
+          "description": "Whether the stage is completed."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the process tracking entry was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the process tracking entry was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the process tracking entry."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the process tracking entry."
+        }
+      },
+      "required": [
+        "id",
+        "bookingStage",
+        "stageCompleted",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents an employee or admin user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["employee", "admin"]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "role"
+      ]
+    },
+    "Role": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Role",
+      "type": "object",
+      "description": "Represents a role for role-based access control.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Role entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the role (e.g., admin, employee)."
+        },
+        "permissions": {
+          "type": "string",
+          "description": "Permissions associated with the role."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "permissions"
+      ]
+    },
+    "CustomerLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerLog",
+      "type": "object",
+      "description": "Represents a log of activities for each customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CustomerLog entity."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:N CustomerLog)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of the activity.",
+          "format": "date-time"
+        },
+        "activity": {
+          "type": "string",
+          "description": "Description of the activity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N CustomerLog)"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the log was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the log was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the log."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the log."
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "timestamp",
+        "activity",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "FollowUp": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FollowUp",
+      "type": "object",
+      "description": "Represents a follow-up action for a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FollowUp entity."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:N FollowUp)"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Denormalized client name for easy display."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the follow-up.",
+          "format": "date-time"
+        },
+        "done": {
+          "type": "boolean",
+          "description": "Indicates whether the follow-up has been completed."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes about the follow-up."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the follow-up was created."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the follow-up was last updated."
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "User ID of the employee who created the follow-up."
+        },
+        "updatedBy": {
+            "type": "string",
+            "description": "User ID of the employee who last updated the follow-up."
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "clientName",
+        "date",
+        "notes",
+        "done",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy"
+      ]
+    },
+    "CustomerStatus": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerStatus",
+      "type": "object",
+      "description": "Represents the status of a customer (e.g., active, inactive, lead, prospect).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CustomerStatus entity."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the customer (e.g., active, inactive, lead, prospect)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the customer status."
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/clients/{clientId}",
+        "definition": {
+          "entityName": "Client",
+          "schema": {
+            "$ref": "#/backend/entities/Client"
+          },
+          "description": "Stores customer profiles. The document ID is the client ID.",
+          "params": [
+            {
+              "name": "clientId",
+              "description": "Unique identifier for the client."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clients/{clientId}/itineraries/{itineraryId}",
+        "definition": {
+          "entityName": "Itinerary",
+          "schema": {
+            "$ref": "#/backend/entities/Itinerary"
+          },
+          "description": "Stores itineraries associated with a client. Includes denormalized 'clientId' for authorization independence.",
+          "params": [
+            {
+              "name": "clientId",
+              "description": "Unique identifier for the client."
+            },
+            {
+              "name": "itineraryId",
+              "description": "Unique identifier for the itinerary."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/leads/{leadId}",
+        "definition": {
+          "entityName": "Lead",
+          "schema": {
+            "$ref": "#/backend/entities/Lead"
+          },
+          "description": "Stores lead information. Document ID is lead ID.",
+          "params": [
+            {
+              "name": "leadId",
+              "description": "Unique identifier for the lead."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clients/{clientId}/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Stores booking information for a client. Includes denormalized 'clientId' for authorization independence.",
+          "params": [
+            {
+              "name": "clientId",
+              "description": "Unique identifier for the client."
+            },
+            {
+              "name": "bookingId",
+              "description": "Unique identifier for the booking."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/invoices/{invoiceId}",
+        "definition": {
+          "entityName": "Invoice",
+          "schema": {
+            "$ref": "#/backend/entities/Invoice"
+          },
+          "description": "Stores invoice information. Document ID is invoice ID.",
+          "params": [
+            {
+              "name": "invoiceId",
+              "description": "Unique identifier for the invoice."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/process_tracking/{processTrackingId}",
+        "definition": {
+          "entityName": "ProcessTracking",
+          "schema": {
+            "$ref": "#/backend/entities/ProcessTracking"
+          },
+          "description": "Stores process tracking information. Document ID is process tracking ID.",
+          "params": [
+            {
+              "name": "processTrackingId",
+              "description": "Unique identifier for the process tracking."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user information. Document ID is user ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles/{roleId}",
+        "definition": {
+          "entityName": "Role",
+          "schema": {
+            "$ref": "#/backend/entities/Role"
+          },
+          "description": "Stores role information. Document ID is role ID.",
+          "params": [
+            {
+              "name": "roleId",
+              "description": "Unique identifier for the role."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customer_logs/{customerLogId}",
+        "definition": {
+          "entityName": "CustomerLog",
+          "schema": {
+            "$ref": "#/backend/entities/CustomerLog"
+          },
+          "description": "Stores customer logs as a top-level collection.",
+          "params": [
+            {
+              "name": "customerLogId",
+              "description": "Unique identifier for the customer log."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/follow_ups/{followUpId}",
+        "definition": {
+          "entityName": "FollowUp",
+          "schema": {
+            "$ref": "#/backend/entities/FollowUp"
+          },
+          "description": "Stores follow-up information as a top-level collection. Includes denormalized 'clientId' for authorization and querying.",
+          "params": [
+            {
+              "name": "followUpId",
+              "description": "Unique identifier for the follow-up."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customer_statuses/{customerStatusId}",
+        "definition": {
+          "entityName": "CustomerStatus",
+          "schema": {
+            "$ref": "#/backend/entities/CustomerStatus"
+          },
+          "description": "Stores customer status information. Document ID is customer status ID.",
+          "params": [
+            {
+              "name": "customerStatusId",
+              "description": "Unique identifier for the customer status."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the Sky Visa CRM application, focusing on secure access and efficient data retrieval. The design prioritizes Authorization Independence to ensure robust security rules without relying on hierarchical `get()` calls. This is achieved through denormalization, specifically by copying relevant authorization data (e.g., user roles, membership maps) into child documents where access control is required. Structural Segregation ensures that collections contain documents with similar security requirements. Access Modeling uses a consistent pattern of path-based ownership for user-specific data and membership maps for collaborative entities. All collections are designed with an explicit intention of following DBAC (Database-backed Access Control) using only `request.auth.uid`. This will grant a simple, scalable and debuggable security rule structure.\n\n**Authorization Independence:** Relationships are modeled using IDs, and where authorization depends on parent documents, relevant data (like membership information) is denormalized into child documents. For example, the `itineraries` collection, which is owned by a `client`, includes `clientId` to independently verify client ownership. This avoids the need for security rules to fetch parent documents.\n\n**QAPs (Rules are not Filters):** Segregation simplifies `list` operations. Path-based ownership (`/users/{userId}/...`) and membership maps enable efficient and secure querying. For instance, listing itineraries associated with a specific client is secured by the `clientId` stored within each itinerary document. Separate collections with homogeneous security postures minimize complexity and ensure all documents in a collection share the same security requirements.\n\n**DBAC (No Custom Claims):** User roles are stored in the `roles` collection, and user documents reference these roles. Security rules will then check the existence of the relevant role document using the `request.auth.uid` to determine access permissions.\n\n**Invariants:** Data integrity is maintained by enforcing strict naming conventions (e.g., `ownerId`), using explicit state modeling (e.g., a `status` field), and avoiding dynamic keys."
+  }
+}

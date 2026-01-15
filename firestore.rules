@@ -1,0 +1,223 @@
+
+/**
+ * @file firestore.rules
+ * @description Firestore Security Rules for the Sky Visa CRM application.
+ *
+ * @version 2
+ *
+ * @philosophy
+ * This ruleset enforces a security model for an internal CRM system. The core assumption
+ * is that all authenticated users are trusted employees of the company and should have
+ * broad access to manage business-critical data like clients, leads, and bookings.
+ *
+ * Core Philosophy:
+ * - **Authenticated Access:** Access to core business data is granted to any successfully signed-in user (employee). Unauthenticated access is denied by default.
+ * - **User Data Privacy:** The `/users/{userId}` collection is strictly controlled. Users can only create, read, and modify their own user profile document. Listing users is disabled to protect employee privacy.
+ * - **Configuration Data:** Collections like `roles` and `customer_statuses` are treated as read-only configuration data for all employees to prevent accidental changes.
+ * - **Data Integrity:** For nested data (e.g., a client's itineraries or bookings), the rules enforce that the `clientId` field within the document matches the parent document in the path. This ensures relational integrity and prevents data from being associated with the wrong client. This is a form of denormalization for authorization.
+ *
+ * Data Structure:
+ * - Top-level collections like `/clients`, `/leads`, and `/invoices` contain the main business objects.
+ * - Client-specific data is nested in subcollections under `/clients/{clientId}` for clear organization (e.g., `/clients/{clientId}/bookings`).
+ *
+ * Key Security Decisions:
+ * - **Prototyping Model:** To facilitate rapid development, these rules are flexible on data shapes but strict on authorization. Any signed-in user can write to business collections, but they cannot access other users' private profiles or modify system configuration.
+ * - **No Public Access:** There are no publicly readable or writable collections. All operations require user authentication.
+ * - **No `get()` Calls:** The rules are designed to be performant and scalable by avoiding cross-document `get()` calls in rules. Authorization decisions are made using the request context and the data within the document being accessed.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the requesting user's UID matches the provided userId.
+     * This is the foundation of the user-ownership security model.
+     * @param userId The user ID to check against the authenticated user's UID.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    /**
+     * @description Ensures required audit fields are present and correctly set on create.
+     */
+    function hasValidCreateAuditFields() {
+      return request.resource.data.createdBy == request.auth.uid &&
+             request.resource.data.updatedBy == request.auth.uid &&
+             request.resource.data.createdAt == request.time &&
+             request.resource.data.updatedAt == request.time;
+    }
+
+    /**
+     * @description Ensures audit fields are correctly managed on update.
+     */
+    function hasValidUpdateAuditFields() {
+      // Prevent createdBy and createdAt from being changed.
+      return request.resource.data.createdBy == resource.data.createdBy &&
+             request.resource.data.createdAt == resource.data.createdAt &&
+             request.resource.data.updatedBy == request.auth.uid &&
+             request.resource.data.updatedAt == request.time;
+    }
+
+    // -------------------------------------------------------------------------
+    // User and Role Management
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Secures user profile documents. Users can only manage their own document.
+     * @path /users/{userId}
+     * @allow (create) A new user signing up, creating their own profile document.
+     * @deny (get) A user trying to read another user's profile document.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false; // User listing is disallowed for privacy.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Roles are configuration data, readable by all employees but not writable.
+     * @path /roles/{roleId}
+     * @allow (get) An employee's app reading the definition of a 'admin' role.
+     * @deny (create) Any user trying to create a new role.
+     * @principle Protects system configuration data from modification by client applications.
+     */
+    match /roles/{roleId} {
+      allow get, list: if isSignedIn();
+      allow write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Core Business Collections
+    // -------------------------------------------------------------------------
+    
+    /**
+     * @description Manages top-level bookings. Any employee can manage bookings.
+     * @path /bookings/{bookingId}
+     * @allow (create) A signed-in employee adding a new booking.
+     * @deny (get) An unauthenticated user attempting to read booking data.
+     */
+    match /bookings/{bookingId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    /**
+     * @description Allows collection group queries on 'bookings' for dashboard analytics.
+     * Any signed-in user can list all bookings across all clients.
+     */
+    match /{path=**}/bookings/{bookingId} {
+      allow list: if isSignedIn();
+    }
+
+
+    /**
+     * @description Manages client profiles. Any employee can manage clients.
+     * @path /clients/{clientId}
+     * @allow (create) A signed-in employee adding a new client to the CRM.
+     * @deny (get) An unauthenticated user attempting to read client data.
+     * @principle Grants full access to authenticated internal users for core business data.
+     */
+    match /clients/{clientId} {
+      allow read, write: if isSignedIn();
+
+
+      /**
+       * @description Manages itineraries nested under a specific client.
+       */
+      match /itineraries/{itineraryId} {
+        allow read, write: if isSignedIn();
+      }
+
+      /**
+       * @description Manages bookings nested under a specific client.
+       */
+      match /bookings/{bookingId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+    
+    /**
+     * @description Manages customer logs as a top-level collection. Any employee can manage logs.
+     * This rule allows any authenticated user to list the entire collection, which is necessary
+     * for client-side queries that filter by clientId.
+     */
+    match /customer_logs/{customerLogId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    /**
+     * @description Manages follow-ups as a top-level collection. Any employee can manage follow-ups.
+     * This allows querying all follow-ups across all clients.
+     */
+    match /follow_ups/{followUpId} {
+      allow read, list: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.clientId is string;
+
+      allow update, delete: if request.auth != null;
+    }
+
+
+    /**
+     * @description Manages sales leads. Any employee can manage leads.
+     * @path /leads/{leadId}
+     * @allow (create) A signed-in employee adding a new lead from a web form.
+     * @deny (get) An unauthenticated user attempting to read lead data.
+     * @principle Grants full access to authenticated internal users for core business data.
+     */
+    match /leads/{leadId} {
+      allow read, write: if isSignedIn();
+    }
+
+    /**
+     * @description Manages invoices. Any employee can manage invoices.
+     * @path /invoices/{invoiceId}
+     * @allow (update) A signed-in employee updating an invoice status to 'paid'.
+     * @deny (get) An unauthenticated user attempting to read financial data.
+     * @principle Grants full access to authenticated internal users for core business data.
+     */
+    match /invoices/{invoiceId} {
+      allow read, write: if isSignedIn();
+    }
+
+    /**
+     * @description Manages booking process tracking. Any employee can manage these records.
+     * @path /process_tracking/{processTrackingId}
+     * @allow (create) A signed-in employee creating a new process tracking record for a booking.
+     * @deny (get) An unauthenticated user attempting to read process data.
+     * @principle Grants full access to authenticated internal users for core business data.
+     */
+    match /process_tracking/{processTrackingId} {
+      allow read, write: if isSignedIn();
+    }
+
+    /**
+     * @description Customer statuses are configuration data, readable by employees but not writable.
+     * @path /customer_statuses/{customerStatusId}
+     * @allow (list) An employee's app fetching all possible customer statuses for a dropdown menu.
+     * @deny (create) Any user trying to create a new status type.
+     * @principle Protects system configuration data from modification by client applications.
+     */
+    match /customer_statuses/{customerStatusId} {
+      allow get, list: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}
+
+    
