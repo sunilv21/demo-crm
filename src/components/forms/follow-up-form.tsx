@@ -23,14 +23,13 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Button } from '../ui/button';
-import { ScrollArea } from '../ui/scroll-area';
 
 const formSchema = z.object({
   clientId: z.string().min(1, 'Client is required.'),
   date: z.date({ required_error: 'Date is required.' }),
-  notes: z.string().min(1, 'Notes are required.'),
+  notes: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']),
   done: z.boolean().default(false),
 });
@@ -56,7 +55,7 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
     defaultValues: followUp ? {
       clientId: followUp.clientId,
       date: new Date(followUp.date),
-      notes: followUp.notes,
+      notes: followUp.notes || '',
       priority: followUp.priority,
       done: followUp.done,
     } : {
@@ -76,6 +75,7 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
     }
     onSubmit({
       ...values,
+      notes: values.notes || null,
       date: values.date.toISOString(),
     }, selectedClient);
   }
@@ -103,12 +103,17 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
                             </Button>
                         </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <PopoverContent
+                        className="w-[--radix-popover-trigger-width] p-0"
+                        side="bottom"
+                        align="start"
+                        avoidCollisions={false}
+                    >
                         <Command>
                             <CommandInput placeholder="Search client..." />
                             <CommandEmpty>No client found.</CommandEmpty>
-                            <CommandGroup>
-                                <ScrollArea className="h-48">
+                            <CommandList className="max-h-60 overflow-y-auto overscroll-contain">
+                                <CommandGroup>
                                     {clients?.map((client) => (
                                         <CommandItem
                                             value={client.name}
@@ -122,8 +127,8 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
                                             {client.name}
                                         </CommandItem>
                                     ))}
-                                </ScrollArea>
-                            </CommandGroup>
+                                </CommandGroup>
+                            </CommandList>
                         </Command>
                     </PopoverContent>
                 </Popover>

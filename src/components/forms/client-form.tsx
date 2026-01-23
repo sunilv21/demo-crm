@@ -1,6 +1,7 @@
+
 'use client';
 import React from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -23,22 +24,23 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Client } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { CalendarIcon, Check, ChevronsUpDown, Bell, Trash2, Loader2, PlusCircle } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { format, parse } from 'date-fns';
 import { useCountries, type CountryInfo } from '@/hooks/use-countries';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
-import { ScrollArea } from '../ui/scroll-area';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import parsePhoneNumber, { AsYouType, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 import { useUser } from '@/firebase';
 import { serverTimestamp } from 'firebase/firestore';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useFormPersistence } from '@/hooks/use-form-persistence';
 import { DialogFooter } from '../ui/dialog';
+import { Separator } from '../ui/separator';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
+import { Label } from '../ui/label';
 
 
 const formSchema = z.object({
@@ -66,7 +68,9 @@ const formSchema = z.object({
   additionalServices: z.array(z.string()).optional(),
   preferences: z.string().optional(),
   status: z.enum(['active', 'inactive', 'lead', 'prospect']),
-  visaStatus: z.enum(['toStart', 'inProcess', 'approved', 'rejected', 'travelling', '']).optional(),
+  visaStatus: z.enum(['toStart', 'inProcess', 'applied', 'approved', 'rejected', 'completed', 'travelling', '']).optional(),
+  pax: z.coerce.number().int().min(1, "PAX must be at least 1.").optional(),
+  companions: z.array(z.object({ name: z.string().min(1, 'Companion name is required.') })).optional(),
 }).refine(data => !data.phone || !data.country || isValidPhoneNumber(data.phone, data.country as CountryCode), {
   message: "Invalid phone number for the selected country.",
   path: ["phone"],
@@ -116,39 +120,125 @@ const FormCard: React.FC<React.PropsWithChildren<{isPublicForm: boolean} & React
 };
 
 
+const Combobox = ({
+  field,
+  data,
+  placeholder,
+  isPublicForm,
+}: {
+  field: any;
+  data: readonly (string | CountryInfo)[];
+  placeholder: string;
+  isPublicForm?: boolean;
+}) => {
+  const [open, setOpen] = React.useState(false);
+
+  const isCountryInfo = (d: any): d is CountryInfo =>
+    typeof d === 'object' && 'value' in d && 'label' in d;
+
+  const findLabel = (value: string) => {
+    const item = data.find(
+      (item) => (isCountryInfo(item) ? item.value : item) === value
+    );
+    return item
+      ? isCountryInfo(item)
+        ? item.label
+        : item
+      : placeholder;
+  };
+
+  const comboboxTriggerClass = isPublicForm 
+    ? "bg-white/20 border-white/30 text-white hover:bg-white/30" 
+    : "";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <FormControl>
+          <Button
+            variant="outline"
+            role="combobox"
+            className={cn(
+              'w-full justify-between',
+              !field.value && (isPublicForm ? 'text-white/60' : 'text-muted-foreground'),
+              comboboxTriggerClass
+            )}
+          >
+            {findLabel(field.value)}
+            <ChevronsUpDown className={cn(
+              "ml-2 h-4 w-4 shrink-0",
+              isPublicForm ? "opacity-70" : "opacity-50"
+            )} />
+          </Button>
+        </FormControl>
+      </PopoverTrigger>
+
+      <PopoverContent
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className={cn(
+          "w-[--radix-popover-trigger-width] p-0",
+          isPublicForm ? "bg-gray-800 text-white border-white/20" : ""
+        )}
+        side="bottom"
+        align="start"
+        avoidCollisions={false}
+      >
+        <Command>
+          <CommandInput
+            placeholder={`Search ${placeholder.toLowerCase()}...`}
+            className="h-9"
+          />
+
+          <CommandList className="max-h-60 overflow-y-auto overscroll-contain">
+            <CommandEmpty>
+              No {placeholder.toLowerCase()} found.
+            </CommandEmpty>
+
+            <CommandGroup>
+              {data.map((item) => {
+                const label = isCountryInfo(item) ? item.label : item;
+                const value = isCountryInfo(item) ? item.value : item;
+
+                return (
+                  <CommandItem
+                    key={value}
+                    value={label}
+                    onSelect={() => {
+                      field.onChange(value);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value === field.value
+                          ? 'opacity-100'
+                          : 'opacity-0'
+                      )}
+                    />
+                    {label}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false }, ref) => {
   const { countryNames, countryOptions, nationalities } = useCountries();
   const { user } = useUser();
   const FORM_KEY = client ? `client-form-${client.id}` : 'new-client-form';
-  const [isFromDatePickerOpen, setIsFromDatePickerOpen] = React.useState(false);
-  const [isToDatePickerOpen, setIsToDatePickerOpen] = React.useState(false);
-  
-  const defaultBlankValues: ClientFormValues = {
-    name: '',
-    email: '',
-    country: 'IN',
-    phone: '',
-    travelPurpose: undefined,
-    dateOfBirth: '',
-    gender: undefined,
-    nationality: '',
-    preferredDestination: '',
-    preferredTravelDates: { from: undefined, to: undefined },
-    budget: 0,
-    hotelPreference: '',
-    services: undefined,
-    additionalServices: [],
-    preferences: '',
-    status: 'prospect',
-    visaStatus: '',
-  };
   
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: client ? {
+    defaultValues: {
       name: client?.name || '',
       email: client?.email || '',
-      country: client?.phone && parsePhoneNumber(client.phone)?.country ? parsePhoneNumber(client.phone)?.country : 'IN',
+      country: client?.phone ? parsePhoneNumber(client.phone)?.country : 'IN',
       phone: client?.phone ? parsePhoneNumber(client.phone)?.nationalNumber : '',
       travelPurpose: client?.travelPurpose || '',
       dateOfBirth: client?.dateOfBirth ? format(new Date(client.dateOfBirth), 'dd/MM/yyyy') : '',
@@ -159,14 +249,21 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         from: client?.preferredTravelDates?.from ? new Date(client.preferredTravelDates.from) : undefined,
         to: client?.preferredTravelDates?.to ? new Date(client.preferredTravelDates.to) : undefined,
       },
-      budget: client?.budget || 0,
+      budget: client?.budget || undefined,
       hotelPreference: client?.hotelPreference || '',
       services: client?.services,
       additionalServices: client?.additionalServices || [],
       preferences: client?.preferences || '',
       status: client?.status || 'prospect',
       visaStatus: client?.visaStatus || '',
-    } : defaultBlankValues,
+      pax: client?.pax || 1,
+      companions: client?.companions || [],
+    },
+  });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "companions",
   });
 
   const { clearSavedData } = useFormPersistence<ClientFormValues>(FORM_KEY, form);
@@ -184,16 +281,23 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
     const phoneNumber = values.phone && values.country ? parsePhoneNumber(values.phone, values.country as CountryCode) : null;
 
     const { country, ...restOfValues } = values;
-
-    const dataToSubmit: Partial<Client> = {
+    
+    const dataToSubmit: { [key: string]: any } = {
       ...restOfValues,
-      phone: phoneNumber?.format('E.164') || values.phone,
-      avatar: client?.avatar || randomAvatar,
-      preferredTravelDates: {
-          from: values.preferredTravelDates?.from?.toISOString(),
-          to: values.preferredTravelDates?.to?.toISOString()
-      }
     };
+
+    // Replace all top-level undefined values with null
+    Object.keys(dataToSubmit).forEach(keyStr => {
+      const key = keyStr as keyof typeof dataToSubmit;
+      if (dataToSubmit[key] === undefined) {
+        dataToSubmit[key] = null;
+      }
+    });
+
+    // Now, perform specific transformations
+    dataToSubmit.phone = phoneNumber?.format('E.164') || values.phone;
+    dataToSubmit.avatar = client?.avatar || randomAvatar;
+    dataToSubmit.companions = values.companions || [];
     
     if (values.dateOfBirth) {
         try {
@@ -201,20 +305,24 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         } catch (e) {
              console.error("Invalid date format:", values.dateOfBirth);
              form.setError("dateOfBirth", { type: "manual", message: "Date must be in DD/MM/YYYY format." });
-             // Focus on the date of birth field when there's an error
-             const dateOfBirthField = document.querySelector('input[name="dateOfBirth"]') as HTMLInputElement;
-             if (dateOfBirthField) {
-                 dateOfBirthField.focus();
-             }
              return;
         }
+    } else {
+        dataToSubmit.dateOfBirth = null;
+    }
+
+    dataToSubmit.preferredTravelDates = {
+        from: values.preferredTravelDates?.from?.toISOString() ?? null,
+        to: values.preferredTravelDates?.to?.toISOString() ?? null,
+    };
+
+    if (!dataToSubmit.additionalServices) {
+      dataToSubmit.additionalServices = [];
     }
 
     const auditFields = client
-        ? { // Update
-            updatedBy: user?.uid || 'public_form',
-          }
-        : { // Create
+        ? { updatedBy: user?.uid || 'public_form' }
+        : {
             createdAt: serverTimestamp(),
             createdBy: user?.uid || 'public_form',
             updatedBy: user?.uid || 'public_form',
@@ -223,32 +331,41 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
     onSubmit({
       ...dataToSubmit,
       ...auditFields
-    });
-    
-    // Clear form after successful submission
+    } as Partial<Client>);
+
     if (!isPublicForm) {
-      form.reset(defaultBlankValues);
       clearSavedData();
-      // Focus on the first field after form reset
-      setTimeout(() => {
-        const firstField = document.querySelector('input[name="name"]') as HTMLInputElement;
-        if (firstField) {
-          firstField.focus();
-        }
-      }, 100);
     }
   }
   
   const handleClearForm = () => {
-    form.reset(defaultBlankValues);
-    clearSavedData();
-    // Focus on the first field after clearing form
-    setTimeout(() => {
-      const firstField = document.querySelector('input[name="name"]') as HTMLInputElement;
-      if (firstField) {
-        firstField.focus();
-      }
-    }, 100);
+    form.reset({
+      name: '',
+      email: '',
+      country: 'IN',
+      phone: '',
+      travelPurpose: '',
+      dateOfBirth: '',
+      gender: undefined,
+      nationality: '',
+      preferredDestination: '',
+      preferredTravelDates: {
+        from: undefined,
+        to: undefined,
+      },
+      budget: undefined,
+      hotelPreference: '',
+      services: undefined,
+      additionalServices: [],
+      preferences: '',
+      status: 'prospect',
+      visaStatus: '',
+      pax: 1,
+      companions: [],
+    });
+    if(!client){
+        clearSavedData();
+    }
   };
   
   const formLabelClass = isPublicForm ? "text-white/90" : "";
@@ -257,119 +374,84 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
   const formSelectContentClass = isPublicForm ? "bg-gray-800 text-white" : "";
   const formRadioLabelClass = isPublicForm ? "text-white/90 font-normal" : "font-normal";
 
-
-  const Combobox = ({ field, data, placeholder }: { field: any, data: string[] | CountryInfo[], placeholder: string }) => {
+  const DatePicker = ({ field }: { field: any }) => {
     const [open, setOpen] = React.useState(false);
-  
-    const isCountryInfo = (d: any): d is CountryInfo => typeof d === 'object' && 'value' in d && 'label' in d;
-  
-    const findLabel = (value: string) => {
-        const item = data.find(item => (isCountryInfo(item) ? item.value : item) === value);
-        return item ? (isCountryInfo(item) ? item.label : item) : placeholder;
-    };
-
-    // Auto-open dropdown when field is focused
-    const handleFocus = () => {
-      setOpen(true);
-    };
-
-    // Handle input change to enable auto-search
-    const handleInputChange = (value: string) => {
-      if (!open) {
-        setOpen(true);
-      }
-      // The Command component will handle the filtering automatically
-    };
-  
+    
+    // Get the start date value for end date validation
+    const startDate = form.getValues('preferredTravelDates.from');
+    
     return (
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <FormControl>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setOpen(!open);
-                } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                  // Open dropdown when user starts typing
-                  setOpen(true);
-                }
-              }}
-              onFocus={handleFocus}
-              className={cn(
-                "w-full justify-between",
-                !field.value && "text-muted-foreground",
-                formSelectTriggerClass
-              )}
-            >
-              {field.value ? findLabel(field.value) : placeholder}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </FormControl>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" style={{ maxHeight: '400px' }}>
-          <Command className="max-h-96" shouldFilter={false}>
-            <CommandInput 
-              placeholder={`Search ${placeholder.toLowerCase()}...`}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setOpen(false);
-                } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                  handleInputChange(e.key);
-                }
-              }}
-              autoFocus={open}
-            />
-            <CommandEmpty>No {placeholder.toLowerCase()} found.</CommandEmpty>
-            <CommandGroup className="overflow-y-auto">
-                {data.map((item) => {
-                  const label = isCountryInfo(item) ? item.label : item;
-                  const value = isCountryInfo(item) ? item.value : item;
-                  return (
-                    <CommandItem
-                      value={label}
-                      key={value}
-                      onSelect={() => {
-                        // For string arrays, use the label directly; for objects, use the value
-                        const selectedValue = isCountryInfo(item) ? value : label;
-                        form.setValue(field.name, selectedValue);
-                        setOpen(false);
-                      }}
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <FormControl>
+                    <Button
+                        variant={'outline'}
+                        className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground', formSelectTriggerClass)}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          value === field.value ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {label}
-                    </CommandItem>
-                  );
-                })}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
+                        {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                </FormControl>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={(date) => {
+                        field.onChange(date);
+                        
+                        // If this is start date, clear end date if it's before new start date
+                        if (field.name === 'preferredTravelDates.from') {
+                            const endDate = form.getValues('preferredTravelDates.to');
+                            if (endDate && date && endDate < date) {
+                                form.setValue('preferredTravelDates.to', undefined);
+                            }
+                        }
+                        
+                        if (date) setOpen(false);
+                    }}
+                    disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        if (field.name === 'preferredTravelDates.to' && startDate) {
+                            return date < startDate;
+                        }
+                        return date < today;
+                    }}
+                    initialFocus
+                />
+            </PopoverContent>
+        </Popover>
+    );
+  };
+  
+    const DatePickerString = ({ field }: { field: any }) => {
+    return (
+        <Input
+            placeholder="DD/MM/YYYY"
+            {...field}
+            onChange={(e) => {
+                const input = e.target.value.replace(/\D/g, '');
+                let formattedInput = '';
+                if (input.length > 0) formattedInput = input.substring(0, 2);
+                if (input.length > 2) formattedInput += '/' + input.substring(2, 4);
+                if (input.length > 4) formattedInput += '/' + input.substring(4, 8);
+                field.onChange(formattedInput);
+            }}
+            maxLength={10}
+            className={cn(
+                formInputClass,
+                "min-h-[44px] touch-manipulation" // Ensure minimum touch target size for mobile
+            )}
+            inputMode="numeric" // Show numeric keypad on mobile
+            pattern="[0-9]*" // Helps with numeric input on mobile
+        />
     );
   };
 
-
   return (
     <Form {...form}>
-      <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit, (errors) => {
-    // Find the first field with an error and focus it
-    const firstErrorField = Object.keys(errors)[0];
-    if (firstErrorField) {
-      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement;
-      if (errorElement) {
-        errorElement.focus();
-      }
-    }
-  })} className="space-y-8">
+      <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
         <FormCard isPublicForm={isPublicForm}>
             <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -391,7 +473,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         <FormItem>
                             <FormLabel className={formLabelClass}>Name *</FormLabel>
                             <FormControl>
-                            <Input {...field} className={formInputClass} tabIndex={0}/>
+                            <Input {...field} className={formInputClass}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -412,41 +494,42 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                    <FormItem>
-                        <FormLabel className={formLabelClass}>Contact no *</FormLabel>
-                        <div className="flex gap-2">
-                            <FormField
-                                control={form.control}
-                                name="country"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-col w-[180px]">
-                                    <Combobox field={field} data={countryOptions} placeholder="Select country"/>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <FormField
+                        control={form.control}
+                        name="country"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                            <FormLabel className={formLabelClass}>Country *</FormLabel>
+                            <Combobox
+                                field={field}
+                                data={countryOptions}
+                                placeholder="Select country"
+                                isPublicForm={isPublicForm}
                             />
-                            <FormField
-                                control={form.control}
-                                name="phone"
-                                render={({ field }) => {
-                                return (
-                                    <FormItem className="flex-1">
-                                    <FormControl>
-                                        <Input 
-                                            type="tel"
-                                            placeholder='Phone number'
-                                            {...field}
-                                            className={formInputClass}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )
-                                }}
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel className={formLabelClass}>Phone *</FormLabel>
+                        <FormControl>
+                            <Input
+                            type="tel"
+                            placeholder="Phone number"
+                            {...field}
+                            value={field.value ?? ''}
+                            className={formInputClass}
                             />
-                        </div>
-                    </FormItem>
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
                 </div>
             </CardContent>
         </FormCard>
@@ -465,26 +548,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         <FormItem>
                             <FormLabel className={formLabelClass}>Date of Birth</FormLabel>
                             <FormControl>
-                                <Input 
-                                    placeholder="DD/MM/YYYY" 
-                                    {...field} 
-                                    onChange={(e) => {
-                                        const input = e.target.value.replace(/\D/g, '');
-                                        let formattedInput = '';
-                                        if (input.length > 0) {
-                                            formattedInput = input.substring(0, 2);
-                                        }
-                                        if (input.length > 2) {
-                                            formattedInput += '/' + input.substring(2, 4);
-                                        }
-                                        if (input.length > 4) {
-                                            formattedInput += '/' + input.substring(4, 8);
-                                        }
-                                        field.onChange(formattedInput);
-                                    }}
-                                    maxLength={10}
-                                    className={formInputClass}
-                                />
+                                <DatePickerString field={field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -498,7 +562,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                                 <FormLabel className={formLabelClass}>Gender</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                    <SelectTrigger className={formSelectTriggerClass} tabIndex={0}>
+                                    <SelectTrigger className={formSelectTriggerClass}>
                                     <SelectValue placeholder="Select gender" />
                                     </SelectTrigger>
                                 </FormControl>
@@ -513,18 +577,74 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             )}
                         />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="pax"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className={formLabelClass}>PAX (Total Travelers)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min={1} {...field} className={formInputClass}/>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField
                             control={form.control}
                             name="nationality"
                             render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 <FormLabel className={formLabelClass}>Nationality</FormLabel>
-                                <Combobox field={field} data={nationalities} placeholder="Select nationality" />
+                                <Combobox field={field} data={nationalities} placeholder="Select nationality" isPublicForm={isPublicForm} />
                                 <FormMessage />
                             </FormItem>
                             )}
                         />
+                    </div>
+                     <div className='mt-4'>
+                        <Label className={formLabelClass}>Companions</Label>
+                        <p className={cn("text-sm mt-1", isPublicForm ? 'text-white/70' : 'text-muted-foreground')}>
+                            Add details of people travelling with the client.
+                        </p>
+                        <div className="space-y-2 mt-2">
+                            {fields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-2">
+                                <FormField
+                                control={form.control}
+                                name={`companions.${index}.name`}
+                                render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                    <FormControl>
+                                        <Input placeholder={`Companion ${index + 1} Name`} {...field} className={formInputClass} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(index)}
+                                className={cn(isPublicForm ? 'text-white/80 hover:text-white' : '', 'hover:bg-destructive/10 hover:text-destructive')}
+                                >
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            ))}
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => append({ name: "" })}
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Companion
+                        </Button>
                     </div>
             </CardContent>
         </FormCard>
@@ -535,41 +655,64 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                 <CardDescription>Help us understand what the client is looking for.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="travelPurpose"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className={formLabelClass}>Travel Purpose</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                    {/* Travel Purpose */}
+                    <FormField
+                        control={form.control}
+                        name="travelPurpose"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel className={formLabelClass}>Travel Purpose</FormLabel>
+
                             <FormControl>
-                                <SelectTrigger className={formSelectTriggerClass} tabIndex={0}>
+                            <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                            >
+                                <SelectTrigger className={formSelectTriggerClass}>
                                 <SelectValue placeholder="Select purpose" />
                                 </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className={formSelectContentClass}>
+
+                                <SelectContent className={formSelectContentClass}>
                                 <SelectItem value="leisure">Leisure</SelectItem>
+                                <SelectItem value="tourism">Tourism</SelectItem>
+                                <SelectItem value="visit">Visit</SelectItem>
                                 <SelectItem value="business">Business</SelectItem>
                                 <SelectItem value="family">Family</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                </SelectContent>
+                            </Select>
+                            </FormControl>
+
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    {/* Preferred Destination */}
                     <FormField
                         control={form.control}
                         name="preferredDestination"
                         render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <FormLabel className={formLabelClass}>Preferred Destination(s)</FormLabel>
-                            <Combobox field={field} data={countryNames} placeholder="Select destination" />
+                            <FormLabel className={formLabelClass}>
+                            Preferred Destination(s)
+                            </FormLabel>
+
+                            <FormControl>
+                            <Combobox
+                                field={field}
+                                data={countryNames}
+                                placeholder="Select destination"
+                                isPublicForm={isPublicForm}
+                            />
+                            </FormControl>
+
                             <FormMessage />
                         </FormItem>
                         )}
                     />
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -577,46 +720,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Preferred Start Date</FormLabel>
-                            <Popover open={isFromDatePickerOpen} onOpenChange={setIsFromDatePickerOpen}>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant={'outline'}
-                                    tabIndex={0}
-                                    className={cn(
-                                        'w-full pl-3 text-left font-normal',
-                                        !field.value && 'text-muted-foreground',
-                                        formSelectTriggerClass
-                                    )}
-                                    >
-                                    {field.value ? (
-                                        format(field.value, 'PPP')
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={(date) => {
-                                        field.onChange(date);
-                                        const currentEndDate = form.getValues('preferredTravelDates.to');
-                                        if (currentEndDate && date && date > currentEndDate) {
-                                            form.setValue('preferredTravelDates.to', undefined);
-                                        }
-                                        if (date) {
-                                            setIsFromDatePickerOpen(false);
-                                        }
-                                    }}
-                                    disabled={{ before: new Date() }}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
+                                <DatePicker field={field} />
                             <FormMessage />
                             </FormItem>
                         )}
@@ -627,43 +731,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Preferred End Date</FormLabel>
-                            <Popover open={isToDatePickerOpen} onOpenChange={setIsToDatePickerOpen}>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant={'outline'}
-                                    tabIndex={0}
-                                    className={cn(
-                                        'w-full pl-3 text-left font-normal',
-                                        !field.value && 'text-muted-foreground',
-                                        formSelectTriggerClass
-                                    )}
-                                    >
-                                    {field.value ? (
-                                        format(field.value, 'PPP')
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={(date) => {
-                                        field.onChange(date);
-                                        if (date) {
-                                            setIsToDatePickerOpen(false);
-                                        }
-                                    }}
-                                    disabled={{ before: startDate || new Date() }}
-                                    initialFocus
-                                    defaultMonth={startDate}
-                                />
-                                </PopoverContent>
-                            </Popover>
+                                <DatePicker field={field} />
                             <FormMessage />
                             </FormItem>
                         )}
@@ -677,7 +745,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         <FormItem>
                             <FormLabel className={formLabelClass}>Budget (₹)</FormLabel>
                             <FormControl>
-                            <Input type="number" placeholder="Enter budget" {...field} className={formInputClass}/>
+                            <Input type="number" placeholder="Enter budget" {...field} value={field.value ?? ''} className={formInputClass}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -691,7 +759,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             <FormLabel className={formLabelClass}>Hotel Preference</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                    <SelectTrigger className={formSelectTriggerClass} tabIndex={0}>
+                                    <SelectTrigger className={formSelectTriggerClass}>
                                     <SelectValue placeholder="Select hotel type" />
                                     </SelectTrigger>
                                 </FormControl>
@@ -722,34 +790,28 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                 name="services"
                 render={({ field }) => (
                     <FormItem className="space-y-3">
-                    <FormLabel className={formLabelClass}>Service Type</FormLabel>
-                    <FormControl>
-                        <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0"
-                        >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                            <RadioGroupItem value="visa" />
-                            </FormControl>
-                            <FormLabel className={formRadioLabelClass}>Visa</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                            <RadioGroupItem value="fullPackage" />
-                            </FormControl>
-                            <FormLabel className={formRadioLabelClass}>Full Package with Visa</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                            <RadioGroupItem value="packageOnly" />
-                            </FormControl>
-                            <FormLabel className={formRadioLabelClass}>Package Only</FormLabel>
-                        </FormItem>
-                        </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
+                        <FormLabel className={formLabelClass}>Service Type</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0"
+                            >
+                                <div className="flex items-center space-x-3 space-y-0">
+                                    <RadioGroupItem value="visa" id="visa" />
+                                    <Label htmlFor="visa" className={formRadioLabelClass}>Visa</Label>
+                                </div>
+                                <div className="flex items-center space-x-3 space-y-0">
+                                    <RadioGroupItem value="fullPackage" id="fullPackage" />
+                                    <Label htmlFor="fullPackage" className={formRadioLabelClass}>Full Package with Visa</Label>
+                                </div>
+                                <div className="flex items-center space-x-3 space-y-0">
+                                    <RadioGroupItem value="packageOnly" id="packageOnly" />
+                                    <Label htmlFor="packageOnly" className={formRadioLabelClass}>Package Only</Label>
+                                </div>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
                     </FormItem>
                 )}
                 />
@@ -803,7 +865,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     <FormItem>
                     <FormLabel className={formLabelClass}>Additional Notes or Preferences</FormLabel>
                     <FormControl>
-                        <Textarea placeholder="List previous countries & years visited, or any other preferences..." {...field} className={formInputClass} tabIndex={0}/>
+                        <Textarea placeholder="List previous countries & years visited, or any other preferences..." {...field} className={formInputClass}/>
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -828,7 +890,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             <FormLabel>Status</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                <SelectTrigger tabIndex={0}>
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select a status" />
                                 </SelectTrigger>
                                 </FormControl>
@@ -851,15 +913,17 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                                 <FormLabel>Visa Status</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
-                                    <SelectTrigger tabIndex={0}>
+                                    <SelectTrigger>
                                         <SelectValue placeholder="Select visa status" />
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
                                     <SelectItem value="toStart">To Start</SelectItem>
                                     <SelectItem value="inProcess">In Process</SelectItem>
+                                    <SelectItem value="applied">Applied</SelectItem>
                                     <SelectItem value="approved">Approved</SelectItem>
                                     <SelectItem value="rejected">Rejected</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
                                     <SelectItem value="travelling">Travelling</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -873,14 +937,14 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         )}
         
         {isPublicForm ? (
-             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" size="lg" disabled={isSubmitting} tabIndex={0}>
+             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" size="lg" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
              </Button>
         ) : (
             <DialogFooter>
-                <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} tabIndex={0}>Cancel</Button>
-                <Button type="submit" disabled={isSubmitting} tabIndex={0}>
+                <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" disabled={isSubmitting} form="client-form">
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {client ? 'Save Changes' : 'Save Client'}
                 </Button>
@@ -892,5 +956,3 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
 });
 
 ClientForm.displayName = "ClientForm";
-
-    

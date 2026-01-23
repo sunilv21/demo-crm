@@ -12,24 +12,30 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import type { User } from 'firebase/auth';
+import type { User as AuthUser } from 'firebase/auth';
+import type { User as AppUser } from '@/lib/types';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  phone: z.string().optional(),
+  jobTitle: z.string().optional(),
 });
 
 type UserFormValues = z.infer<typeof formSchema>;
 
 interface UserFormProps {
   onSubmit: (data: UserFormValues) => void;
-  user: User;
+  user: AuthUser;
+  userDoc: AppUser | null;
 }
 
-export const UserForm = React.forwardRef<HTMLFormElement, UserFormProps>(({ onSubmit, user }, ref) => {
+export const UserForm = React.forwardRef<HTMLFormElement, UserFormProps>(({ onSubmit, user, userDoc }, ref) => {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: user?.displayName || '',
+      name: user?.displayName || userDoc?.name || '',
+      phone: userDoc?.phone || '',
+      jobTitle: userDoc?.jobTitle || '',
     },
   });
 
@@ -44,6 +50,32 @@ export const UserForm = React.forwardRef<HTMLFormElement, UserFormProps>(({ onSu
               <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="e.g., Jane Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., +1 234 567 8900" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="jobTitle"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Job Title</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Travel Consultant" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

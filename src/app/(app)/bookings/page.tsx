@@ -20,6 +20,9 @@ import {
   Flag,
   Bed,
   Car,
+  Eye,
+  Pencil,
+  XCircle,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Input } from '@/components/ui/input';
@@ -41,9 +44,22 @@ import type { Booking } from '@/lib/types';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collectionGroup, query } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
+import { collectionGroup, query, doc, collection, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 const ItineraryIcon = ({ type }: { type: string }) => {
   if (type.includes('Flight')) return <Plane className="mr-2 h-4 w-4 text-muted-foreground" />;
@@ -68,14 +84,17 @@ const BookingRowSkeleton = () => (
 
 export default function BookingsPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Query all bookings across all clients
     return query(collectionGroup(firestore, 'bookings'));
   }, [firestore]);
 
@@ -99,12 +118,28 @@ export default function BookingsPage() {
 
   const handleAddBooking = (newBookingData: Omit<Booking, 'id'>) => {
     if (!firestore || !newBookingData.clientId) return;
-    // Need to get the collection ref for the specific client
     const clientBookingsCollection = collection(firestore, `clients/${newBookingData.clientId}/bookings`);
     addDocumentNonBlocking(clientBookingsCollection, newBookingData);
     setIsFormOpen(false);
+    toast({ title: 'Booking Created', description: `A new booking for ${newBookingData.clientName} has been created.` });
   };
   
+  const handleUpdateBooking = (updatedData: Omit<Booking, 'id'>) => {
+      if (!firestore || !editingBooking) return;
+      const bookingRef = doc(firestore, `clients/${editingBooking.clientId}/bookings/${editingBooking.id}`);
+      setDocumentNonBlocking(bookingRef, updatedData, { merge: true });
+      setEditingBooking(null);
+      toast({ title: "Booking Updated", description: "The booking has been successfully updated." });
+  };
+
+  const handleConfirmCancel = () => {
+      if (!firestore || !bookingToCancel || !user) return;
+      const bookingRef = doc(firestore, `clients/${bookingToCancel.clientId}/bookings/${bookingToCancel.id}`);
+      setDocumentNonBlocking(bookingRef, { status: 'cancelled', updatedAt: serverTimestamp(), updatedBy: user.uid }, { merge: true });
+      toast({ variant: 'destructive', title: "Booking Cancelled", description: "The booking has been cancelled." });
+      setBookingToCancel(null);
+  };
+
   const displayBookings = searchTerm || statusFilter !== 'All' ? filteredBookings : bookings || [];
 
   return (
@@ -255,9 +290,15 @@ export default function BookingsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>Cancel</DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/clients/${booking.clientId}/bookings`}><Eye className="mr-2 h-4 w-4" />View Details</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setEditingBooking(booking)}>
+                        <Pencil className="mr-2 h-4 w-4" />Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setBookingToCancel(booking)} className="text-destructive">
+                        <XCircle className="mr-2 h-4 w-4" />Cancel
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -295,6 +336,43 @@ export default function BookingsPage() {
           </PaginationContent>
         </Pagination>
       </div>
+
+      <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Edit Booking</DialogTitle>
+            </DialogHeader>
+            {editingBooking && (
+                <BookingForm 
+                    booking={editingBooking}
+                    onSubmit={handleUpdateBooking} 
+                    clientId={editingBooking.clientId}
+                    clientName={editingBooking.clientName}
+                />
+            )}
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingBooking(null)}>Cancel</Button>
+                <Button type="submit" form="booking-form">Save Changes</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will cancel the booking for {bookingToCancel?.clientName}. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Back</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90">
+                    Confirm Cancellation
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

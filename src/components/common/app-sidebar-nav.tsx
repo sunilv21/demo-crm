@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Activity,
   Bell,
+  Database,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -43,6 +44,7 @@ const navItems = [
   { href: '/invoices', icon: FileText, label: 'Invoices' },
   { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder' },
   { href: '/activity', icon: Activity, label: 'Activity' },
+  { href: '/database', icon: Database, label: 'Database' },
 ];
 
 export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {

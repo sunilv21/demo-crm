@@ -81,7 +81,7 @@
         "visaStatus": {
           "type": "string",
           "description": "Visa status for the client.",
-          "enum": ["toStart", "inProcess", "approved", "rejected", "travelling"]
+          "enum": ["toStart", "inProcess", "applied", "approved", "rejected", "completed", "travelling"]
         },
         "visaHistory": {
             "type": "array",
@@ -113,6 +113,24 @@
         "assignedEmployee": {
           "type": "string",
           "description": "ID of the employee assigned to this client."
+        },
+        "pax": {
+            "type": "number",
+            "description": "Total number of travelers in the party."
+        },
+        "companions": {
+            "type": "array",
+            "description": "A list of companions traveling with the client.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The full name of the companion."
+                    }
+                },
+                "required": ["name"]
+            }
         },
         "avatar": {
           "type": "string",
@@ -504,9 +522,25 @@
           "description": "Email address of the user.",
           "format": "email"
         },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the user."
+        },
+        "jobTitle": {
+          "type": "string",
+          "description": "The user's job title or role within the company."
+        },
+        "avatar": {
+          "type": "string",
+          "description": "URL for the user's profile picture.",
+          "format": "uri"
+        },
         "role": {
           "type": "string",
-          "enum": ["employee", "admin"]
+          "enum": [
+            "employee",
+            "admin"
+          ]
         }
       },
       "required": [

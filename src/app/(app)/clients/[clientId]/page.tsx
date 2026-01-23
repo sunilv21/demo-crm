@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -8,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Mail, MapPin, Briefcase, Calendar, IndianRupee, Hotel, Cog, UserCheck, Plane, NotepadText, Pencil, FileText, Bell } from 'lucide-react';
+import { Phone, Mail, MapPin, Briefcase, Calendar, IndianRupee, Hotel, Cog, UserCheck, Plane, NotepadText, Pencil, FileText, Bell, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -161,6 +162,8 @@ export default function ClientProfilePage() {
                                                         visaStatus === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
                                                         visaStatus === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
                                                         visaStatus === 'travelling' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
+                                                        visaStatus === 'completed' ? 'bg-sky-100 text-sky-800 border-sky-200' :
+                                                        visaStatus === 'applied' ? 'bg-orange-100 text-orange-800 border-orange-200' :
                                                         visaStatus === 'inProcess' ? 'bg-purple-100 text-purple-800 border-purple-200' : 
                                                         'bg-gray-100 text-gray-800 border-gray-200')
                                                     }
@@ -211,6 +214,7 @@ export default function ClientProfilePage() {
                                     <div>
                                         <h3 className="text-sm font-medium mb-4 text-muted-foreground">Personal &amp; Travel Preferences</h3>
                                         <div className="grid sm:grid-cols-2 gap-6">
+                                            <DetailItem icon={Users} label="PAX" value={client.pax} />
                                             <DetailItem icon={Calendar} label="Date of Birth" value={client.dateOfBirth ? format(new Date(client.dateOfBirth), 'dd/MM/yyyy') : 'N/A'} />
                                             <DetailItem icon={UserCheck} label="Gender" value={client.gender} />
                                             <DetailItem icon={Briefcase} label="Travel Purpose" value={client.travelPurpose} />
@@ -222,8 +226,8 @@ export default function ClientProfilePage() {
                                             <DetailItem icon={Cog} label="Additional Services" value={client.additionalServices?.join(', ')} />
                                             {client.followUpDate && <DetailItem icon={Bell} label="Follow-up Date" value={format(new Date(client.followUpDate), 'PPP')} />}
                                         </div>
-
                                     </div>
+
                                     <div className='border-t border-border pt-6'>
                                         <h3 className="text-sm font-medium mb-4 text-muted-foreground">Notes</h3>
                                         <div className="flex items-start gap-3">

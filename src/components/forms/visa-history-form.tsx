@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -27,8 +28,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
-import { ScrollArea } from '../ui/scroll-area';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 
 const formSchema = z.object({
   country: z.string().min(1, 'Country is required.'),
@@ -120,32 +120,37 @@ export const VisaHistoryForm = React.forwardRef<HTMLFormElement, VisaHistoryForm
                             </Button>
                         </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <PopoverContent
+                        className="w-[--radix-popover-trigger-width] p-0"
+                        side="bottom"
+                        align="start"
+                        avoidCollisions={false}
+                    >
                         <Command>
                             <CommandInput placeholder="Search country..." />
                             <CommandEmpty>No country found.</CommandEmpty>
-                            <CommandGroup>
-                            <ScrollArea className="h-72">
-                                {countryNames.map((country) => (
-                                    <CommandItem
-                                        value={country}
-                                        key={country}
-                                        onSelect={() => {
-                                            form.setValue('country', country)
-                                            setOpen(false);
-                                        }}
-                                    >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                country === field.value ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        {country}
-                                    </CommandItem>
-                                ))}
-                            </ScrollArea>
-                            </CommandGroup>
+                            <CommandList className="max-h-60 overflow-y-auto overscroll-contain">
+                                <CommandGroup>
+                                    {countryNames.map((country) => (
+                                        <CommandItem
+                                            value={country}
+                                            key={country}
+                                            onSelect={() => {
+                                                form.setValue('country', country)
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    country === field.value ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {country}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
                         </Command>
                     </PopoverContent>
                 </Popover>

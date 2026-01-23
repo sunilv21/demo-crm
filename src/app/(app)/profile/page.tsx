@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { Mail, User as UserIcon, Pencil } from 'lucide-react';
+import { Mail, User as UserIcon, Pencil, Phone, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useState } from 'react';
@@ -68,7 +68,7 @@ export default function ProfilePage() {
     return <ProfilePageSkeleton />;
   }
   
-  const handleUpdateUser = async (values: { name: string }) => {
+  const handleUpdateUser = async (values: { name: string; phone?: string; jobTitle?: string; }) => {
     if (!user || !userDocRef) return;
 
     try {
@@ -78,6 +78,8 @@ export default function ProfilePage() {
       // Update Firestore user document
       const userData: Partial<AppUser> = {
         name: values.name,
+        phone: values.phone,
+        jobTitle: values.jobTitle,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid,
       };
@@ -116,7 +118,7 @@ export default function ProfilePage() {
       <Card className="mx-auto max-w-2xl">
         <CardHeader className="text-center items-center">
           <Avatar className="h-24 w-24 border-2 border-primary mb-4">
-            <AvatarImage src={user.photoURL || ''} alt={displayName} data-ai-hint="person face" />
+            <AvatarImage src={user.photoURL || userDoc?.avatar || ''} alt={displayName} data-ai-hint="person face" />
             <AvatarFallback className="text-4xl">{userInitial}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-3xl">{displayName}</CardTitle>
@@ -132,7 +134,7 @@ export default function ProfilePage() {
                 <DialogHeader>
                     <DialogTitle>Edit Profile</DialogTitle>
                 </DialogHeader>
-                <UserForm onSubmit={handleUpdateUser} user={user} />
+                <UserForm onSubmit={handleUpdateUser} user={user} userDoc={userDoc} />
                  <DialogFooter>
                     <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
                     <Button type="submit" form="user-form">Save Changes</Button>
@@ -142,6 +144,8 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4 mt-4 border-t pt-6">
             <DetailItem icon={Mail} value={user.email} />
+            <DetailItem icon={Phone} value={userDoc?.phone} />
+            <DetailItem icon={Briefcase} value={userDoc?.jobTitle} />
             <DetailItem icon={UserIcon} value={user.uid} />
         </CardContent>
       </Card>

@@ -1,10 +1,15 @@
 
+export type Companion = {
+    name: string;
+};
 
 export type User = {
   id: string;
   name: string;
   email: string;
-  avatarUrl: string;
+  phone?: string;
+  jobTitle?: string;
+  avatar?: string;
   role: 'employee' | 'admin';
   createdAt?: any;
   updatedAt?: any;
@@ -49,11 +54,13 @@ export type Client = {
   services?: 'visa' | 'fullPackage' | 'packageOnly';
   additionalServices?: ('travelInsurance' | 'airportPickup' | 'localTours')[];
   assignedEmployee?: string;
-  visaStatus?: 'toStart' | 'inProcess' | 'approved' | 'rejected' | 'travelling';
+  visaStatus?: 'toStart' | 'inProcess' | 'applied' | 'approved' | 'rejected' | 'completed' | 'travelling';
   visaHistory?: VisaHistoryItem[];
   previousTrips?: PreviousTrip[];
   requiredDocuments?: RequiredDocument[];
   followUpDate?: string;
+  pax?: number;
+  companions?: Companion[];
   createdAt: any;
   updatedAt: any;
   createdBy: string;
@@ -124,7 +131,7 @@ export type FollowUp = {
   clientEmail?: string;
   clientPhone?: string;
   date: string;
-  notes: string;
+  notes: string | null;
   done: boolean;
   priority: 'low' | 'medium' | 'high';
   createdAt: any;

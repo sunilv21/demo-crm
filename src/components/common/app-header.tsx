@@ -28,7 +28,7 @@ const Breadcrumb = () => {
           const href = `/${segments.slice(0, index + 1).join('/')}`;
           const isLast = index === segments.length - 1;
           return (
-            <li key={segment} className="flex items-center gap-2">
+            <li key={href} className="flex items-center gap-2">
               <span className="text-muted-foreground">/</span>
               <Link
                 href={href}

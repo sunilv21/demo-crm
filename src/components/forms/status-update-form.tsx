@@ -26,7 +26,7 @@ import { serverTimestamp } from 'firebase/firestore';
 
 const formSchema = z.object({
   status: z.enum(['active', 'inactive', 'lead', 'prospect']),
-  visaStatus: z.enum(['toStart', 'inProcess', 'approved', 'rejected', 'travelling', '']).optional(),
+  visaStatus: z.enum(['toStart', 'inProcess', 'applied', 'approved', 'rejected', 'completed', 'travelling', '']).optional(),
 });
 
 type StatusFormValues = z.infer<typeof formSchema>;
@@ -95,8 +95,10 @@ export const StatusUpdateForm = React.forwardRef<HTMLFormElement, StatusUpdateFo
                 <SelectContent>
                   <SelectItem value="toStart">To Start</SelectItem>
                   <SelectItem value="inProcess">In Process</SelectItem>
+                  <SelectItem value="applied">Applied</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="travelling">Travelling</SelectItem>
                 </SelectContent>
               </Select>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -88,7 +89,7 @@ export function FollowUpList() {
     
     return results.filter(f => 
         f.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.notes.toLowerCase().includes(searchTerm.toLowerCase())
+        (f.notes && f.notes.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [followUps, searchTerm]);
 
@@ -276,7 +277,7 @@ export function FollowUpList() {
                         )}>
                             {format(new Date(followUp.date), 'MMM d, yyyy')}
                         </TableCell>
-                        <TableCell className={cn("max-w-xs truncate", followUp.done && 'line-through')} title={followUp.notes}>{followUp.notes}</TableCell>
+                        <TableCell className={cn("max-w-xs truncate", followUp.done && 'line-through')} title={followUp.notes || ''}>{followUp.notes}</TableCell>
                         <TableCell>
                             <PriorityBadge priority={followUp.priority} />
                         </TableCell>

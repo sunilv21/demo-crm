@@ -5,12 +5,12 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { CustomerLog } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import Link from "next/link";
 import { useState } from "react";
 import { Input } from "./ui/input";
-import { Search } from "lucide-react";
+import { Search, User } from "lucide-react";
 
 const LogItemSkeleton = () => (
     <div className="flex items-start gap-4">
@@ -75,8 +75,9 @@ export function CustomerLogs({ clientId }: { clientId?: string }) {
             {!isLoading && filteredLogs?.map(log => (
                 <div key={log.id} className="flex items-start gap-4">
                     <Avatar className="h-9 w-9">
-                        <AvatarImage src={`https://picsum.photos/seed/${log.createdBy}/40/40`} data-ai-hint="person face" />
-                        <AvatarFallback>{log.userName?.slice(0, 2) || '?'}</AvatarFallback>
+                        <AvatarFallback>
+                            <User className="h-5 w-5" />
+                        </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                         <div className="flex items-center justify-between">

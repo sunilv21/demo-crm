@@ -24,6 +24,10 @@ import {
   Trash2,
   FilePlus2,
   UserPlus,
+  Bell,
+  Archive,
+  Pencil,
+  Book,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -40,11 +44,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import type { Client, CustomerLog } from '@/lib/types';
+import type { Client, CustomerLog, FollowUp, Booking } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/forms/client-form';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
@@ -64,12 +68,15 @@ import {
 import { format } from 'date-fns';
 import { CustomerLogForm } from '@/components/forms/customer-log-form';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { FollowUpForm } from '@/components/forms/follow-up-form';
+import { BookingForm } from '@/components/forms/booking-form';
 
 
 const ClientRowSkeleton = () => (
     <TableRow>
       <TableCell className="font-medium w-[250px]"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-24" /></div></TableCell>
       <TableCell className="w-[240px]"><Skeleton className="h-4 w-32" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-8" /></TableCell>
       <TableCell className="w-[100px]"><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell className="w-[150px]"><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell className="w-[120px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
@@ -100,12 +107,17 @@ export default function ClientsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [logClient, setLogClient] = useState<Client | null>(null);
+  const [followUpClient, setFollowUpClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [bookingClient, setBookingClient] = useState<Client | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const CLIENTS_PER_PAGE = 20;
 
   const clientsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, 'clients');
+    return query(collection(firestore, 'clients'), orderBy('name'));
   }, [firestore]);
 
   const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
@@ -125,15 +137,30 @@ export default function ClientsPage() {
       }
     }
   }, [searchTerm, clients]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
   
-  const handleAddClient = (newClientData: Omit<Client, 'id' | 'travelHistory' | 'lastFollowUp' | 'followUpCompleted'>) => {
+  const handleAddClient = (newClientData: Partial<Client>) => {
     if (!clientsQuery) return;
-    addDocumentNonBlocking(clientsQuery, newClientData);
+    addDocumentNonBlocking(collection(firestore!, 'clients'), newClientData);
     setIsFormOpen(false);
     toast({
         title: "Client Created",
         description: `New client "${newClientData.name}" has been added.`,
     })
+  };
+
+  const handleUpdateClient = (updatedData: Partial<Client>) => {
+    if (!firestore || !editingClient) return;
+    const clientDocRef = doc(firestore, 'clients', editingClient.id);
+    setDocumentNonBlocking(clientDocRef, { ...updatedData, updatedAt: serverTimestamp() }, { merge: true });
+    setEditingClient(null);
+    toast({
+        title: "Client Updated",
+        description: `Client "${editingClient.name}" has been successfully updated.`,
+    });
   };
 
   const handleDeleteClient = () => {
@@ -146,6 +173,16 @@ export default function ClientsPage() {
       description: `Client "${clientToDelete.name}" has been permanently deleted.`,
     });
     setClientToDelete(null);
+  };
+  
+  const handleArchiveClient = (clientToArchive: Client) => {
+    if (!firestore) return;
+    const clientDocRef = doc(firestore, 'clients', clientToArchive.id);
+    setDocumentNonBlocking(clientDocRef, { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
+    toast({
+      title: 'Client Archived',
+      description: `Client "${clientToArchive.name}" has been moved to the database.`,
+    });
   };
   
   const handleAddLog = (newLogData: Omit<CustomerLog, 'id' | 'timestamp' | 'clientId' | 'clientName' | 'userName'>) => {
@@ -171,6 +208,37 @@ export default function ClientsPage() {
     })
   };
 
+  const handleAddFollowUp = (values: Omit<FollowUp, 'id'|'clientName'|'clientEmail'|'clientPhone'>, client: Client) => {
+    if (!user || !firestore) return;
+    
+    const followUpsCollection = collection(firestore, 'follow_ups');
+    addDocumentNonBlocking(followUpsCollection, {
+        ...values,
+        clientId: client.id,
+        clientName: client.name,
+        clientEmail: client.email,
+        clientPhone: client.phone,
+        createdBy: user.uid,
+        updatedBy: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    setFollowUpClient(null);
+    toast({ title: "Follow-up created", description: `Follow-up for ${client.name} has been scheduled.` });
+  };
+  
+  const handleAddBooking = (newBookingData: Omit<Booking, 'id'>) => {
+    if (!firestore || !bookingClient) return;
+    const clientBookingsCollection = collection(firestore, `clients/${bookingClient.id}/bookings`);
+    addDocumentNonBlocking(clientBookingsCollection, newBookingData);
+    setBookingClient(null);
+    toast({
+        title: "Booking Created",
+        description: `New booking for "${bookingClient.name}" has been created.`,
+    })
+  };
+
 
   const handleShare = () => {
     const intakeUrl = `${window.location.origin}/intake`;
@@ -181,7 +249,34 @@ export default function ClientsPage() {
     });
   };
 
-  const displayClients = searchTerm ? filteredClients : clients || [];
+  const displayClients = (searchTerm ? filteredClients : clients?.filter(c => c.status !== 'inactive') || []);
+
+  const totalPages = Math.ceil(displayClients.length / CLIENTS_PER_PAGE);
+  const paginatedClients = displayClients.slice(
+    (currentPage - 1) * CLIENTS_PER_PAGE,
+    currentPage * CLIENTS_PER_PAGE
+  );
+
+  const goToPage = (pageNumber: number) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const startClientNum = displayClients.length > 0 ? (currentPage - 1) * CLIENTS_PER_PAGE + 1 : 0;
+  const endClientNum = Math.min(currentPage * CLIENTS_PER_PAGE, displayClients.length);
 
   return (
     <>
@@ -228,6 +323,49 @@ export default function ClientsPage() {
         </DialogContent>
       </Dialog>
       
+      <Dialog open={!!followUpClient} onOpenChange={(open) => !open && setFollowUpClient(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Follow-up for {followUpClient?.name}</DialogTitle>
+          </DialogHeader>
+          {followUpClient && <FollowUpForm clientForNewTask={followUpClient} onSubmit={handleAddFollowUp} />}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFollowUpClient(null)}>Cancel</Button>
+            <Button type="submit" form="follow-up-form">Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+       <Dialog open={!!editingClient} onOpenChange={(open) => !open && setEditingClient(null)}>
+        <DialogContent className="md:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit {editingClient?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[70vh] overflow-y-auto p-1">
+            {editingClient && <ClientForm client={editingClient} onSubmit={handleUpdateClient} onCancel={() => setEditingClient(null)} />}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={!!bookingClient} onOpenChange={(open) => !open && setBookingClient(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Booking for {bookingClient?.name}</DialogTitle>
+            </DialogHeader>
+            {bookingClient && (
+              <BookingForm 
+                onSubmit={handleAddBooking} 
+                clientId={bookingClient.id}
+                clientName={bookingClient.name}
+              />
+            )}
+             <DialogFooter>
+                <Button variant="outline" onClick={() => setBookingClient(null)}>Cancel</Button>
+                <Button type="submit" form="booking-form">Create Booking</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      
       <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
         <div className="bg-card border rounded-lg mt-4">
         <Table>
@@ -235,6 +373,7 @@ export default function ClientsPage() {
             <TableRow>
             <TableHead className="w-[250px]">Client</TableHead>
             <TableHead className="w-[240px]">Contact</TableHead>
+            <TableHead>PAX</TableHead>
             <TableHead className="w-[100px]">Documents</TableHead>
             <TableHead className="w-[150px]">Type</TableHead>
             <TableHead className="w-[120px]">Visa Status</TableHead>
@@ -246,9 +385,10 @@ export default function ClientsPage() {
         </TableHeader>
         <TableBody>
             {isLoading && Array.from({length: 5}).map((_, i) => <ClientRowSkeleton key={i} />)}
-            {!isLoading && displayClients.map((client) => {
+            {!isLoading && paginatedClients.map((client) => {
               const receivedDocs = client.requiredDocuments?.filter(d => d.status === 'received').length || 0;
               const totalDocs = client.requiredDocuments?.length || 0;
+              const pax = client.pax || 1;
               return (
                 <TableRow key={client.id}>
                     <TableCell className="font-medium">
@@ -273,6 +413,7 @@ export default function ClientsPage() {
                             <span className="text-sm">{client.phone}</span>
                         </div>
                     </TableCell>
+                    <TableCell>{pax}</TableCell>
                     <TableCell>
                       {totalDocs > 0 ? `${receivedDocs} of ${totalDocs}` : 'N/A'}
                     </TableCell>
@@ -291,7 +432,9 @@ export default function ClientsPage() {
                               `capitalize ` + (
                               client.visaStatus === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
                               client.visaStatus === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
-                              client.visaStatus === 'travelling' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
+                              client.visaStatus === 'travelling' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              client.visaStatus === 'completed' ? 'bg-sky-100 text-sky-800 border-sky-200' :
+                              client.visaStatus === 'applied' ? 'bg-orange-100 text-orange-800 border-orange-200' :
                               client.visaStatus === 'inProcess' ? 'bg-purple-100 text-purple-800 border-purple-200' : 
                               'bg-gray-100 text-gray-800 border-gray-200')
                           }
@@ -333,7 +476,22 @@ export default function ClientsPage() {
                                 <FilePlus2 className="mr-2 h-4 w-4"/>
                                 Add Log
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setFollowUpClient(client)}>
+                                <Bell className="mr-2 h-4 w-4"/>
+                                Add Follow-up
+                            </DropdownMenuItem>
+                             <DropdownMenuItem onSelect={() => setBookingClient(client)}>
+                                <Book className="mr-2 h-4 w-4"/>
+                                Create Booking
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setEditingClient(client)}>
+                                <Pencil className="mr-2 h-4 w-4"/>
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleArchiveClient(client)}>
+                                <Archive className="mr-2 h-4 w-4" />
+                                Archive
+                            </DropdownMenuItem>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem
                                   className="text-destructive"
@@ -351,7 +509,7 @@ export default function ClientsPage() {
             })}
         </TableBody>
         </Table>
-        { !isLoading && displayClients.length === 0 && (
+        { !isLoading && paginatedClients.length === 0 && (
             <div className="text-center p-8 text-muted-foreground">
                 No clients found.
             </div>
@@ -374,22 +532,31 @@ export default function ClientsPage() {
         </AlertDialogContent>
       </AlertDialog>
       <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
-          <div>Showing {displayClients.length} of {clients?.length || 0}</div>
-          <Pagination>
-          <PaginationContent>
-              <PaginationItem>
-              <PaginationPrevious href="#" />
-              </PaginationItem>
-              <PaginationItem>
-              <PaginationLink href="#" isActive>
-                  1
-              </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-              <PaginationNext href="#" />
-              </PaginationItem>
-          </PaginationContent>
-          </Pagination>
+        <div>
+           {displayClients.length > 0 ?
+              `Showing ${startClientNum} to ${endClientNum} of ${displayClients.length} clients`
+              : `Showing 0 of 0 clients`
+            }
+        </div>
+        {totalPages > 1 && (
+            <Pagination>
+            <PaginationContent>
+                <PaginationItem>
+                    <PaginationPrevious href="#" onClick={(e) => {e.preventDefault(); prevPage()}} className={currentPage === 1 ? 'pointer-events-none opacity-50' : undefined}/>
+                </PaginationItem>
+                {[...Array(totalPages).keys()].map((page) => (
+                    <PaginationItem key={page}>
+                        <PaginationLink href="#" onClick={(e) => { e.preventDefault(); goToPage(page + 1)}} isActive={currentPage === page + 1}>
+                            {page + 1}
+                        </PaginationLink>
+                    </PaginationItem>
+                ))}
+                <PaginationItem>
+                    <PaginationNext href="#" onClick={(e) => {e.preventDefault(); nextPage()}} className={currentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}/>
+                </PaginationItem>
+            </PaginationContent>
+            </Pagination>
+        )}
       </div>
     </>
   );
