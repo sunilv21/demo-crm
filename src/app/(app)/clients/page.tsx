@@ -28,6 +28,7 @@ import {
   Archive,
   Pencil,
   Book,
+  ChevronDown,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -110,6 +111,9 @@ export default function ClientsPage() {
   const [followUpClient, setFollowUpClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [visaStatusFilter, setVisaStatusFilter] = useState('All');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [bookingClient, setBookingClient] = useState<Client | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -124,23 +128,48 @@ export default function ClientsPage() {
 
   useEffect(() => {
     if (clients) {
-      if (searchTerm) {
+      const activeClients = clients.filter(c => c.status !== 'inactive');
+      
+      const results = activeClients.filter(client => {
         const lowercasedTerm = searchTerm.toLowerCase();
-        const results = clients.filter(client =>
-          client.name.toLowerCase().includes(lowercasedTerm) ||
-          (client.email && client.email.toLowerCase().includes(lowercasedTerm)) ||
-          client.status.toLowerCase().includes(lowercasedTerm)
-        );
-        setFilteredClients(results);
-      } else {
-        setFilteredClients(clients);
-      }
+        const searchMatch = searchTerm 
+            ? client.name.toLowerCase().includes(lowercasedTerm) ||
+              (client.email && client.email.toLowerCase().includes(lowercasedTerm))
+            : true;
+
+        const statusMatch = statusFilter !== 'All'
+            ? client.status.toLowerCase() === statusFilter.toLowerCase()
+            : true;
+
+        const typeMatch = typeFilter !== 'All'
+            ? client.travelPurpose?.toLowerCase() === typeFilter.toLowerCase()
+            : true;
+        
+        const visaStatusValueMap: {[key: string]: string} = {
+            'To Start': 'toStart',
+            'In Process': 'inProcess',
+            'Applied': 'applied',
+            'Approved': 'approved',
+            'Rejected': 'rejected',
+            'Completed': 'completed',
+            'Travelling': 'travelling'
+        };
+        const mappedVisaStatus = visaStatusValueMap[visaStatusFilter];
+        const visaStatusMatch = visaStatusFilter !== 'All'
+            ? client.visaStatus === mappedVisaStatus
+            : true;
+            
+        return searchMatch && statusMatch && typeMatch && visaStatusMatch;
+      });
+      setFilteredClients(results);
+    } else {
+        setFilteredClients([]);
     }
-  }, [searchTerm, clients]);
+  }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, statusFilter, typeFilter, visaStatusFilter]);
   
   const handleAddClient = (newClientData: Partial<Client>) => {
     if (!clientsQuery) return;
@@ -249,10 +278,8 @@ export default function ClientsPage() {
     });
   };
 
-  const displayClients = (searchTerm ? filteredClients : clients?.filter(c => c.status !== 'inactive') || []);
-
-  const totalPages = Math.ceil(displayClients.length / CLIENTS_PER_PAGE);
-  const paginatedClients = displayClients.slice(
+  const totalPages = Math.ceil(filteredClients.length / CLIENTS_PER_PAGE);
+  const paginatedClients = filteredClients.slice(
     (currentPage - 1) * CLIENTS_PER_PAGE,
     currentPage * CLIENTS_PER_PAGE
   );
@@ -275,22 +302,13 @@ export default function ClientsPage() {
     }
   };
   
-  const startClientNum = displayClients.length > 0 ? (currentPage - 1) * CLIENTS_PER_PAGE + 1 : 0;
-  const endClientNum = Math.min(currentPage * CLIENTS_PER_PAGE, displayClients.length);
+  const startClientNum = filteredClients.length > 0 ? (currentPage - 1) * CLIENTS_PER_PAGE + 1 : 0;
+  const endClientNum = Math.min(currentPage * CLIENTS_PER_PAGE, filteredClients.length);
 
   return (
     <>
       <PageHeader title="Clients" description="Manage all your customer profiles.">
         <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                placeholder="Search by name, email, or status..."
-                className="pl-10 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
             <Button variant="outline" onClick={handleShare}>
                 <Share2 className="mr-2 h-4 w-4" />
                 Share Intake Form
@@ -314,6 +332,61 @@ export default function ClientsPage() {
         </div>
       </PageHeader>
       
+      <div className="bg-card border rounded-lg p-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              className="pl-10 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto justify-between">
+                  Status: {statusFilter} <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {['All', 'Active', 'Prospect', 'Lead'].map(status => (
+                    <DropdownMenuItem key={status} onSelect={() => setStatusFilter(status)}>{status}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto justify-between">
+                  Type: {typeFilter} <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {['All', 'Leisure', 'Tourism', 'Visit', 'Business', 'Family'].map(type => (
+                    <DropdownMenuItem key={type} onSelect={() => setTypeFilter(type)}>{type}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto justify-between">
+                  Visa Status: {visaStatusFilter} <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {['All', 'To Start', 'In Process', 'Applied', 'Approved', 'Rejected', 'Completed', 'Travelling'].map(status => (
+                    <DropdownMenuItem key={status} onSelect={() => setVisaStatusFilter(status)}>{status}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+          </div>
+        </div>
+      </div>
+
       <Dialog open={!!logClient} onOpenChange={(open) => !open && setLogClient(null)}>
         <DialogContent>
           <DialogHeader>
@@ -533,8 +606,8 @@ export default function ClientsPage() {
       </AlertDialog>
       <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
         <div>
-           {displayClients.length > 0 ?
-              `Showing ${startClientNum} to ${endClientNum} of ${displayClients.length} clients`
+           {filteredClients.length > 0 ?
+              `Showing ${startClientNum} to ${endClientNum} of ${filteredClients.length} clients`
               : `Showing 0 of 0 clients`
             }
         </div>
