@@ -117,12 +117,14 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [bookingClient, setBookingClient] = useState<Client | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState('name-asc');
   const CLIENTS_PER_PAGE = 20;
 
   const clientsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'clients'), orderBy('name'));
-  }, [firestore]);
+    const [field, direction] = sortOrder.split('-');
+    return query(collection(firestore, 'clients'), orderBy(field, direction as 'asc' | 'desc'));
+  }, [firestore, sortOrder]);
 
   const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
 
@@ -169,7 +171,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, typeFilter, visaStatusFilter]);
+  }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, sortOrder]);
   
   const handleAddClient = (newClientData: Partial<Client>) => {
     if (!clientsQuery) return;
@@ -304,6 +306,12 @@ export default function ClientsPage() {
   
   const startClientNum = filteredClients.length > 0 ? (currentPage - 1) * CLIENTS_PER_PAGE + 1 : 0;
   const endClientNum = Math.min(currentPage * CLIENTS_PER_PAGE, filteredClients.length);
+  
+  const sortOptions: { [key: string]: string } = {
+    'name-asc': 'Name - Alphabetic',
+    'createdAt-desc': 'Newer to Old',
+    'createdAt-asc': 'Old to New',
+  };
 
   return (
     <>
@@ -379,6 +387,19 @@ export default function ClientsPage() {
               <DropdownMenuContent>
                 {['All', 'To Start', 'In Process', 'Applied', 'Approved', 'Rejected', 'Completed', 'Travelling'].map(status => (
                     <DropdownMenuItem key={status} onSelect={() => setVisaStatusFilter(status)}>{status}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto justify-between">
+                  Sort by: {sortOptions[sortOrder]} <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {Object.entries(sortOptions).map(([value, label]) => (
+                    <DropdownMenuItem key={value} onSelect={() => setSortOrder(value)}>{label}</DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -634,3 +655,4 @@ export default function ClientsPage() {
     </>
   );
 }
+
