@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Client } from '@/lib/types';
+import type { Client, Companion } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Check, ChevronsUpDown, Bell, Trash2, Loader2, PlusCircle } from 'lucide-react';
@@ -49,12 +49,7 @@ const formSchema = z.object({
   country: z.string().min(1, { message: 'Country is required.' }),
   phone: z.string().min(1, { message: 'Phone is required.' }),
   travelPurpose: z.string().optional(),
-  dateOfBirth: z.string().optional().refine((val) => {
-    if (!val) return true; // Optional field
-    return /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/.test(val);
-  }, {
-    message: "Date must be in DD/MM/YYYY format.",
-  }),
+  dateOfBirth: z.date().optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
   nationality: z.string().optional(),
   preferredDestination: z.string().optional(),
@@ -241,7 +236,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       country: client?.phone ? parsePhoneNumber(client.phone)?.country : 'IN',
       phone: client?.phone ? parsePhoneNumber(client.phone)?.nationalNumber : '',
       travelPurpose: client?.travelPurpose || '',
-      dateOfBirth: client?.dateOfBirth ? format(new Date(client.dateOfBirth), 'dd/MM/yyyy') : '',
+      dateOfBirth: client?.dateOfBirth ? new Date(client.dateOfBirth) : undefined,
       gender: client?.gender,
       nationality: client?.nationality || '',
       preferredDestination: client?.preferredDestination || '',
@@ -267,11 +262,6 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
   });
 
   const { clearSavedData } = useFormPersistence<ClientFormValues>(FORM_KEY, form);
-
-  const startDate = useWatch({
-    control: form.control,
-    name: 'preferredTravelDates.from',
-  });
 
   function handleSubmit(values: ClientFormValues) {
     if ((!user && !isPublicForm) || isSubmitting) {
@@ -299,17 +289,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
     dataToSubmit.avatar = client?.avatar || randomAvatar;
     dataToSubmit.companions = values.companions || [];
     
-    if (values.dateOfBirth) {
-        try {
-            dataToSubmit.dateOfBirth = parse(values.dateOfBirth, 'dd/MM/yyyy', new Date()).toISOString();
-        } catch (e) {
-             console.error("Invalid date format:", values.dateOfBirth);
-             form.setError("dateOfBirth", { type: "manual", message: "Date must be in DD/MM/YYYY format." });
-             return;
-        }
-    } else {
-        dataToSubmit.dateOfBirth = null;
-    }
+    dataToSubmit.dateOfBirth = values.dateOfBirth ? values.dateOfBirth.toISOString() : null;
 
     dataToSubmit.preferredTravelDates = {
         from: values.preferredTravelDates?.from?.toISOString() ?? null,
@@ -345,7 +325,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       country: 'IN',
       phone: '',
       travelPurpose: '',
-      dateOfBirth: '',
+      dateOfBirth: undefined,
       gender: undefined,
       nationality: '',
       preferredDestination: '',
@@ -374,49 +354,53 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
   const formSelectContentClass = isPublicForm ? "bg-gray-800 text-white" : "";
   const formRadioLabelClass = isPublicForm ? "text-white/90 font-normal" : "font-normal";
 
-  const DatePicker = ({ field }: { field: any }) => {
+  const DatePicker = ({ field, isPublicForm }: { field: any, isPublicForm?: boolean }) => {
     const [open, setOpen] = React.useState(false);
     
-    // Get the start date value for end date validation
-    const startDate = form.getValues('preferredTravelDates.from');
+    const rawStartDate = form.getValues('preferredTravelDates.from');
+    const startDate = rawStartDate ? new Date(rawStartDate) : null;
+    const isValidStartDate = startDate && !isNaN(startDate.getTime());
     
+    const date = field.value ? new Date(field.value) : null;
+    const isValidDate = date && !isNaN(date.getTime());
+
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <FormControl>
                     <Button
                         variant={'outline'}
-                        className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground', formSelectTriggerClass)}
+                        className={cn('w-full pl-3 text-left font-normal', !isValidDate && 'text-muted-foreground', formSelectTriggerClass)}
                     >
-                        {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                        {isValidDate ? format(date, 'PPP') : <span>Pick a date</span>}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                 </FormControl>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className={cn("w-auto p-0", isPublicForm && "dark")} align="start">
                 <Calendar
                     mode="single"
-                    selected={field.value}
-                    onSelect={(date) => {
-                        field.onChange(date);
+                    selected={isValidDate ? date : undefined}
+                    onSelect={(selectedDate) => {
+                        field.onChange(selectedDate);
                         
-                        // If this is start date, clear end date if it's before new start date
                         if (field.name === 'preferredTravelDates.from') {
-                            const endDate = form.getValues('preferredTravelDates.to');
-                            if (endDate && date && endDate < date) {
+                            const rawEndDate = form.getValues('preferredTravelDates.to');
+                            const endDate = rawEndDate ? new Date(rawEndDate) : null;
+                            if (endDate && selectedDate && endDate < selectedDate) {
                                 form.setValue('preferredTravelDates.to', undefined);
                             }
                         }
                         
-                        if (date) setOpen(false);
+                        if (selectedDate) setOpen(false);
                     }}
-                    disabled={(date) => {
+                    disabled={(d) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        if (field.name === 'preferredTravelDates.to' && startDate) {
-                            return date < startDate;
+                        if (field.name === 'preferredTravelDates.to' && isValidStartDate && startDate) {
+                            return d < startDate;
                         }
-                        return date < today;
+                        return d < today;
                     }}
                     initialFocus
                 />
@@ -424,30 +408,47 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         </Popover>
     );
   };
-  
-    const DatePickerString = ({ field }: { field: any }) => {
+
+  const BirthDatePicker = ({ field, isPublicForm }: { field: any, isPublicForm?: boolean }) => {
+    const [open, setOpen] = React.useState(false);
+    const currentYear = new Date().getFullYear();
+
+    const date = field.value ? new Date(field.value) : null;
+    const isValidDate = date && !isNaN(date.getTime());
+
     return (
-        <Input
-            placeholder="DD/MM/YYYY"
-            {...field}
-            onChange={(e) => {
-                const input = e.target.value.replace(/\D/g, '');
-                let formattedInput = '';
-                if (input.length > 0) formattedInput = input.substring(0, 2);
-                if (input.length > 2) formattedInput += '/' + input.substring(2, 4);
-                if (input.length > 4) formattedInput += '/' + input.substring(4, 8);
-                field.onChange(formattedInput);
-            }}
-            maxLength={10}
-            className={cn(
-                formInputClass,
-                "min-h-[44px] touch-manipulation" // Ensure minimum touch target size for mobile
-            )}
-            inputMode="numeric" // Show numeric keypad on mobile
-            pattern="[0-9]*" // Helps with numeric input on mobile
-        />
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <FormControl>
+                    <Button
+                        variant={'outline'}
+                        className={cn('w-full pl-3 text-left font-normal', !isValidDate && 'text-muted-foreground', formSelectTriggerClass)}
+                    >
+                        {isValidDate ? format(date, 'PPP') : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                </FormControl>
+            </PopoverTrigger>
+            <PopoverContent className={cn("w-auto p-0", isPublicForm && "dark")} align="start">
+                <Calendar
+                    mode="single"
+                    selected={isValidDate ? date : undefined}
+                    onSelect={(d) => {
+                        field.onChange(d);
+                        if (d) setOpen(false);
+                    }}
+                    disabled={(d) => d > new Date()}
+                    captionLayout="dropdown-buttons"
+                    fromYear={1900}
+                    toYear={currentYear}
+                    defaultMonth={isValidDate && date ? date : new Date(currentYear - 30, 0, 1)}
+                    initialFocus
+                />
+            </PopoverContent>
+        </Popover>
     );
   };
+  
 
   return (
     <Form {...form}>
@@ -545,11 +546,9 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         control={form.control}
                         name="dateOfBirth"
                         render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Date of Birth</FormLabel>
-                            <FormControl>
-                                <DatePickerString field={field} />
-                            </FormControl>
+                            <BirthDatePicker field={field} isPublicForm={isPublicForm} />
                             <FormMessage />
                         </FormItem>
                         )}
@@ -720,7 +719,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Preferred Start Date</FormLabel>
-                                <DatePicker field={field} />
+                                <DatePicker field={field} isPublicForm={isPublicForm} />
                             <FormMessage />
                             </FormItem>
                         )}
@@ -731,7 +730,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Preferred End Date</FormLabel>
-                                <DatePicker field={field} />
+                                <DatePicker field={field} isPublicForm={isPublicForm} />
                             <FormMessage />
                             </FormItem>
                         )}
