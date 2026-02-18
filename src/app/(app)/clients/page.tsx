@@ -472,7 +472,7 @@ export default function ClientsPage() {
             <TableHead className="w-[150px]">Type</TableHead>
             <TableHead className="w-[120px]">Visa Status</TableHead>
             <TableHead className="w-[110px]">Status</TableHead>
-            <TableHead className="w-[120px]">Last Activity</TableHead>
+            <TableHead className="w-[120px]">Date Created</TableHead>
             <TableHead>Last Log</TableHead>
             <TableHead className="w-[50px]">Actions</TableHead>
             </TableRow>
@@ -553,7 +553,7 @@ export default function ClientsPage() {
                         {client.status}
                     </Badge>
                     </TableCell>
-                    <TableCell>{client.updatedAt?.toDate ? format(client.updatedAt.toDate(), 'P') : 'N/A'}</TableCell>
+                    <TableCell>{client.createdAt?.toDate ? format(client.createdAt.toDate(), 'P') : 'N/A'}</TableCell>
                     <TableCell  className="max-w-[200px]">
                       <LastLogActivity clientId={client.id} />
                     </TableCell>
@@ -655,4 +655,5 @@ export default function ClientsPage() {
     </>
   );
 }
+
 
