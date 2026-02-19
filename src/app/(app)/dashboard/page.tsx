@@ -107,7 +107,8 @@ export default function DashboardPage() {
 
   const totalClients = clients?.length ?? 0;
   const activeClients = clients?.filter(c => c.status === 'active').length ?? 0;
-  const approvedVisas = clients?.filter(c => c.visaStatus === 'approved').length ?? 0;
+  const approvedVisaStatuses = ['approved', 'completed', 'travelling'];
+  const approvedVisas = clients?.filter(c => c.visaStatus && approvedVisaStatuses.includes(c.visaStatus)).length ?? 0;
   const rejectedVisas = clients?.filter(c => c.visaStatus === 'rejected').length ?? 0;
   const isLoading = isLoadingClients || isLoadingLeads || isLoadingBookings;
 
