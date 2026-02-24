@@ -1,276 +1,171 @@
 'use client';
-
-import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/common/page-header';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { ArchiveRestore, MoreHorizontal, Search, Eye, FilePlus2, Pencil, Trash2 } from 'lucide-react';
-import type { Client, CustomerLog } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Link from 'next/link';
-import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { ClientForm } from '@/components/forms/client-form';
-import { CustomerLogForm } from '@/components/forms/customer-log-form';
+import { OverviewChart } from '@/components/dashboard/overview-chart';
+import { RecentBookings } from '@/components/dashboard/recent-bookings';
+import { StatCard } from '@/components/dashboard/stat-card';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, getDocs, collectionGroup } from 'firebase/firestore';
+import type { Booking, Lead, Client } from '@/lib/types';
+import { IndianRupee, Users, Activity, CreditCard, UserCheck, CheckCircle, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
+type MonthlyData = {
+  name: string;
+  total: number;
+};
 
-const ArchivedClientRowSkeleton = () => (
-    <TableRow>
-      <TableCell className="font-medium w-[250px]"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-24" /></div></TableCell>
-      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell className="w-[50px]"><MoreHorizontal className="h-4 w-4" /></TableCell>
-    </TableRow>
-);
-
-export default function DatabasePage() {
+export default function DashboardPage() {
   const firestore = useFirestore();
-  const { user } = useUser();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
-  const { toast } = useToast();
+  const [totalRevenue, setTotalRevenue] = useState(0);
+    const [lastMonthRevenue, setLastMonthRevenue] = useState(0);
+  const [conversionRate, setConversionRate] = useState(0);
+  const [chartData, setChartData] = useState<MonthlyData[]>([]);
+  const [newClientsThisMonth, setNewClientsThisMonth] = useState(0);
+  const [activeClientsPreviousMonth, setActiveClientsPreviousMonth] = useState(0);
   
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [logClient, setLogClient] = useState<Client | null>(null);
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const clientsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
+  const leadsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'leads') : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(() => firestore ? query(collectionGroup(firestore, 'bookings')) : null, [firestore]);
 
-  const archivedClientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'clients'), where('status', '==', 'inactive'));
-  }, [firestore]);
-
-  const { data: clients, isLoading } = useCollection<Client>(archivedClientsQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: leads, isLoading: isLoadingLeads } = useCollection<Lead>(leadsQuery);
+  const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
 
   useEffect(() => {
-    if (clients) {
-      if (searchTerm) {
-        const lowercasedTerm = searchTerm.toLowerCase();
-        const results = clients.filter(client =>
-          client.name.toLowerCase().includes(lowercasedTerm) ||
-          (client.email && client.email.toLowerCase().includes(lowercasedTerm))
-        );
-        setFilteredClients(results);
-      } else {
-        setFilteredClients(clients);
-      }
+    if (bookings) {
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+      const thisYear = now.getFullYear();
+      const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+
+      const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+      const revenue = confirmedBookings.reduce((sum, booking) => sum + (booking.total || 0), 0);
+      setTotalRevenue(revenue);
+      
+      const lastMonthRev = confirmedBookings
+        .filter(b => {
+            const bookingDate = new Date(b.startDate);
+            return bookingDate.getMonth() === lastMonth && bookingDate.getFullYear() === lastMonthYear;
+        })
+        .reduce((sum, booking) => sum + (booking.total || 0), 0);
+      setLastMonthRevenue(lastMonthRev);
+
+      const monthlyRevenue: { [key: string]: number } = {};
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      
+      monthNames.forEach(month => {
+        monthlyRevenue[month] = 0;
+      });
+
+      confirmedBookings.forEach(booking => {
+        const month = new Date(booking.startDate).getMonth();
+        const monthName = monthNames[month];
+        monthlyRevenue[monthName] += booking.total || 0;
+      });
+
+      const dataForChart = monthNames.map(monthName => ({
+        name: monthName,
+        total: monthlyRevenue[monthName],
+      }));
+      
+      setChartData(dataForChart);
     }
-  }, [searchTerm, clients]);
+  }, [bookings]);
 
-  const handleUnarchiveClient = (clientToUnarchive: Client) => {
-    if (!firestore) return;
-    const clientDocRef = doc(firestore, 'clients', clientToUnarchive.id);
-    setDocumentNonBlocking(clientDocRef, { status: 'active', updatedAt: serverTimestamp() }, { merge: true });
-    toast({
-      title: 'Client Unarchived',
-      description: `Client "${clientToUnarchive.name}" has been restored to the active client list.`,
-    });
-  };
+  useEffect(() => {
+    if (leads && leads.length > 0) {
+      const wonLeads = leads.filter(lead => lead.status === 'won').length;
+      setConversionRate(Math.round((wonLeads / leads.length) * 100));
+    }
+  }, [leads]);
+  
+  useEffect(() => {
+    if (clients) {
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+      
+      const lastMonthDate = new Date(now.setMonth(thisMonth - 1));
+      const lastMonth = lastMonthDate.getMonth();
+      const lastMonthYear = lastMonthDate.getFullYear();
 
-  const handleUpdateClient = (updatedData: Partial<Client>) => {
-    if (!firestore || !editingClient) return;
-    const clientDocRef = doc(firestore, 'clients', editingClient.id);
-    setDocumentNonBlocking(clientDocRef, { ...updatedData, updatedAt: serverTimestamp() }, { merge: true });
-    setEditingClient(null);
-    toast({
-        title: "Client Updated",
-        description: `Client "${editingClient.name}" has been successfully updated.`,
-    });
-  };
+      const newThisMonth = clients.filter(c => {
+        const createdAt = c.createdAt?.toDate();
+        return createdAt && createdAt.getMonth() === thisMonth && createdAt.getFullYear() === thisYear;
+      }).length;
+      setNewClientsThisMonth(newThisMonth);
+      
+      const activeLastMonth = clients.filter(c => {
+        const createdAt = c.createdAt?.toDate();
+        // A proxy for active clients in the previous month.
+        return createdAt && createdAt.getMonth() === lastMonth && createdAt.getFullYear() === lastMonthYear && c.status === 'active';
+      }).length;
+      setActiveClientsPreviousMonth(activeLastMonth);
+    }
+  }, [clients]);
 
-  const handleAddLog = (newLogData: Omit<CustomerLog, 'id' | 'timestamp' | 'clientId' | 'clientName' | 'userName'>) => {
-    if (!firestore || !logClient || !user) return;
-    
-    const logsCollectionRef = collection(firestore, 'customer_logs');
-    addDocumentNonBlocking(logsCollectionRef, {
-      ...newLogData,
-      clientId: logClient.id,
-      clientName: logClient.name,
-      userName: user.displayName,
-    });
-
-    const clientRef = doc(firestore, 'clients', logClient.id);
-    setDocumentNonBlocking(clientRef, { updatedAt: serverTimestamp() }, { merge: true });
-    
-    setLogClient(null);
-    toast({
-        title: "Log Added",
-        description: "A new entry has been added to the customer's log.",
-    })
-  };
-
-  const handleDeleteClient = () => {
-    if (!firestore || !clientToDelete) return;
-    const clientDocRef = doc(firestore, 'clients', clientToDelete.id);
-    deleteDocumentNonBlocking(clientDocRef);
-    toast({
-      variant: 'destructive',
-      title: 'Client Deleted',
-      description: `Client "${clientToDelete.name}" has been permanently deleted.`,
-    });
-    setClientToDelete(null);
-  };
-
-
-  const displayClients = searchTerm ? filteredClients : clients || [];
+  const totalClients = clients?.length ?? 0;
+  const activeClients = clients?.filter(c => c.status === 'active').length ?? 0;
+  const approvedVisaStatuses = ['approved', 'completed', 'travelling'];
+  const approvedVisas = clients?.filter(c => c.visaStatus && approvedVisaStatuses.includes(c.visaStatus)).length ?? 0;
+  const rejectedVisas = clients?.filter(c => c.visaStatus === 'rejected').length ?? 0;
+  const isLoading = isLoadingClients || isLoadingLeads || isLoadingBookings;
 
   return (
     <>
-      <PageHeader title="Archived Clients" description="A database of clients you are not actively working with.">
-         <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-            placeholder="Search by name or email..."
-            className="pl-10 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            />
-        </div>
-      </PageHeader>
-      
-      <Dialog open={!!editingClient} onOpenChange={(open) => !open && setEditingClient(null)}>
-        <DialogContent className="md:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit {editingClient?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto p-1">
-            {editingClient && <ClientForm client={editingClient} onSubmit={handleUpdateClient} onCancel={() => setEditingClient(null)} />}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={!!logClient} onOpenChange={(open) => !open && setLogClient(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Log for {logClient?.name}</DialogTitle>
-          </DialogHeader>
-          {logClient && <CustomerLogForm client={logClient} onSubmit={handleAddLog} />}
-        </DialogContent>
-      </Dialog>
-
-      <div className="bg-card border rounded-lg mt-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[300px]">Client</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Last Destination</TableHead>
-              <TableHead>Date Archived</TableHead>
-              <TableHead className="w-[50px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && Array.from({length: 5}).map((_, i) => <ArchivedClientRowSkeleton key={i} />)}
-            {!isLoading && displayClients.map((client) => (
-                <TableRow key={client.id}>
-                    <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 border">
-                                <AvatarImage src={client.avatar} alt={client.name} data-ai-hint="person face" />
-                                <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <Link href={`/clients/${client.id}`} className="hover:underline">{client.name}</Link>
-                                <div className="text-sm text-muted-foreground truncate">{client.email || 'No email'}</div>
-                            </div>
-                        </div>
-                    </TableCell>
-                    <TableCell>{client.phone}</TableCell>
-                    <TableCell>{client.preferredDestination || 'N/A'}</TableCell>
-                    <TableCell>{client.updatedAt?.toDate ? format(client.updatedAt.toDate(), 'P') : 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem onSelect={() => handleUnarchiveClient(client)}>
-                              <ArchiveRestore className="mr-2 h-4 w-4" />
-                              Unarchive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild><Link href={`/clients/${client.id}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Details</Link></DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setLogClient(client)}>
-                                <FilePlus2 className="mr-2 h-4 w-4"/>
-                                Add Log
-                            </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => setEditingClient(client)}>
-                                <Pencil className="mr-2 h-4 w-4"/>
-                                Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                className="text-destructive"
-                                onSelect={() => setClientToDelete(client)}
-                            >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-              )
-            )}
-          </TableBody>
-        </Table>
-        {!isLoading && displayClients.length === 0 && (
-            <div className="text-center p-8 text-muted-foreground">
-                <p>No archived clients found.</p>
-            </div>
-        )}
+      <PageHeader title="Dashboard" description="Welcome to your Sky Visa CRM." />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          title="Total Revenue"
+          value={`₹${(totalRevenue).toLocaleString()}`}
+          icon={IndianRupee}
+          isLoading={isLoading}
+          variant="warning"
+          description={`Last Month: ${lastMonthRevenue.toLocaleString()}`}
+        />
+        <StatCard
+          title="This Month"
+          value={`+${newClientsThisMonth}`}
+          icon={Users}
+          isLoading={isLoading}
+          description={`Total Clients: ${totalClients}`}
+        />
+        <StatCard
+          title="Active Clients"
+          value={`+${activeClients}`}
+          icon={UserCheck}
+          isLoading={isLoading}
+          variant="success"
+          description={`Previous Month: ${activeClientsPreviousMonth}`}
+        />
+        <StatCard
+          title="Conversion Rate"
+          value={`${conversionRate}%`}
+          icon={Activity}
+          isLoading={isLoading}
+        />
+         <StatCard
+          title="Visa Approved"
+          value={`${approvedVisas}`}
+          icon={CheckCircle}
+          isLoading={isLoading}
+          variant="success"
+          description={`Total Visa: ${totalClients}`}
+        />
+         <StatCard
+          title="Visa Rejected"
+          value={`${rejectedVisas}`}
+          icon={XCircle}
+          isLoading={isLoading}
+          variant="danger"
+          description={`Total rejected: ${rejectedVisas}`}
+        />
       </div>
-
-      <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the client
-              <span className="font-bold"> {clientToDelete?.name}</span> and all associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <div className="grid gap-4 mt-8 md:grid-cols-1 lg:grid-cols-3">
+        <OverviewChart data={chartData} isLoading={isLoadingBookings} />
+        <RecentBookings />
+      </div>
     </>
   );
 }
