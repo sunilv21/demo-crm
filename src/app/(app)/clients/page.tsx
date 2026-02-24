@@ -587,11 +587,9 @@ export default function ClientsPage() {
                                     <DropdownMenuItem onSelect={() => setFollowUpClient(client)}><Bell className="mr-2 h-4 w-4"/>Add Follow-up</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setBookingClient(client)}><Book className="mr-2 h-4 w-4"/>Create Booking</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handleArchiveClient(client)}><Archive className="mr-2 h-4 w-4"/>Archive</DropdownMenuItem>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setClientToDelete(client); }}>
-                                            <Trash2 className="mr-2 h-4 w-4"/>Delete
-                                        </DropdownMenuItem>
-                                    </AlertDialogTrigger>
+                                    <DropdownMenuItem className="text-destructive" onSelect={() => setClientToDelete(client)}>
+                                        <Trash2 className="mr-2 h-4 w-4"/>Delete
+                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
