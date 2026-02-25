@@ -64,13 +64,13 @@ import {
                                                                           AlertDialogFooter,
                                                                             AlertDialogHeader,
                                                                               AlertDialogTitle,
-                                                                                AlertDialogTrigger,
-                                                                                } from "@/components/ui/alert-dialog"
+                                                                              } from "@/components/ui/alert-dialog"
                                                                                 import { format } from 'date-fns';
                                                                                 import { CustomerLogForm } from '@/components/forms/customer-log-form';
                                                                                 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
                                                                                 import { FollowUpForm } from '@/components/forms/follow-up-form';
                                                                                 import { BookingForm } from '@/components/forms/booking-form';
+import { LastLogActivity } from '@/components/clients/last-log-activity';
 
 
                                                                                 const ClientRowSkeleton = () => (
@@ -488,6 +488,24 @@ export default function ClientsPage() {
                 </DialogContent>
             </Dialog>
             
+             <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the client
+                        <span className="font-bold"> {clientToDelete?.name}</span> and all associated data.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
+                        Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <div className="bg-card border rounded-lg mt-4">
                 <Table>
                     <TableHeader>
@@ -567,11 +585,7 @@ export default function ClientsPage() {
                             </TableCell>
                             <TableCell>{client.createdAt?.toDate ? format(client.createdAt.toDate(), 'P') : 'N/A'}</TableCell>
                             <TableCell>
-                                {client.followUpDate ? (
-                                    <div className="flex items-center gap-1 text-sm text-amber-600">
-                                        <Bell className="h-4 w-4"/> {format(new Date(client.followUpDate), 'P')}
-                                    </div>
-                                ) : "No upcoming follow-up"}
+                                <LastLogActivity clientId={client.id} />
                             </TableCell>
                             <TableCell className="text-right">
                                 <DropdownMenu>
@@ -632,24 +646,6 @@ export default function ClientsPage() {
                     </PaginationContent>
                 </Pagination>
             </div>
-
-            <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the client
-                        <span className="font-bold"> {clientToDelete?.name}</span> and all associated data.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
-                        Continue
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </>
     );
 }
