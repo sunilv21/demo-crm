@@ -165,9 +165,7 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
                         selected={field.value}
                         onSelect={(date) => {
                           field.onChange(date);
-                          if (date) {
-                            setIsDatePickerOpen(false);
-                          }
+                          setIsDatePickerOpen(false);
                         }}
                         initialFocus
                       />
