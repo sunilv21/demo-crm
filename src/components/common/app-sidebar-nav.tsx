@@ -73,7 +73,7 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
         )}
       >
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Image src="/" alt="Sky Visa Logo" width={32} height={32} className="h-8 w-auto" />
+          <Image src="/favicon.ico" alt="Sky Visa Logo" width={32} height={32} className="h-8 w-auto" />
         </Link>
       </div>
       <div className="flex-1 py-2 overflow-y-auto">
