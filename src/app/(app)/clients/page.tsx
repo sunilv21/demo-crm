@@ -118,7 +118,7 @@ export default function ClientsPage() {
     const [bookingClient, setBookingClient] = useState<Client | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState('createdAt-desc');
-    const CLIENTS_PER_PAGE = 20;
+    const CLIENTS_PER_PAGE = 50;
 
     const clientsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -488,7 +488,7 @@ export default function ClientsPage() {
                 </DialogContent>
             </Dialog>
             
-             <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+            <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -500,7 +500,7 @@ export default function ClientsPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
-                        Continue
+                            Delete
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -601,7 +601,10 @@ export default function ClientsPage() {
                                     <DropdownMenuItem onSelect={() => setFollowUpClient(client)}><Bell className="mr-2 h-4 w-4"/>Add Follow-up</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setBookingClient(client)}><Book className="mr-2 h-4 w-4"/>Create Booking</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handleArchiveClient(client)}><Archive className="mr-2 h-4 w-4"/>Archive</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive" onSelect={() => setClientToDelete(client)}>
+                                    <DropdownMenuItem
+                                        className="text-destructive"
+                                        onSelect={() => setClientToDelete(client)}
+                                    >
                                         <Trash2 className="mr-2 h-4 w-4"/>Delete
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
