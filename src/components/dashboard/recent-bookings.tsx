@@ -1,6 +1,7 @@
 'use client';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { mockClients, mockBookings } from '@/lib/data';
 import { useEffect, useState } from 'react';
@@ -42,8 +43,9 @@ export function RecentBookings() {
           {recentClients.map((client) => client && (
             <div className="flex items-center" key={client.id}>
               <Avatar className="h-9 w-9">
-                <AvatarImage src={client.avatar} alt="Avatar" data-ai-hint="person face" />
-                <AvatarFallback>{client.name?.charAt(0) ?? '?'}</AvatarFallback>
+                <AvatarFallback>
+                  <User className="h-5 w-5 text-muted-foreground" />
+                </AvatarFallback>
               </Avatar>
               <div className="ml-4 space-y-1">
                 <p className="text-sm font-medium leading-none">{client.name}</p>

@@ -1,7 +1,7 @@
 'use client';
 
 import { PageHeader } from '@/components/common/page-header';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
@@ -111,7 +111,6 @@ export default function ProfilePage() {
     }
   };
 
-  const userInitial = user.displayName?.charAt(0) || user.email?.charAt(0) || '?';
   const displayName = user.displayName || userDoc?.name || 'User';
 
   return (
@@ -120,8 +119,9 @@ export default function ProfilePage() {
       <Card className="mx-auto max-w-2xl">
         <CardHeader className="text-center items-center">
           <Avatar className="h-24 w-24 border-2 border-primary mb-4">
-            <AvatarImage src={user.photoURL || userDoc?.avatar || ''} alt={displayName} data-ai-hint="person face" />
-            <AvatarFallback className="text-4xl">{userInitial}</AvatarFallback>
+            <AvatarFallback>
+              <UserIcon className="h-12 w-12 text-muted-foreground" />
+            </AvatarFallback>
           </Avatar>
           <CardTitle className="text-3xl">{displayName}</CardTitle>
           <p className="text-muted-foreground">{user.email}</p>

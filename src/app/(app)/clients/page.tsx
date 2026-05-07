@@ -29,6 +29,7 @@ import {
                                       Pencil,
                                         Book,
                                           ChevronDown,
+                                          User,
                                           } from 'lucide-react';
                                           import { Input } from '@/components/ui/input';
                                           import {
@@ -52,7 +53,7 @@ import {
                                                               import { Skeleton } from '@/components/ui/skeleton';
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
                                                               import { ClientForm } from '@/components/forms/client-form';
-                                                              import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+                                                              import { Avatar, AvatarFallback } from '@/components/ui/avatar';
                                                               import Link from 'next/link';
                                                               import { useToast } from '@/hooks/use-toast';
                                                               import {
@@ -530,8 +531,9 @@ export default function ClientsPage() {
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-3">
                                 <Avatar className="h-10 w-10 border">
-                                    <AvatarImage src={client.avatar} alt={client.name} data-ai-hint="person face" />
-                                    <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback>
+                                        <User className="h-5 w-5 text-muted-foreground" />
+                                    </AvatarFallback>
                                 </Avatar>
                                 <div>
                                     <Link href={`/clients/${client.id}`} className="hover:underline">{client.name}</Link>

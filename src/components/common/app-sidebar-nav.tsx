@@ -44,7 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useAppUser, type Role } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -102,7 +102,6 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
   const displayEmail = user?.email || 'No email';
-  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="flex h-full flex-col">
@@ -178,8 +177,9 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start items-center gap-2 text-left h-auto p-2">
                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user?.photoURL || ''} alt={displayName} data-ai-hint="person face" />
-                        <AvatarFallback>{userInitial}</AvatarFallback>
+                        <AvatarFallback>
+                            <User className="h-4 w-4 text-muted-foreground" />
+                        </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col flex-1 text-sm truncate">
                         <span className="font-medium">{displayName}</span>

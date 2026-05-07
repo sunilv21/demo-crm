@@ -5,11 +5,11 @@ import { useParams } from 'next/navigation';
 import { useAppUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import type { Client } from '@/lib/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Mail, MapPin, Briefcase, Calendar, IndianRupee, Hotel, Cog, UserCheck, Plane, NotepadText, Pencil, FileText, Bell, Users } from 'lucide-react';
+import { Phone, Mail, MapPin, Briefcase, Calendar, IndianRupee, Hotel, Cog, UserCheck, Plane, NotepadText, Pencil, FileText, Bell, Users, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -129,8 +129,9 @@ export default function ClientProfilePage() {
                         <CardContent className="pt-6">
                             <div className="flex flex-col items-center gap-4">
                                 <Avatar className="h-24 w-24 border-2 border-primary">
-                                    <AvatarImage src={client.avatar} alt={client.name} data-ai-hint="person face" />
-                                    <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback>
+                                        <User className="h-12 w-12 text-muted-foreground" />
+                                    </AvatarFallback>
                                 </Avatar>
                                 <div className="text-center">
                                     <h2 className="text-2xl font-semibold">{client.name}</h2>

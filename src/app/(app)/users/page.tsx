@@ -31,7 +31,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { User as UserIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/common/page-header';
 import {
@@ -125,14 +126,14 @@ export default function UsersPage() {
             {!isLoading &&
               (users ?? []).map((u) => {
                 const isSelf = currentUser?.uid === u.id;
-                const initial = (u.name || u.email || '?').charAt(0).toUpperCase();
                 return (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={u.avatar} alt={u.name} />
-                          <AvatarFallback>{initial}</AvatarFallback>
+                          <AvatarFallback>
+                            <UserIcon className="h-4 w-4 text-muted-foreground" />
+                          </AvatarFallback>
                         </Avatar>
                         <span>{u.name || '—'}</span>
                         {isSelf && <Badge variant="secondary">You</Badge>}

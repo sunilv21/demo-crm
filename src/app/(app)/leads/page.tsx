@@ -2,10 +2,10 @@
 
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Lead } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, User } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,8 +38,9 @@ const LeadCard = ({ lead }: { lead: Lead }) => (
   <Card className="mb-4">
     <CardContent className="p-4 flex items-center space-x-4">
       <Avatar>
-        <AvatarImage src={lead.avatar} data-ai-hint="person face" />
-        <AvatarFallback>{lead.name.charAt(0)}</AvatarFallback>
+        <AvatarFallback>
+          <User className="h-5 w-5 text-muted-foreground" />
+        </AvatarFallback>
       </Avatar>
       <div className="flex-1">
         <p className="font-medium">{lead.name}</p>
