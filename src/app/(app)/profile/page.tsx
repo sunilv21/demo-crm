@@ -5,14 +5,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { Mail, User as UserIcon, Pencil, Phone, Briefcase } from 'lucide-react';
+import { Mail, User as UserIcon, Pencil, Phone, Briefcase, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { UserForm } from '@/components/forms/user-form';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import type { User as AppUser } from '@/lib/types';
-import { updateProfile } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -123,24 +125,27 @@ export default function ProfilePage() {
           </Avatar>
           <CardTitle className="text-3xl">{displayName}</CardTitle>
           <p className="text-muted-foreground">{user.email}</p>
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="mt-4">
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit Profile
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Edit Profile</DialogTitle>
-                </DialogHeader>
-                <UserForm onSubmit={handleUpdateUser} user={user} userDoc={userDoc} />
-                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-                    <Button type="submit" form="user-form">Save Changes</Button>
-                </DialogFooter>
-            </DialogContent>
-           </Dialog>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+              <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit Profile
+                  </Button>
+              </DialogTrigger>
+              <DialogContent>
+                  <DialogHeader>
+                      <DialogTitle>Edit Profile</DialogTitle>
+                  </DialogHeader>
+                  <UserForm onSubmit={handleUpdateUser} user={user} userDoc={userDoc} />
+                   <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
+                      <Button type="submit" form="user-form">Save Changes</Button>
+                  </DialogFooter>
+              </DialogContent>
+             </Dialog>
+            <ChangePasswordDialog />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 mt-4 border-t pt-6">
             <DetailItem icon={Mail} value={user.email} />
@@ -150,5 +155,122 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function ChangePasswordDialog() {
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const reset = () => {
+    setCurrentPwd('');
+    setNewPwd('');
+    setConfirmPwd('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !user.email) {
+      toast({ variant: 'destructive', title: 'Not signed in' });
+      return;
+    }
+    if (newPwd.length < 6) {
+      toast({ variant: 'destructive', title: 'New password must be at least 6 characters.' });
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      toast({ variant: 'destructive', title: 'Passwords do not match.' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, currentPwd);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPwd);
+      toast({ title: 'Password updated', description: 'Your password has been changed.' });
+      reset();
+      setOpen(false);
+    } catch (err: any) {
+      const code = err?.code as string | undefined;
+      const message =
+        code === 'auth/wrong-password' || code === 'auth/invalid-credential'
+          ? 'Current password is incorrect.'
+          : code === 'auth/weak-password'
+            ? 'New password is too weak.'
+            : err?.message || 'Failed to update password.';
+      toast({ variant: 'destructive', title: 'Password update failed', description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <KeyRound className="mr-2 h-4 w-4" />
+          Change Password
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+          <DialogDescription>
+            Enter your current password to confirm, then your new password.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="currentPwd">Current Password</Label>
+            <Input
+              id="currentPwd"
+              type="password"
+              autoComplete="current-password"
+              value={currentPwd}
+              onChange={(e) => setCurrentPwd(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="newPwd">New Password</Label>
+            <Input
+              id="newPwd"
+              type="password"
+              autoComplete="new-password"
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <div>
+            <Label htmlFor="confirmPwd">Confirm New Password</Label>
+            <Input
+              id="confirmPwd"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPwd}
+              onChange={(e) => setConfirmPwd(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Password
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

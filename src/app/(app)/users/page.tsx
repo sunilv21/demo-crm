@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
-import { Pencil, PlusCircle } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { KeyRound, Loader2, Pencil, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -35,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/common/page-header';
 import {
   useCollection,
+  useFirebaseApp,
   useFirestore,
   useMemoFirebase,
   useUser,
@@ -187,6 +189,7 @@ export default function UsersPage() {
 
 function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () => void }) {
   const firestore = useFirestore();
+  const firebaseApp = useFirebaseApp();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
   const [baseSalary, setBaseSalary] = useState<string>('0');
@@ -194,6 +197,8 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
   const [workEndTime, setWorkEndTime] = useState<string>('18:30');
   const [graceMinutes, setGraceMinutes] = useState<string>('15');
   const [leaveCap, setLeaveCap] = useState<string>('2');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -220,6 +225,40 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
     });
     toast({ title: 'User updated', description: `${user.name}'s details saved.` });
     handleClose();
+  };
+
+  const handleResetPassword = async () => {
+    if (!firebaseApp || !user) return;
+    if (newPassword.length < 6) {
+      toast({
+        variant: 'destructive',
+        title: 'Password too short',
+        description: 'Minimum 6 characters.',
+      });
+      return;
+    }
+    setResetting(true);
+    try {
+      const functions = getFunctions(firebaseApp);
+      const adminResetPassword = httpsCallable<
+        { uid: string; newPassword: string },
+        { success: boolean }
+      >(functions, 'adminResetPassword');
+      await adminResetPassword({ uid: user.id, newPassword });
+      toast({
+        title: 'Password reset',
+        description: `${user.name}'s password has been updated. Share the new password with them securely.`,
+      });
+      setNewPassword('');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Password reset failed',
+        description: err?.message || 'Please try again.',
+      });
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -284,6 +323,36 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
             <p className="text-xs text-muted-foreground mt-1">
               Approved leaves beyond this count in a month are marked Absent and deducted.
             </p>
+          </div>
+          <div className="border-t pt-4 mt-2 space-y-2">
+            <Label htmlFor="newPassword" className="text-sm">Reset Password</Label>
+            <p className="text-xs text-muted-foreground">
+              Set a new password for this user directly. They can change it later from their profile.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                id="newPassword"
+                type="text"
+                placeholder="New password (min 6 chars)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={6}
+                autoComplete="new-password"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResetPassword}
+                disabled={resetting || newPassword.length < 6}
+              >
+                {resetting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <KeyRound className="mr-2 h-4 w-4" />
+                )}
+                Reset
+              </Button>
+            </div>
           </div>
         </div>
         <DialogFooter>
