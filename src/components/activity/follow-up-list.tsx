@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Client, CustomerLog, FollowUp } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, orderBy, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
@@ -66,22 +66,21 @@ export function FollowUpList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [logClient, setLogClient] = useState<Partial<Client> & {id:string, name: string} | null>(null);
 
+  const ready = !!firestore && !!user && !isUserLoading;
+
   const followUpsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(
-        collection(firestore, 'follow_ups'),
-        orderBy('date', 'asc')
-    );
-  }, [firestore, user]);
+    if (!ready) return null;
+    return collection(firestore!, 'follow_ups');
+  }, [ready, firestore]);
 
   const { data: followUps, isLoading } = useCollection<FollowUp>(followUpsQuery);
 
   const filteredFollowUps = useMemo(() => {
     if (!followUps) return [];
     
-    // First, separate done and not done
-    const done = followUps.filter(f => f.done);
-    const notDone = followUps.filter(f => !f.done);
+    const byDate = [...followUps].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const done = byDate.filter(f => f.done);
+    const notDone = byDate.filter(f => !f.done);
 
     let results = [...notDone, ...done]; // Show not-done tasks first
 

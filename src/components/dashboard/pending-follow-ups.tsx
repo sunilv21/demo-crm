@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { Bell, ChevronRight } from 'lucide-react';
 import {
   Card,
@@ -47,11 +47,8 @@ export function PendingFollowUps() {
 
   const followUpsQuery = useMemoFirebase(() => {
     if (!ready) return null;
-    return query(
-      collection(firestore!, 'follow_ups'),
-      where('createdBy', '==', authUser!.uid),
-    );
-  }, [ready, firestore, authUser]);
+    return query(collection(firestore!, 'follow_ups'));
+  }, [ready, firestore]);
 
   const { data: followUps, isLoading } = useCollection<FollowUp>(followUpsQuery);
 
@@ -69,7 +66,7 @@ export function PendingFollowUps() {
           <Bell className="h-4 w-4" />
           Pending Follow-ups
         </CardTitle>
-        <CardDescription>Your top priority tasks.</CardDescription>
+        <CardDescription>Team priority tasks.</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading && (

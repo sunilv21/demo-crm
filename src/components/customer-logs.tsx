@@ -1,14 +1,14 @@
 "use client";
 
 import { collection, query, where, orderBy } from "firebase/firestore";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useAppUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { CustomerLog } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "./ui/input";
 import { Search, User } from "lucide-react";
 
@@ -24,30 +24,40 @@ const LogItemSkeleton = () => (
 
 export function CustomerLogs({ clientId }: { clientId?: string }) {
   const firestore = useFirestore();
+  const { authUser, isLoading: appUserLoading } = useAppUser();
   const [searchTerm, setSearchTerm] = useState('');
 
+  const ready = !!firestore && !!authUser && !appUserLoading;
+
   const logsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    let q = collection(firestore, "customer_logs");
+    if (!ready) return null;
+    const col = collection(firestore!, "customer_logs");
 
     if (clientId) {
-        return query(q, where("clientId", "==", clientId), orderBy("createdAt", "desc"));
+      return query(col, where("clientId", "==", clientId), orderBy("createdAt", "desc"));
     }
-    return query(q, orderBy("createdAt", "desc"));
-  }, [firestore, clientId]);
+    return col;
+  }, [ready, firestore, clientId]);
 
   const { data: logs, isLoading, error } = useCollection<CustomerLog>(logsQuery);
 
-  const filteredLogs = useMemoFirebase(() => {
-    if (!logs) return [];
-    if (!searchTerm) return logs;
+  const sortedLogs = useMemo(() => {
+    return [...(logs ?? [])].sort((a, b) => {
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [logs]);
+
+  const filteredLogs = useMemo(() => {
+    if (!searchTerm) return sortedLogs;
     const lowercasedTerm = searchTerm.toLowerCase();
-    return logs.filter(log => 
+    return sortedLogs.filter(log => 
         (log.clientName && log.clientName.toLowerCase().includes(lowercasedTerm)) ||
         (log.userName && log.userName.toLowerCase().includes(lowercasedTerm)) ||
         (log.activity && log.activity.toLowerCase().includes(lowercasedTerm))
     );
-  }, [logs, searchTerm]);
+  }, [sortedLogs, searchTerm]);
 
   if (error) return <p className="text-destructive">Error: {error.message}</p>;
 

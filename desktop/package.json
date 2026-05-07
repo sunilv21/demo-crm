@@ -1,0 +1,64 @@
+{
+  "name": "sky-visa-crm-desktop",
+  "version": "1.0.0",
+  "description": "Sky Visa CRM desktop wrapper",
+  "main": "main.js",
+  "author": "Sky Visa",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "publish": "electron-builder --win --publish always"
+  },
+  "build": {
+    "appId": "com.skyvisa.crm",
+    "productName": "Sky Visa CRM",
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.js",
+      "assets/**/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sky Visa CRM",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "Sky Visa CRM"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "sunilv21",
+        "repo": "crmskyvisa",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  }
+}

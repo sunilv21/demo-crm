@@ -62,7 +62,7 @@ const topNavItems: NavItem[] = [
   { href: '/bookings', icon: Book, label: 'Bookings', allow: ALL_ROLES },
   { href: '/invoices', icon: FileText, label: 'Invoices', allow: ADMIN_MANAGER },
   { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder', allow: ALL_ROLES },
-  { href: '/activity', icon: Activity, label: 'Activity', allow: ADMIN_MANAGER },
+  { href: '/activity', icon: Activity, label: 'Activity', allow: ALL_ROLES },
   { href: '/database', icon: Database, label: 'Database', allow: ADMIN_MANAGER },
 ];
 

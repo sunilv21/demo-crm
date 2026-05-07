@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { Activity, ChevronRight } from 'lucide-react';
 import {
   Card,
@@ -42,11 +42,8 @@ export function RecentActivity() {
 
   const logsQuery = useMemoFirebase(() => {
     if (!ready) return null;
-    return query(
-      collection(firestore!, 'customer_logs'),
-      where('userId', '==', authUser!.uid),
-    );
-  }, [ready, firestore, authUser]);
+    return query(collection(firestore!, 'customer_logs'));
+  }, [ready, firestore]);
 
   const { data: logs, isLoading } = useCollection<CustomerLog>(logsQuery);
 
@@ -66,7 +63,7 @@ export function RecentActivity() {
           <Activity className="h-4 w-4" />
           Recent Activity
         </CardTitle>
-        <CardDescription>Your latest customer log updates.</CardDescription>
+        <CardDescription>Latest team customer log updates.</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading && (

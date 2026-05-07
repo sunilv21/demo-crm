@@ -29,6 +29,20 @@
       ]
     },
     {
+      "collectionGroup": "customer_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "follow_ups",
       "queryScope": "COLLECTION",
       "fields": [

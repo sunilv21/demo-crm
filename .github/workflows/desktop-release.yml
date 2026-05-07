@@ -1,0 +1,39 @@
+name: Desktop Release
+
+# Runs whenever a tag like `v1.0.1` is pushed.
+# Builds the Windows installer and publishes it as a GitHub Release.
+# Already-installed desktop apps detect the new release via electron-updater
+# and download/install it in the background.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # required to create the GitHub Release
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install desktop deps
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build & publish to GitHub Releases
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish
