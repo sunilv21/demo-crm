@@ -198,6 +198,7 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
   const [workEndTime, setWorkEndTime] = useState<string>('18:30');
   const [graceMinutes, setGraceMinutes] = useState<string>('15');
   const [leaveCap, setLeaveCap] = useState<string>('2');
+  const [breakCap, setBreakCap] = useState<string>('40');
   const [newPassword, setNewPassword] = useState<string>('');
   const [resetting, setResetting] = useState(false);
 
@@ -208,6 +209,7 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
     setWorkEndTime(user.workEndTime ?? '18:30');
     setGraceMinutes(String(user.lateGraceMinutes ?? 15));
     setLeaveCap(String(user.monthlyLeaveCap ?? 2));
+    setBreakCap(String(user.dailyBreakCapMinutes ?? 40));
   }, [user]);
 
   const handleClose = () => onClose();
@@ -221,6 +223,7 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
       workEndTime,
       lateGraceMinutes: Number(graceMinutes) || 0,
       monthlyLeaveCap: Number(leaveCap) || 0,
+      dailyBreakCapMinutes: Number(breakCap) || 0,
       updatedAt: serverTimestamp(),
       updatedBy: currentUser.uid,
     });
@@ -323,6 +326,22 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
             />
             <p className="text-xs text-muted-foreground mt-1">
               Approved leaves beyond this count in a month are marked Absent and deducted.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="breakCap">Daily Break Cap (minutes)</Label>
+            <Input
+              id="breakCap"
+              type="number"
+              min={0}
+              max={480}
+              step={5}
+              value={breakCap}
+              onChange={(e) => setBreakCap(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Total break time allowed per day (manual breaks + screen-lock away time).
+              Excess minutes count against active work in payroll. Set 0 to disable cap.
             </p>
           </div>
           <div className="border-t pt-4 mt-2 space-y-2">

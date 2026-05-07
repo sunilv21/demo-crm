@@ -16,6 +16,7 @@ export type User = {
   workEndTime?: string;
   lateGraceMinutes?: number;
   monthlyLeaveCap?: number;
+  dailyBreakCapMinutes?: number;
   createdAt?: any;
   updatedAt?: any;
   createdBy?: string;
@@ -29,6 +30,16 @@ export type AttendanceStatus =
   | 'absent'
   | 'leave'
   | 'holiday';
+
+export type BreakSource = 'manual' | 'screen-lock';
+
+export type AttendanceBreak = {
+  id: string;            // uuid generated client-side
+  start: any;            // Firestore Timestamp
+  end?: any | null;      // null while ongoing
+  source: BreakSource;
+  durationMinutes?: number;
+};
 
 export type Attendance = {
   id: string;
@@ -46,6 +57,13 @@ export type Attendance = {
   workMinutes?: number;
   status: AttendanceStatus;
   notes?: string;
+  // Break / away tracking. `breaks` is an ordered list; the LAST entry with
+  // end == null is the one currently in progress (if any). `breakMinutes` is
+  // the rolling total of CLOSED breaks for fast UI rendering.
+  breaks?: AttendanceBreak[];
+  breakMinutes?: number;
+  // Active = workMinutes - breakMinutes (computed at punch-out and on the fly).
+  activeMinutes?: number;
   createdAt: any;
   updatedAt: any;
 };

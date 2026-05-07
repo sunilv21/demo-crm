@@ -274,6 +274,9 @@ export interface PayrollRow {
   lopDays: number;
   absentDays: number;
   lateHalfDayDeductions: number;
+  totalBreakMinutes: number;
+  breakOverCapMinutes: number;
+  breakOverCapDayDeduction: number;
   totalDeductionDays: number;
   payableDays: number;
   netPay: number;
@@ -287,6 +290,9 @@ export function computePayroll(args: {
     role: string;
     baseSalary?: number;
     monthlyLeaveCap?: number;
+    dailyBreakCapMinutes?: number;
+    workStartTime?: string;
+    workEndTime?: string;
   };
   year: number;
   month: number;
@@ -311,6 +317,17 @@ export function computePayroll(args: {
   let paidLeaves = 0;
   let lopDays = 0;
   let absentDays = 0;
+  let totalBreakMinutes = 0;
+  let totalOverCapMinutes = 0;
+
+  // For break-cap deductions we need a "shift length in minutes" reference.
+  const start = parseHHMM(user.workStartTime ?? DEFAULT_WORK_START);
+  const end = parseHHMM(user.workEndTime ?? DEFAULT_WORK_END);
+  const expectedShiftMinutes = Math.max(
+    1,
+    end.h * 60 + end.m - (start.h * 60 + start.m),
+  );
+  const breakCap = user.dailyBreakCapMinutes ?? 0;
 
   for (const cell of cells) {
     if (cell.status === 'holiday') continue;
@@ -335,11 +352,27 @@ export function computePayroll(args: {
         break;
       }
     }
+    if (cell.attendance) {
+      const dayBreakMinutes = cell.attendance.breakMinutes ?? 0;
+      totalBreakMinutes += dayBreakMinutes;
+      if (breakCap > 0 && dayBreakMinutes > breakCap) {
+        totalOverCapMinutes += dayBreakMinutes - breakCap;
+      }
+    }
   }
+
+  // Convert over-cap break minutes into fractional-day deductions, scaled
+  // against the user's expected shift length so a 30 min over-cap on an 8 h
+  // shift = 30/480 ≈ 0.0625 day deduction.
+  const breakOverCapDayDeduction = totalOverCapMinutes / expectedShiftMinutes;
 
   const lateHalfDayDeductions = Math.floor(lateCount / 3) * 0.5;
   const totalDeductionDays =
-    absentDays + lopDays + halfDays * 0.5 + lateHalfDayDeductions;
+    absentDays +
+    lopDays +
+    halfDays * 0.5 +
+    lateHalfDayDeductions +
+    breakOverCapDayDeduction;
   const payableDays = Math.max(0, workingDays - totalDeductionDays);
   const baseSalary = user.baseSalary ?? 0;
   const netPay = workingDays > 0 ? Math.round(baseSalary * (payableDays / workingDays)) : 0;
@@ -358,6 +391,9 @@ export function computePayroll(args: {
     lopDays,
     absentDays,
     lateHalfDayDeductions,
+    totalBreakMinutes,
+    breakOverCapMinutes: totalOverCapMinutes,
+    breakOverCapDayDeduction,
     totalDeductionDays,
     payableDays,
     netPay,
@@ -378,6 +414,8 @@ export function rowsToCsv(rows: PayrollRow[], monthLabel: string): string {
     'LOP',
     'Absent',
     'Late ½-day Deductions',
+    'Total Break (min)',
+    'Over-cap Break (min)',
     'Total Deductions',
     'Payable Days',
     'Net Pay',
@@ -398,6 +436,8 @@ export function rowsToCsv(rows: PayrollRow[], monthLabel: string): string {
         r.lopDays,
         r.absentDays,
         r.lateHalfDayDeductions,
+        r.totalBreakMinutes,
+        r.breakOverCapMinutes,
         r.totalDeductionDays,
         r.payableDays,
         r.netPay,

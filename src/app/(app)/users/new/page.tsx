@@ -34,6 +34,7 @@ const formSchema = z.object({
   workEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   lateGraceMinutes: z.coerce.number().min(0).max(120).optional(),
   monthlyLeaveCap: z.coerce.number().min(0).max(31).optional(),
+  dailyBreakCapMinutes: z.coerce.number().min(0).max(480).optional(),
 });
 
 export default function NewUserPage() {
@@ -56,6 +57,7 @@ export default function NewUserPage() {
       workEndTime: '18:30',
       lateGraceMinutes: 15,
       monthlyLeaveCap: 2,
+      dailyBreakCapMinutes: 40,
     },
   });
 
@@ -100,6 +102,7 @@ export default function NewUserPage() {
         workEndTime: values.workEndTime ?? '18:30',
         lateGraceMinutes: values.lateGraceMinutes ?? 15,
         monthlyLeaveCap: values.monthlyLeaveCap ?? 2,
+        dailyBreakCapMinutes: values.dailyBreakCapMinutes ?? 40,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: adminUser.uid,
@@ -272,6 +275,22 @@ export default function NewUserPage() {
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
                       Approved leaves beyond this count in a month will be marked as Absent and deducted.
+                    </p>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="dailyBreakCapMinutes"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Daily Break Cap (minutes)</FormLabel>
+                    <FormControl>
+                        <Input type="number" min={0} max={480} step={5} {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Total break time allowed per day (manual + screen-lock). Excess deducted from active work in payroll. Set 0 to disable cap.
                     </p>
                     <FormMessage />
                     </FormItem>

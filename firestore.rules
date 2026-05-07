@@ -71,6 +71,7 @@ service cloud.firestore {
                         && request.resource.data.workEndTime == resource.data.workEndTime
                         && request.resource.data.lateGraceMinutes == resource.data.lateGraceMinutes
                         && request.resource.data.monthlyLeaveCap == resource.data.monthlyLeaveCap
+                        && request.resource.data.dailyBreakCapMinutes == resource.data.dailyBreakCapMinutes
                       )
                     );
 
@@ -148,7 +149,10 @@ service cloud.firestore {
     //   - Employees can get/list only records where userId == request.auth.uid.
     //     Firestore will allow employee LIST queries only when the query is
     //     constrained by where('userId', '==', request.auth.uid).
-    //   - Owners can create/update their own records. Admin can correct records.
+    //   - Owners can create their own day record (deterministic id ties one
+    //     doc per uid per date — prevents duplicate punch-in on re-login).
+    //   - Owners can UPDATE their record (punchOut, breaks, status), but
+    //     `punchIn` and `date` are locked — only an admin can rewrite those.
     match /attendance/{id} {
       allow get: if isAdmin() || isAttendanceOwner();
       allow list: if isAdmin() || isAttendanceOwner();
@@ -157,7 +161,9 @@ service cloud.firestore {
                     && id == request.auth.uid + '_' + request.resource.data.date;
       allow update: if isAdmin()
                     || (isAttendanceOwner()
-                        && request.resource.data.userId == resource.data.userId);
+                        && request.resource.data.userId == resource.data.userId
+                        && request.resource.data.punchIn == resource.data.punchIn
+                        && request.resource.data.date == resource.data.date);
       allow delete: if isAdmin();
     }
 

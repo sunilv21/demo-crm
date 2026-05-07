@@ -2,7 +2,7 @@
 // Wraps the deployed Next.js web app in a native desktop window.
 // Uses electron-updater to pull new shell builds from GitHub Releases.
 
-const { app, BrowserWindow, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, powerMonitor } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const config = require('./config');
@@ -106,9 +106,28 @@ function setupAutoUpdater() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Screen-lock / suspend wiring — forwards OS power events to the renderer
+// so the web app can record automatic breaks while the user is away.
+//   * 'lock-screen' / 'unlock-screen' — exact lock events (Win+L, idle)
+//   * 'suspend' / 'resume' — laptop lid close / sleep / wake
+// Both pairs map to the same screen-lock / screen-unlock IPC channels so
+// the renderer treats them uniformly.
+// ---------------------------------------------------------------------------
+function setupPowerEvents() {
+  const sendLock = () => mainWindow?.webContents.send('screen-lock');
+  const sendUnlock = () => mainWindow?.webContents.send('screen-unlock');
+
+  powerMonitor.on('lock-screen', sendLock);
+  powerMonitor.on('unlock-screen', sendUnlock);
+  powerMonitor.on('suspend', sendLock);
+  powerMonitor.on('resume', sendUnlock);
+}
+
 app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
+  setupPowerEvents();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

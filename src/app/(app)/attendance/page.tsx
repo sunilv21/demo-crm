@@ -342,14 +342,16 @@ function TeamView({
                 <TableHead>Date</TableHead>
                 <TableHead>Punch In</TableHead>
                 <TableHead>Punch Out</TableHead>
-                <TableHead>Hours</TableHead>
+                <TableHead>Gross</TableHead>
+                <TableHead>Break</TableHead>
+                <TableHead>Active</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAttendance.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     No attendance records for this period.
                   </TableCell>
                 </TableRow>
@@ -357,6 +359,9 @@ function TeamView({
               {filteredAttendance.map((a) => {
                 const meta = STATUS_META[a.status];
                 const minutes = a.workMinutes ?? 0;
+                const breakMin = a.breakMinutes ?? 0;
+                const activeMin = Math.max(0, minutes - breakMin);
+                const breakCount = (a.breaks ?? []).filter((b) => b.end).length;
                 return (
                   <TableRow
                     key={a.id}
@@ -371,6 +376,19 @@ function TeamView({
                       {minutes ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : '—'}
                     </TableCell>
                     <TableCell>
+                      {breakMin > 0 ? (
+                        <span className="text-orange-700">
+                          {breakMin}m
+                          {breakCount > 1 && ` · ${breakCount}×`}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {minutes ? `${Math.floor(activeMin / 60)}h ${activeMin % 60}m` : '—'}
+                    </TableCell>
+                    <TableCell>
                       <Badge className={`${meta.cls} capitalize`}>{meta.label}</Badge>
                     </TableCell>
                   </TableRow>
@@ -381,15 +399,83 @@ function TeamView({
         </CardContent>
       </Card>
       {isUserSelected && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-6">
           <AttendanceCalendar
             cells={detailCells}
             monthLabel={`${selectedUserName} • ${monthLabel(year, month)}`}
             goPrev={goPrev}
             goNext={goNext}
           />
+          <BreakBreakdown
+            attendance={detailAttendance ?? []}
+            userName={selectedUserName}
+          />
         </div>
       )}
     </>
+  );
+}
+
+function BreakBreakdown({
+  attendance,
+  userName,
+}: {
+  attendance: Attendance[];
+  userName: string;
+}) {
+  const days = useMemo(
+    () =>
+      [...attendance]
+        .filter((a) => (a.breaks?.length ?? 0) > 0)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [attendance],
+  );
+  if (days.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{userName} — break log</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Start</TableHead>
+              <TableHead>End</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Source</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {days.flatMap((day) =>
+              (day.breaks ?? [])
+                .filter((b) => b.end)
+                .map((b) => (
+                  <TableRow key={`${day.id}-${b.id}`}>
+                    <TableCell>{day.date}</TableCell>
+                    <TableCell>{formatTimeIST(toDate(b.start))}</TableCell>
+                    <TableCell>{formatTimeIST(toDate(b.end))}</TableCell>
+                    <TableCell>{b.durationMinutes ?? 0} min</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          b.source === 'screen-lock'
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : 'bg-orange-50 text-orange-800 border-orange-200'
+                        }
+                      >
+                        {b.source === 'screen-lock' ? 'Auto · screen lock' : 'Manual'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                )),
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

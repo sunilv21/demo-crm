@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -11,7 +11,6 @@ import {
   useDoc,
   useFirestore,
   useMemoFirebase,
-  setDocumentNonBlocking,
   updateDocumentNonBlocking,
 } from '@/firebase';
 import type { Attendance } from '@/lib/types';
@@ -63,45 +62,63 @@ export function AutoLogoutWatcher() {
   // -------------------------------------------------------------------------
   // Auto punch-in on sign-in.
   // -------------------------------------------------------------------------
+  // Idempotent — re-running for any reason (re-login, hot reload, useDoc
+  // race) reads the doc first and ONLY writes if it doesn't exist. The
+  // original punchIn timestamp is preserved across the entire day.
   const punchedInForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!ready || !firestore || !authUser) return;
     if (todayLoading) return; // wait until we know whether today's doc exists
-    if (todayRecord) return; // already punched in
+    if (todayRecord) return; // useDoc says it already exists — done
     const sessionKey = `${authUser.uid}:${today}`;
     if (punchedInForRef.current === sessionKey) return;
     punchedInForRef.current = sessionKey;
 
-    const punchIn = new Date();
-    const workStart = appUser?.workStartTime ?? DEFAULT_WORK_START;
-    const workEnd = appUser?.workEndTime ?? DEFAULT_WORK_END;
-    const grace = appUser?.lateGraceMinutes ?? DEFAULT_GRACE_MINUTES;
-    const punchInLate = isLatePunchIn(punchIn, workStart, grace);
-    const ref = doc(firestore, 'attendance', `${authUser.uid}_${today}`);
-    setDocumentNonBlocking(
-      ref,
-      {
-        userId: authUser.uid,
-        userName:
-          appUser?.name ||
-          authUser.displayName ||
-          authUser.email ||
-          'Unknown',
-        date: today,
-        punchIn: Timestamp.fromDate(punchIn),
-        punchOut: null,
-        workStartTime: workStart,
-        workEndTime: workEnd,
-        lateGraceMinutes: grace,
-        punchInLate,
-        punchOutEarly: false,
-        autoLoggedOut: false,
-        status: punchInLate ? 'late' : 'present',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: false },
-    );
+    (async () => {
+      const ref = doc(firestore, 'attendance', `${authUser.uid}_${today}`);
+      // Server-authoritative existence check before write.
+      try {
+        const snap = await getDoc(ref);
+        if (snap.exists()) return;
+      } catch {
+        // If the read failed for some reason, bail out rather than risk
+        // overwriting an existing record we couldn't see.
+        return;
+      }
+      const punchIn = new Date();
+      const workStart = appUser?.workStartTime ?? DEFAULT_WORK_START;
+      const workEnd = appUser?.workEndTime ?? DEFAULT_WORK_END;
+      const grace = appUser?.lateGraceMinutes ?? DEFAULT_GRACE_MINUTES;
+      const punchInLate = isLatePunchIn(punchIn, workStart, grace);
+      try {
+        await setDoc(ref, {
+          userId: authUser.uid,
+          userName:
+            appUser?.name ||
+            authUser.displayName ||
+            authUser.email ||
+            'Unknown',
+          date: today,
+          punchIn: Timestamp.fromDate(punchIn),
+          punchOut: null,
+          workStartTime: workStart,
+          workEndTime: workEnd,
+          lateGraceMinutes: grace,
+          punchInLate,
+          punchOutEarly: false,
+          autoLoggedOut: false,
+          status: punchInLate ? 'late' : 'present',
+          breaks: [],
+          breakMinutes: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        // If a competing write happened between our get and set, that's fine —
+        // the other client created the record and we should leave it alone.
+        console.warn('Auto punch-in skipped:', err);
+      }
+    })();
   }, [ready, firestore, authUser, appUser, todayRecord, todayLoading, today]);
 
   // -------------------------------------------------------------------------
