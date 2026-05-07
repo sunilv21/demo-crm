@@ -2,7 +2,14 @@
 // Output sizes: 16, 24, 32, 48, 64, 128, 256 — covers every Windows surface
 // (taskbar, alt-tab, file explorer thumbnails, jump list, etc.).
 //
-// Run: node scripts/make-ico.js
+// Run MANUALLY when you change the source icon.png:
+//   cd desktop
+//   npm run make-ico
+//   git add build/icon.ico  &&  git commit -m "Update icon"
+//
+// This is intentionally NOT wired into the build pipeline so the GitHub
+// Action build doesn't depend on ffmpeg being on the runner. The committed
+// .ico is what every CI build uses.
 
 const fs = require('fs');
 const path = require('path');
