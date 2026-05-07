@@ -6,14 +6,19 @@ import {
   Lightbulb,
   Map,
   Users,
-  History,
   LogOut,
   User,
   MoreHorizontal,
   Activity,
-  Bell,
   Database,
+  CalendarCheck,
+  CalendarDays,
+  CalendarOff,
+  Wallet,
+  UserCog,
+  ChevronRight,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,7 +26,15 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -33,25 +46,52 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useAppUser, type Role } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/clients', icon: Users, label: 'Clients' },
-  { href: '/leads', icon: Lightbulb, label: 'Leads' },
-  { href: '/bookings', icon: Book, label: 'Bookings' },
-  { href: '/invoices', icon: FileText, label: 'Invoices' },
-  { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder' },
-  { href: '/activity', icon: Activity, label: 'Activity' },
-  { href: '/database', icon: Database, label: 'Database' },
+const ALL_ROLES: Role[] = ['admin', 'manager', 'employee'];
+const ADMIN_MANAGER: Role[] = ['admin', 'manager'];
+const ADMIN_ONLY: Role[] = ['admin'];
+
+type NavItem = { href: string; icon: any; label: string; allow: Role[] };
+
+const topNavItems: NavItem[] = [
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', allow: ALL_ROLES },
+  { href: '/clients', icon: Users, label: 'Clients', allow: ALL_ROLES },
+  { href: '/leads', icon: Lightbulb, label: 'Leads', allow: ALL_ROLES },
+  { href: '/bookings', icon: Book, label: 'Bookings', allow: ALL_ROLES },
+  { href: '/invoices', icon: FileText, label: 'Invoices', allow: ADMIN_MANAGER },
+  { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder', allow: ALL_ROLES },
+  { href: '/activity', icon: Activity, label: 'Activity', allow: ADMIN_MANAGER },
+  { href: '/database', icon: Database, label: 'Database', allow: ADMIN_MANAGER },
+];
+
+const employeeMgmtItems: NavItem[] = [
+  { href: '/attendance', icon: CalendarCheck, label: 'Attendance', allow: ALL_ROLES },
+  { href: '/leaves', icon: CalendarOff, label: 'Leaves', allow: ALL_ROLES },
+  { href: '/holidays', icon: CalendarDays, label: 'Holidays', allow: ALL_ROLES },
+  { href: '/payroll', icon: Wallet, label: 'Payroll', allow: ADMIN_ONLY },
+  { href: '/users', icon: Users, label: 'Users', allow: ADMIN_ONLY },
 ];
 
 export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useUser();
+  const { role, isLoading: isRoleLoading } = useAppUser();
   const auth = useAuth();
+
+  const visibleTop = isRoleLoading ? [] : topNavItems.filter((i) => i.allow.includes(role));
+  const visibleEmpMgmt = isRoleLoading
+    ? []
+    : employeeMgmtItems.filter((i) => i.allow.includes(role));
+
+  const isInEmpMgmt = visibleEmpMgmt.some((i) => pathname.startsWith(i.href));
+  const [empMgmtOpen, setEmpMgmtOpen] = useState(isInEmpMgmt);
+
+  useEffect(() => {
+    if (isInEmpMgmt) setEmpMgmtOpen(true);
+  }, [isInEmpMgmt]);
 
   const handleSignOut = async () => {
     if (auth) {
@@ -78,7 +118,7 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
       </div>
       <div className="flex-1 py-2 overflow-y-auto">
         <SidebarMenu>
-          {navItems.map((item) => (
+          {visibleTop.map((item) => (
             <SidebarMenuItem key={item.href}>
               <Link href={item.href}>
                 <SidebarMenuButton
@@ -91,6 +131,46 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
               </Link>
             </SidebarMenuItem>
           ))}
+
+          {visibleEmpMgmt.length > 0 && (
+            <Collapsible open={empMgmtOpen} onOpenChange={setEmpMgmtOpen} asChild>
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton
+                    isActive={isInEmpMgmt}
+                    tooltip="Employee Management"
+                    className="w-full"
+                  >
+                    <UserCog />
+                    <span>Employee Management</span>
+                    <ChevronRight
+                      className={cn(
+                        'ml-auto h-4 w-4 transition-transform duration-200',
+                        empMgmtOpen && 'rotate-90'
+                      )}
+                    />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {visibleEmpMgmt.map((item) => (
+                      <SidebarMenuSubItem key={item.href}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname.startsWith(item.href)}
+                        >
+                          <Link href={item.href}>
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          )}
         </SidebarMenu>
       </div>
        <div className="mt-auto border-t p-2">

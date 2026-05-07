@@ -3,8 +3,10 @@ import { PageHeader } from '@/components/common/page-header';
 import { OverviewChart } from '@/components/dashboard/overview-chart';
 import { RecentBookings } from '@/components/dashboard/recent-bookings';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, collectionGroup } from 'firebase/firestore';
+import { PendingFollowUps } from '@/components/dashboard/pending-follow-ups';
+import { RecentActivity } from '@/components/dashboard/recent-activity';
+import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, getDocs } from 'firebase/firestore';
 import type { Booking, Lead, Client } from '@/lib/types';
 import { IndianRupee, Users, Activity, CreditCard, UserCheck, CheckCircle, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -16,6 +18,7 @@ type MonthlyData = {
 
 export default function DashboardPage() {
   const firestore = useFirestore();
+  const { isAdminOrManager } = useAppUser();
   const [totalRevenue, setTotalRevenue] = useState(0);
     const [lastMonthRevenue, setLastMonthRevenue] = useState(0);
   const [conversionRate, setConversionRate] = useState(0);
@@ -25,7 +28,7 @@ export default function DashboardPage() {
   
   const clientsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
   const leadsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'leads') : null, [firestore]);
-  const bookingsQuery = useMemoFirebase(() => firestore ? query(collectionGroup(firestore, 'bookings')) : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'bookings') : null, [firestore]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: leads, isLoading: isLoadingLeads } = useCollection<Lead>(leadsQuery);
@@ -115,15 +118,21 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader title="Dashboard" description="Welcome to your Sky Visa CRM." />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard
-          title="Total Revenue"
-          value={`₹${(totalRevenue).toLocaleString()}`}
-          icon={IndianRupee}
-          isLoading={isLoading}
-          variant="warning"
-          description={`Last Month: ${lastMonthRevenue.toLocaleString()}`}
-        />
+      <div
+        className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${
+          isAdminOrManager ? 'xl:grid-cols-6' : 'xl:grid-cols-5'
+        }`}
+      >
+        {isAdminOrManager && (
+          <StatCard
+            title="Total Revenue"
+            value={`₹${(totalRevenue).toLocaleString()}`}
+            icon={IndianRupee}
+            isLoading={isLoading}
+            variant="warning"
+            description={`Last Month: ${lastMonthRevenue.toLocaleString()}`}
+          />
+        )}
         <StatCard
           title="This Month"
           value={`+${newClientsThisMonth}`}
@@ -162,9 +171,15 @@ export default function DashboardPage() {
           description={`Total rejected: ${rejectedVisas}`}
         />
       </div>
-      <div className="grid gap-4 mt-8 md:grid-cols-1 lg:grid-cols-3">
-        <OverviewChart data={chartData} isLoading={isLoadingBookings} />
-        <RecentBookings />
+      {isAdminOrManager && (
+        <div className="grid gap-4 mt-8 md:grid-cols-1 lg:grid-cols-3">
+          <OverviewChart data={chartData} isLoading={isLoadingBookings} />
+          <RecentBookings />
+        </div>
+      )}
+      <div className="grid gap-4 mt-8 md:grid-cols-1 lg:grid-cols-2">
+        <PendingFollowUps />
+        <RecentActivity />
       </div>
     </>
   );

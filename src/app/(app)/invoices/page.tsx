@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/pagination';
 import type { Invoice } from '@/lib/types';
 import { useState, useEffect } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useAppUser } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -46,6 +46,7 @@ const InvoiceRowSkeleton = () => (
 
 export default function InvoicesPage() {
   const firestore = useFirestore();
+  const { canManageInvoices } = useAppUser();
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -77,10 +78,12 @@ export default function InvoicesPage() {
   return (
     <>
       <PageHeader title="Invoices" description="Generate invoices and track payments.">
-         <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Invoice
-        </Button>
+        {canManageInvoices && (
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Invoice
+          </Button>
+        )}
       </PageHeader>
         <div className="bg-card border rounded-lg p-4 mb-6">
             <div className="flex flex-col md:flex-row gap-4">
@@ -152,7 +155,9 @@ export default function InvoicesPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Mark as Paid</DropdownMenuItem>
+                      {canManageInvoices && (
+                        <DropdownMenuItem>Mark as Paid</DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

@@ -31,8 +31,8 @@ import type { Booking, Client } from '@/lib/types';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
+import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
 import {
@@ -48,7 +48,7 @@ import {
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 
-const ItineraryIcon = ({ type }: { type: string }) => {
+const ItineraryIcon = ({ type }: { type?: string }) => {
   if (type?.includes('Flight')) return <Plane className="mr-2 h-4 w-4 text-muted-foreground" />;
   if (type?.includes('Tour')) return <Flag className="mr-2 h-4 w-4 text-muted-foreground" />;
   if (type?.includes('Hotel')) return <Bed className="mr-2 h-4 w-4 text-muted-foreground" />;
@@ -70,6 +70,7 @@ const BookingRowSkeleton = () => (
 
 export default function ClientBookingsPage() {
   const firestore = useFirestore();
+  const { isAdminOrManager } = useAppUser();
   const params = useParams();
   const clientId = params.clientId as string;
   const { user } = useUser();
@@ -87,21 +88,21 @@ export default function ClientBookingsPage() {
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !clientId) return null;
-    return collection(firestore, 'clients', clientId, 'bookings');
+    return query(collection(firestore, 'bookings'), where('clientId', '==', clientId));
   }, [firestore, clientId]);
 
   const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
 
   const handleAddBooking = (newBookingData: Omit<Booking, 'id'>) => {
-    if (!bookingsQuery) return;
-     addDocumentNonBlocking(bookingsQuery, { ...newBookingData });
+    if (!firestore) return;
+    addDocumentNonBlocking(collection(firestore, 'bookings'), { ...newBookingData });
     setIsFormOpen(false);
     toast({ title: 'Booking Created', description: `New booking for ${client?.name} created.` });
   };
-  
+
   const handleUpdateBooking = (updatedData: Omit<Booking, 'id'>) => {
       if (!firestore || !editingBooking) return;
-      const bookingRef = doc(firestore, `clients/${clientId}/bookings/${editingBooking.id}`);
+      const bookingRef = doc(firestore, 'bookings', editingBooking.id);
       setDocumentNonBlocking(bookingRef, updatedData, { merge: true });
       setEditingBooking(null);
       toast({ title: "Booking Updated", description: "The booking has been successfully updated." });
@@ -109,7 +110,7 @@ export default function ClientBookingsPage() {
 
   const handleConfirmCancel = () => {
       if (!firestore || !bookingToCancel || !user) return;
-      const bookingRef = doc(firestore, `clients/${clientId}/bookings/${bookingToCancel.id}`);
+      const bookingRef = doc(firestore, 'bookings', bookingToCancel.id);
       setDocumentNonBlocking(bookingRef, { status: 'cancelled', updatedAt: serverTimestamp(), updatedBy: user.uid }, { merge: true });
       toast({ variant: 'destructive', title: "Booking Cancelled", description: "The booking has been cancelled." });
       setBookingToCancel(null);
@@ -153,7 +154,7 @@ export default function ClientBookingsPage() {
               <TableHead>Booking ID</TableHead>
               <TableHead>Itinerary</TableHead>
               <TableHead>Dates</TableHead>
-              <TableHead>Total</TableHead>
+              {isAdminOrManager && <TableHead>Total</TableHead>}
               <TableHead>Status</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
@@ -171,7 +172,7 @@ export default function ClientBookingsPage() {
                   {new Date(booking.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} -{' '}
                   {new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </TableCell>
-                <TableCell>₹{booking.total.toLocaleString()}</TableCell>
+                {isAdminOrManager && <TableCell>₹{booking.total.toLocaleString()}</TableCell>}
                 <TableCell>
                   <Badge
                     variant={

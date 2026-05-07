@@ -163,7 +163,7 @@ export const PreviousTripForm = React.forwardRef<HTMLFormElement, PreviousTripFo
                                 field.onChange(date);
                                 const currentEndDate = form.getValues('endDate');
                                 if (currentEndDate && date && date > currentEndDate) {
-                                    form.setValue('endDate', undefined);
+                                    form.resetField('endDate');
                                 }
                                 setIsStartDatePickerOpen(false);
                             }}

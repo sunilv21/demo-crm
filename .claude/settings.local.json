@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git reset *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sunil\\\\Desktop\\\\Radsting Devs\\\\sky visa CRM\" -Force)",
+      "Bash(Select-Object Name)",
+      "Bash(npx tsc *)",
+      "Bash(npm view *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('next', require\\('next/package.json'\\).version\\); console.log\\('react', require\\('react/package.json'\\).version\\); console.log\\('react-dom', require\\('react-dom/package.json'\\).version\\);\")",
+      "Bash(npx next *)",
+      "Bash(node -e \"console.log\\('react:', require\\('react/package.json'\\).version, '| react-dom:', require\\('react-dom/package.json'\\).version, '| next:', require\\('next/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\('firebase/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\('firebase:', require\\('firebase/package.json'\\).version, '| react:', require\\('react/package.json'\\).version, '| next:', require\\('next/package.json'\\).version\\)\")",
+      "Bash(npx --yes firebase-tools --version)"
+    ]
+  }
+}

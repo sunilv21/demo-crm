@@ -51,7 +51,10 @@ export const StatusUpdateForm = React.forwardRef<HTMLFormElement, StatusUpdateFo
         console.error("User is not authenticated. Cannot submit form.");
         return;
     }
-    onSubmit(values);
+    onSubmit({
+      status: values.status,
+      ...(values.visaStatus ? { visaStatus: values.visaStatus } : {}),
+    });
   }
 
   return (

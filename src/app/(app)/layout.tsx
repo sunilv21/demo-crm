@@ -2,12 +2,13 @@
 
 import { AppHeader } from '@/components/common/app-header';
 import { AppSidebarNav } from '@/components/common/app-sidebar-nav';
+import { AutoLogoutWatcher } from '@/components/attendance/auto-logout-watcher';
 import {
   SidebarProvider,
   Sidebar,
   SidebarInset,
 } from '@/components/ui/sidebar';
-import { useUser } from '@/firebase';
+import { useUser, AppUserProvider } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,16 +74,19 @@ export default function AppLayout({
   }
 
   return (
-    <SidebarProvider>
-      <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
-          <AppSidebarNav />
-      </Sidebar>
-      <SidebarInset className="flex flex-col">
-        <AppHeader />
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <AppUserProvider>
+      <AutoLogoutWatcher />
+      <SidebarProvider>
+        <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
+            <AppSidebarNav />
+        </Sidebar>
+        <SidebarInset className="flex flex-col">
+          <AppHeader />
+          <main className="flex-1 overflow-auto p-4 lg:p-6">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </AppUserProvider>
   );
 }

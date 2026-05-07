@@ -10,11 +10,75 @@ export type User = {
   phone?: string;
   jobTitle?: string;
   avatar?: string;
-  role: 'employee' | 'admin';
+  role: 'employee' | 'manager' | 'admin';
+  baseSalary?: number;
+  workStartTime?: string;
+  workEndTime?: string;
+  lateGraceMinutes?: number;
+  monthlyLeaveCap?: number;
   createdAt?: any;
   updatedAt?: any;
   createdBy?: string;
   updatedBy?: string;
+};
+
+export type AttendanceStatus =
+  | 'present'
+  | 'late'
+  | 'half-day'
+  | 'absent'
+  | 'leave'
+  | 'holiday';
+
+export type Attendance = {
+  id: string;
+  userId: string;
+  userName: string;
+  date: string;
+  punchIn: any;
+  punchOut?: any;
+  workStartTime: string;
+  workEndTime: string;
+  lateGraceMinutes: number;
+  punchInLate: boolean;
+  punchOutEarly: boolean;
+  autoLoggedOut: boolean;
+  workMinutes?: number;
+  status: AttendanceStatus;
+  notes?: string;
+  createdAt: any;
+  updatedAt: any;
+};
+
+export type LeaveType = 'casual' | 'sick' | 'earned' | 'lop';
+
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export type Leave = {
+  id: string;
+  userId: string;
+  userName: string;
+  type: LeaveType;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  status: LeaveStatus;
+  approvedBy?: string;
+  approvedAt?: any;
+  rejectedBy?: string;
+  rejectedAt?: any;
+  rejectionReason?: string;
+  createdAt: any;
+  updatedAt: any;
+};
+
+export type Holiday = {
+  id: string;
+  date: string;
+  name: string;
+  createdAt: any;
+  createdBy: string;
 };
 
 export type RequiredDocument = {

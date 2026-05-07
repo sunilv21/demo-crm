@@ -77,7 +77,7 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
       ...values,
       notes: values.notes || null,
       date: values.date.toISOString(),
-    }, selectedClient);
+    } as Omit<FollowUp, 'id' | 'clientName' | 'clientEmail' | 'clientPhone'>, selectedClient);
   }
 
   return (

@@ -2,7 +2,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { useAppUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import type { Client } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -89,6 +89,7 @@ const ClientProfileSkeleton = () => (
 export default function ClientProfilePage() {
     const params = useParams();
     const firestore = useFirestore();
+    const { isAdminOrManager } = useAppUser();
     const { toast } = useToast();
     const clientId = params.clientId as string;
 
@@ -219,7 +220,7 @@ export default function ClientProfilePage() {
                                             <DetailItem icon={UserCheck} label="Gender" value={client.gender} />
                                             <DetailItem icon={Briefcase} label="Travel Purpose" value={client.travelPurpose} />
                                             <DetailItem icon={Plane} label="Preferred Destination" value={client.preferredDestination} />
-                                            <DetailItem icon={IndianRupee} label="Budget" value={client.budget ? `₹${client.budget.toLocaleString()}`: undefined} />
+                                            {isAdminOrManager && <DetailItem icon={IndianRupee} label="Budget" value={client.budget ? `₹${client.budget.toLocaleString()}`: undefined} />}
                                             <DetailItem icon={Hotel} label="Hotel Preference" value={client.hotelPreference} />
                                             <DetailItem icon={Cog} label="Services" value={client.services} />
                                             <DetailItem icon={FileText} label="Visa Status" value={client.visaStatus} />

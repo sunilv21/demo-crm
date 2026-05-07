@@ -47,7 +47,7 @@ import {
                                                               PaginationEllipsis,
                                                               } from '@/components/ui/pagination';
                                                               import type { Client, CustomerLog, FollowUp, Booking } from '@/lib/types';
-                                                              import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
+                                                              import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser, useAppUser } from '@/firebase';
                                                               import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
                                                               import { Skeleton } from '@/components/ui/skeleton';
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -104,6 +104,7 @@ import { LastLogActivity } from '@/components/clients/last-log-activity';
 export default function ClientsPage() {
     const firestore = useFirestore();
     const { user } = useUser();
+    const { canDelete } = useAppUser();
     const { toast } = useToast();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -261,8 +262,8 @@ export default function ClientsPage() {
     
     const handleAddBooking = (newBookingData: Omit<Booking, 'id'>) => {
         if (!firestore || !bookingClient) return;
-        const clientBookingsCollection = collection(firestore, `clients/${bookingClient.id}/bookings`);
-        addDocumentNonBlocking(clientBookingsCollection, newBookingData);
+        const bookingsCollection = collection(firestore, 'bookings');
+        addDocumentNonBlocking(bookingsCollection, newBookingData);
         setBookingClient(null);
         toast({
             title: "Booking Created",
@@ -601,12 +602,14 @@ export default function ClientsPage() {
                                     <DropdownMenuItem onSelect={() => setFollowUpClient(client)}><Bell className="mr-2 h-4 w-4"/>Add Follow-up</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setBookingClient(client)}><Book className="mr-2 h-4 w-4"/>Create Booking</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handleArchiveClient(client)}><Archive className="mr-2 h-4 w-4"/>Archive</DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        className="text-destructive"
-                                        onSelect={() => setClientToDelete(client)}
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4"/>Delete
-                                    </DropdownMenuItem>
+                                    {canDelete && (
+                                        <DropdownMenuItem
+                                            className="text-destructive"
+                                            onSelect={() => setClientToDelete(client)}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4"/>Delete
+                                        </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>

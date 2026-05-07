@@ -1,7 +1,7 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { getItinerary } from '@/app/actions/itinerary';
+import { getItinerary, type ItineraryState } from '@/app/actions/itinerary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +12,7 @@ import { Loader2, Wand2, Clock, Info, Printer } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 
-const initialState = {
+const initialState: ItineraryState = {
   form: {
     destination: '',
     preferences: '',

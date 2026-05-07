@@ -99,9 +99,10 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       clientName: clientName,
       startDate: values.startDate.toISOString(),
       endDate: values.endDate.toISOString(),
+      total: values.total ?? 0,
       progress: values.status === 'confirmed' ? 100 : values.status === 'pending' ? 50 : 0,
       ...auditFields
-    });
+    } as Omit<Booking, 'id'>);
   }
 
   return (

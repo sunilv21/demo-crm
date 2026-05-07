@@ -24,7 +24,7 @@ const formSchema = z.object({
 type LogFormValues = z.infer<typeof formSchema>;
 
 interface CustomerLogFormProps {
-  client: Client;
+  client: Pick<Client, 'id' | 'name'>;
   onSubmit: (data: Omit<CustomerLog, 'id' | 'timestamp' | 'clientId' | 'clientName' | 'userName'>) => void;
 }
 

@@ -3,7 +3,7 @@
 import { PageHeader } from '@/components/common/page-header';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import type { Booking, Client, VisaHistoryItem, PreviousTrip } from '@/lib/types';
-import { collection, doc, arrayUnion, serverTimestamp, arrayRemove } from 'firebase/firestore';
+import { collection, doc, query, where, arrayUnion, serverTimestamp, arrayRemove } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -54,7 +54,7 @@ export default function ClientHistoryPage() {
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !clientId) return null;
-    return collection(firestore, 'clients', clientId, 'bookings');
+    return query(collection(firestore, 'bookings'), where('clientId', '==', clientId));
   }, [firestore, clientId]);
 
   const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);

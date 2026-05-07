@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, useFirestore, useUser, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, updateProfile } from 'firebase/auth';
@@ -27,6 +28,12 @@ const formSchema = z.object({
   name: z.string().min(2, { message: 'Name is required.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  role: z.enum(['employee', 'manager', 'admin']),
+  baseSalary: z.coerce.number().min(0).optional(),
+  workStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  workEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  lateGraceMinutes: z.coerce.number().min(0).max(120).optional(),
+  monthlyLeaveCap: z.coerce.number().min(0).max(31).optional(),
 });
 
 export default function NewUserPage() {
@@ -43,6 +50,12 @@ export default function NewUserPage() {
       name: '',
       email: '',
       password: '',
+      role: 'employee',
+      baseSalary: 0,
+      workStartTime: '09:30',
+      workEndTime: '18:30',
+      lateGraceMinutes: 15,
+      monthlyLeaveCap: 2,
     },
   });
 
@@ -81,7 +94,12 @@ export default function NewUserPage() {
         id: newUser.uid,
         name: values.name,
         email: values.email,
-        role: 'employee', // Default role
+        role: values.role,
+        baseSalary: values.baseSalary ?? 0,
+        workStartTime: values.workStartTime ?? '09:30',
+        workEndTime: values.workEndTime ?? '18:30',
+        lateGraceMinutes: values.lateGraceMinutes ?? 15,
+        monthlyLeaveCap: values.monthlyLeaveCap ?? 2,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: adminUser.uid,
@@ -122,7 +140,7 @@ export default function NewUserPage() {
         <CardHeader>
             <CardTitle>New User Details</CardTitle>
             <CardDescription>
-            The new user will be created with the role of 'Employee' and will receive an email to set their password.
+            The new user will receive an email to set their password.
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -163,6 +181,98 @@ export default function NewUserPage() {
                     <FormControl>
                         <Input type="password" {...field} />
                     </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="employee">Employee</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="baseSalary"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Base Monthly Salary (₹)</FormLabel>
+                    <FormControl>
+                        <Input type="number" min={0} step={500} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                  control={form.control}
+                  name="workStartTime"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Shift Start</FormLabel>
+                      <FormControl>
+                          <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                  <FormField
+                  control={form.control}
+                  name="workEndTime"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Shift End</FormLabel>
+                      <FormControl>
+                          <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                  <FormField
+                  control={form.control}
+                  name="lateGraceMinutes"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Grace (min)</FormLabel>
+                      <FormControl>
+                          <Input type="number" min={0} max={120} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                </div>
+                <FormField
+                control={form.control}
+                name="monthlyLeaveCap"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Monthly Leave Cap</FormLabel>
+                    <FormControl>
+                        <Input type="number" min={0} max={31} {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Approved leaves beyond this count in a month will be marked as Absent and deducted.
+                    </p>
                     <FormMessage />
                     </FormItem>
                 )}

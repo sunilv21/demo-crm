@@ -85,33 +85,8 @@ const FormCard: React.FC<React.PropsWithChildren<{isPublicForm: boolean} & React
     const cardClass = isPublicForm 
         ? "bg-white/10 backdrop-blur-md border-white/20 text-white" 
         : "bg-card text-card-foreground";
-    const headerClass = isPublicForm ? "text-white" : "";
-    const descriptionClass = isPublicForm ? "text-white/80" : "";
-    
-    // This is a bit of a trick to pass props to children
-    const childrenWithProps = React.Children.map(props.children, child => {
-        if (React.isValidElement(child) && typeof child.type !== 'string') {
-            if (child.type === CardHeader) {
-                return React.cloneElement(child, {
-                    ...child.props,
-                    children: React.Children.map(child.props.children, headerChild => {
-                         if (React.isValidElement(headerChild)) {
-                            if (headerChild.type === CardTitle) {
-                                return React.cloneElement(headerChild, {className: cn(headerChild.props.className, headerClass)});
-                            }
-                            if (headerChild.type === CardDescription) {
-                                return React.cloneElement(headerChild, {className: cn(headerChild.props.className, descriptionClass)});
-                            }
-                         }
-                        return headerChild;
-                    })
-                });
-            }
-        }
-        return child;
-    });
 
-    return <Card className={cn(cardClass, className)} {...props}>{childrenWithProps}</Card>;
+    return <Card className={cn(cardClass, className)} {...props} />;
 };
 
 

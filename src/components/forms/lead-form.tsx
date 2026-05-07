@@ -34,7 +34,7 @@ const formSchema = z.object({
 type LeadFormValues = z.infer<typeof formSchema>;
 
 interface LeadFormProps {
-  onSubmit: (data: Omit<Lead, 'id' | 'avatar'>) => void;
+  onSubmit: (data: Omit<Lead, 'id'>) => void;
   lead?: Lead;
 }
 
@@ -73,7 +73,7 @@ export const LeadForm = React.forwardRef<HTMLFormElement, LeadFormProps>(({ onSu
       ...values, 
       avatar: lead?.avatar || randomAvatar,
       ...auditFields
-    });
+    } as Omit<Lead, 'id'>);
   }
 
   return (
