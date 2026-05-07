@@ -1,15 +1,16 @@
 {
   "name": "sky-visa-crm-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Sky Visa CRM desktop wrapper",
   "main": "main.js",
   "author": "Sky Visa",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "publish": "electron-builder --win --publish always"
+    "make-ico": "node scripts/make-ico.js",
+    "build": "npm run make-ico && electron-builder",
+    "build:win": "npm run make-ico && electron-builder --win",
+    "publish": "npm run make-ico && electron-builder --win --publish always"
   },
   "build": {
     "appId": "com.skyvisa.crm",
@@ -59,6 +60,7 @@
   },
   "devDependencies": {
     "electron": "^33.2.1",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^3.0.1"
   }
 }
