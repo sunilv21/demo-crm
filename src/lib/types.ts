@@ -29,9 +29,10 @@ export type AttendanceStatus =
   | 'half-day'
   | 'absent'
   | 'leave'
-  | 'holiday';
+  | 'holiday'
+  | 'upcoming';
 
-export type BreakSource = 'manual' | 'screen-lock';
+export type BreakSource = 'manual' | 'screen-lock' | 'personal';
 
 export type AttendanceBreak = {
   id: string;            // uuid generated client-side

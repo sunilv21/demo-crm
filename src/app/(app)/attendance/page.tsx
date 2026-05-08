@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { collection, query, where } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { PunchCard } from '@/components/attendance/punch-card';
-import { AttendanceCalendar } from '@/components/attendance/attendance-calendar';
+import { AttendanceCalendar, DayDetailPanel } from '@/components/attendance/attendance-calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -33,10 +33,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useAppUser,
   useCollection,
+  useDoc,
   useFirestore,
   useMemoFirebase,
 } from '@/firebase';
-import type { Attendance, Holiday, Leave } from '@/lib/types';
+import type { Attendance, Holiday, Leave, User as AppUser } from '@/lib/types';
 import {
   STATUS_META,
   buildMonthCells,
@@ -194,13 +195,27 @@ function PersonalCalendar({
     );
   }, [year, month, attendance, leaves, holidays, appUser?.monthlyLeaveCap]);
 
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Reset selection when the displayed month changes.
+  useEffect(() => {
+    setSelectedDate(null);
+  }, [year, month]);
+  const selectedCell = selectedDate
+    ? cells.find((c) => c.date === selectedDate) ?? null
+    : null;
+
   return (
-    <AttendanceCalendar
-      cells={cells}
-      monthLabel={monthLabel(year, month)}
-      goPrev={goPrev}
-      goNext={goNext}
-    />
+    <div className="grid gap-4">
+      <AttendanceCalendar
+        cells={cells}
+        monthLabel={monthLabel(year, month)}
+        goPrev={goPrev}
+        goNext={goNext}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+      />
+      {selectedDate && <DayDetailPanel cell={selectedCell} />}
+    </div>
   );
 }
 
@@ -218,8 +233,14 @@ function TeamView({
   const firestore = useFirestore();
   const { authUser, isAdmin, isLoading: appUserLoading } = useAppUser();
   const today = todayIST();
-  const [filter, setFilter] = useState<'today' | 'month'>('today');
+  const [filter, setFilter] = useState<'today' | 'month' | 'detail'>('today');
   const [selectedUser, setSelectedUser] = useState<string | 'all'>('all');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Reset day selection when employee, month, or year changes.
+  useEffect(() => {
+    setSelectedDate(null);
+  }, [selectedUser, year, month]);
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = `${year}-${String(month).padStart(2, '0')}-31`;
@@ -263,6 +284,14 @@ function TeamView({
   const { data: detailAttendance } = useCollection<Attendance>(detailAttQuery);
   const { data: detailLeaves } = useCollection<Leave>(detailLeavesQuery);
   const { data: holidays } = useCollection<Holiday>(holidaysQuery);
+
+  // Fetch the selected user's profile so admin overrides honor that user's
+  // shift hours (for late / early-out flagging when correcting an entry).
+  const selectedUserDocRef = useMemoFirebase(() => {
+    if (!ready || !isUserSelected) return null;
+    return doc(firestore!, 'users', selectedUser);
+  }, [ready, firestore, isUserSelected, selectedUser]);
+  const { data: selectedUserDoc } = useDoc<AppUser>(selectedUserDocRef);
 
   const dropdownUsers = useMemo(() => {
     const seen = new Map<string, { id: string; name: string }>();
@@ -308,7 +337,7 @@ function TeamView({
           <CardTitle className="text-base">
             {filter === 'today' ? `Today – ${today}` : monthLabel(year, month)}
           </CardTitle>
-          {filter === 'month' && (
+          {(filter === 'month' || filter === 'detail') && (
             <MonthSwitcher year={year} month={month} goPrev={goPrev} goNext={goNext} />
           )}
         </div>
@@ -317,6 +346,7 @@ function TeamView({
             <TabsList>
               <TabsTrigger value="today">Today</TabsTrigger>
               <TabsTrigger value="month">This Month</TabsTrigger>
+              <TabsTrigger value="detail">Full Detail</TabsTrigger>
             </TabsList>
           </Tabs>
           <Select value={selectedUser} onValueChange={setSelectedUser}>
@@ -335,67 +365,75 @@ function TeamView({
         </div>
       </CardHeader>
       <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Punch In</TableHead>
-                <TableHead>Punch Out</TableHead>
-                <TableHead>Gross</TableHead>
-                <TableHead>Break</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAttendance.length === 0 && (
+          {filter === 'detail' ? (
+            <FullDetailTable
+              attendance={filteredAttendance}
+              showEmployee={selectedUser === 'all'}
+              onSelectEmployee={setSelectedUser}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                    No attendance records for this period.
-                  </TableCell>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Punch In</TableHead>
+                  <TableHead>Punch Out</TableHead>
+                  <TableHead>Gross</TableHead>
+                  <TableHead>Break</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              )}
-              {filteredAttendance.map((a) => {
-                const meta = STATUS_META[a.status];
-                const minutes = a.workMinutes ?? 0;
-                const breakMin = a.breakMinutes ?? 0;
-                const activeMin = Math.max(0, minutes - breakMin);
-                const breakCount = (a.breaks ?? []).filter((b) => b.end).length;
-                return (
-                  <TableRow
-                    key={a.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedUser(a.userId)}
-                  >
-                    <TableCell className="font-medium">{a.userName}</TableCell>
-                    <TableCell>{a.date}</TableCell>
-                    <TableCell>{a.punchIn ? formatTimeIST(toDate(a.punchIn)) : '—'}</TableCell>
-                    <TableCell>{a.punchOut ? formatTimeIST(toDate(a.punchOut)) : '—'}</TableCell>
-                    <TableCell>
-                      {minutes ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : '—'}
-                    </TableCell>
-                    <TableCell>
-                      {breakMin > 0 ? (
-                        <span className="text-orange-700">
-                          {breakMin}m
-                          {breakCount > 1 && ` · ${breakCount}×`}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {minutes ? `${Math.floor(activeMin / 60)}h ${activeMin % 60}m` : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`${meta.cls} capitalize`}>{meta.label}</Badge>
+              </TableHeader>
+              <TableBody>
+                {filteredAttendance.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      No attendance records for this period.
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                )}
+                {filteredAttendance.map((a) => {
+                  const meta = STATUS_META[a.status];
+                  const minutes = a.workMinutes ?? 0;
+                  const breakMin = a.breakMinutes ?? 0;
+                  const activeMin = Math.max(0, minutes - breakMin);
+                  const breakCount = (a.breaks ?? []).filter((b) => b.end).length;
+                  return (
+                    <TableRow
+                      key={a.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedUser(a.userId)}
+                    >
+                      <TableCell className="font-medium">{a.userName}</TableCell>
+                      <TableCell>{a.date}</TableCell>
+                      <TableCell>{a.punchIn ? formatTimeIST(toDate(a.punchIn)) : '—'}</TableCell>
+                      <TableCell>{a.punchOut ? formatTimeIST(toDate(a.punchOut)) : '—'}</TableCell>
+                      <TableCell>
+                        {minutes ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {breakMin > 0 ? (
+                          <span className="text-orange-700">
+                            {breakMin}m
+                            {breakCount > 1 && ` · ${breakCount}×`}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {minutes ? `${Math.floor(activeMin / 60)}h ${activeMin % 60}m` : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${meta.cls} capitalize`}>{meta.label}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       {isUserSelected && (
@@ -405,7 +443,21 @@ function TeamView({
             monthLabel={`${selectedUserName} • ${monthLabel(year, month)}`}
             goPrev={goPrev}
             goNext={goNext}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
           />
+          {selectedDate && (
+            <DayDetailPanel
+              cell={detailCells.find((c) => c.date === selectedDate) ?? null}
+              admin={{
+                userId: selectedUser as string,
+                userName: selectedUserName,
+                workStartTime: selectedUserDoc?.workStartTime,
+                workEndTime: selectedUserDoc?.workEndTime,
+                lateGraceMinutes: selectedUserDoc?.lateGraceMinutes,
+              }}
+            />
+          )}
           <BreakBreakdown
             attendance={detailAttendance ?? []}
             userName={selectedUserName}
@@ -464,10 +516,16 @@ function BreakBreakdown({
                         className={
                           b.source === 'screen-lock'
                             ? 'bg-purple-50 text-purple-800 border-purple-200'
-                            : 'bg-orange-50 text-orange-800 border-orange-200'
+                            : b.source === 'personal'
+                              ? 'bg-blue-50 text-blue-800 border-blue-200'
+                              : 'bg-orange-50 text-orange-800 border-orange-200'
                         }
                       >
-                        {b.source === 'screen-lock' ? 'Auto · screen lock' : 'Manual'}
+                        {b.source === 'screen-lock'
+                          ? 'Auto · screen lock'
+                          : b.source === 'personal'
+                            ? 'Personal'
+                            : 'Break'}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -477,5 +535,147 @@ function BreakBreakdown({
         </Table>
       </CardContent>
     </Card>
+  );
+}
+
+function FullDetailTable({
+  attendance,
+  showEmployee,
+  onSelectEmployee,
+}: {
+  attendance: Attendance[];
+  showEmployee: boolean;
+  onSelectEmployee: (uid: string) => void;
+}) {
+  const sorted = useMemo(
+    () =>
+      [...attendance].sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return (a.userName || '').localeCompare(b.userName || '');
+      }),
+    [attendance],
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground py-8">
+        No attendance records for this month.
+      </div>
+    );
+  }
+
+  const fmtHm = (m: number) =>
+    m > 0 ? `${Math.floor(m / 60)}h ${m % 60}m` : '—';
+  const sumBy = (a: Attendance, source: 'manual' | 'personal' | 'screen-lock') =>
+    (a.breaks ?? [])
+      .filter((b) => b.end && b.source === source)
+      .reduce((s, b) => s + (b.durationMinutes ?? 0), 0);
+
+  // Roll-up totals across all rows (handy for admin at-a-glance).
+  const totals = sorted.reduce(
+    (acc, a) => {
+      const gross = a.workMinutes ?? 0;
+      const breakMin = sumBy(a, 'manual');
+      const personalMin = sumBy(a, 'personal');
+      const awayMin = sumBy(a, 'screen-lock');
+      const active = Math.max(0, gross - breakMin - personalMin - awayMin);
+      acc.gross += gross;
+      acc.break += breakMin;
+      acc.personal += personalMin;
+      acc.active += active;
+      return acc;
+    },
+    { gross: 0, break: 0, personal: 0, active: 0 },
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {showEmployee && <TableHead>Employee</TableHead>}
+            <TableHead>Date</TableHead>
+            <TableHead>Punch In</TableHead>
+            <TableHead>Punch Out</TableHead>
+            <TableHead className="text-right">Gross</TableHead>
+            <TableHead className="text-right">Break</TableHead>
+            <TableHead className="text-right">Personal</TableHead>
+            <TableHead className="text-right">Active</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((a) => {
+            const meta = STATUS_META[a.status];
+            const gross = a.workMinutes ?? 0;
+            const breakMin = sumBy(a, 'manual');
+            const personalMin = sumBy(a, 'personal');
+            const awayMin = sumBy(a, 'screen-lock');
+            const active = Math.max(0, gross - breakMin - personalMin - awayMin);
+            return (
+              <TableRow
+                key={a.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => onSelectEmployee(a.userId)}
+              >
+                {showEmployee && (
+                  <TableCell className="font-medium">{a.userName}</TableCell>
+                )}
+                <TableCell>{a.date}</TableCell>
+                <TableCell>
+                  {a.punchIn ? formatTimeIST(toDate(a.punchIn)) : '—'}
+                  {a.punchInLate && (
+                    <span className="ml-1 text-[10px] text-yellow-700">late</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {a.punchOut ? formatTimeIST(toDate(a.punchOut)) : '—'}
+                  {a.punchOutEarly && (
+                    <span className="ml-1 text-[10px] text-yellow-700">early</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">{fmtHm(gross)}</TableCell>
+                <TableCell className="text-right">
+                  {breakMin > 0 ? (
+                    <span className="text-orange-700">{breakMin}m</span>
+                  ) : (
+                    '—'
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {personalMin > 0 ? (
+                    <span className="text-blue-700">{personalMin}m</span>
+                  ) : (
+                    '—'
+                  )}
+                </TableCell>
+                <TableCell className="text-right font-medium text-green-700">
+                  {fmtHm(active)}
+                </TableCell>
+                <TableCell>
+                  <Badge className={`${meta.cls} capitalize`}>{meta.label}</Badge>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+        <TableBody>
+          <TableRow className="bg-muted/40 font-medium">
+            <TableCell colSpan={showEmployee ? 4 : 3}>Total</TableCell>
+            <TableCell className="text-right">{fmtHm(totals.gross)}</TableCell>
+            <TableCell className="text-right text-orange-700">
+              {totals.break}m
+            </TableCell>
+            <TableCell className="text-right text-blue-700">
+              {totals.personal}m
+            </TableCell>
+            <TableCell className="text-right text-green-700">
+              {fmtHm(totals.active)}
+            </TableCell>
+            <TableCell />
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
   );
 }

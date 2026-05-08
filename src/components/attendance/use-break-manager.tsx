@@ -41,14 +41,20 @@ export interface BreakManager {
   isOnBreak: boolean;
   currentBreak: AttendanceBreak | undefined;
   breaks: AttendanceBreak[];
-  closedBreakMinutes: number; // sum of CLOSED break durations
-  totalBreakMinutes: number; // closed + currently-open elapsed
+  closedBreakMinutes: number; // sum of ALL closed break durations
+  totalBreakMinutes: number; // closed + currently-open elapsed (all sources)
+  // Per-source breakdowns (CLOSED only):
+  manualMinutes: number;
+  personalMinutes: number;
+  awayMinutes: number;
   capMinutes: number;
   remainingCapMinutes: number; // 0 if over
   isOverCap: boolean;
   /** Open a manual break. No-op if already on break or punched out. */
   startBreak: () => Promise<void>;
-  /** Close the open break. No-op if no open break. */
+  /** Open a personal time block. Same accounting as a break. */
+  startPersonal: () => Promise<void>;
+  /** Close the open break/personal/away period. No-op if none open. */
   endBreak: () => Promise<void>;
 }
 
@@ -72,6 +78,15 @@ export function useBreakManager({
       .filter((b) => b.end)
       .reduce((sum, b) => sum + (b.durationMinutes ?? 0), 0);
   }, [breaks]);
+
+  const sumBy = (source: AttendanceBreak['source']) =>
+    breaks
+      .filter((b) => b.end && b.source === source)
+      .reduce((sum, b) => sum + (b.durationMinutes ?? 0), 0);
+
+  const manualMinutes = useMemo(() => sumBy('manual'), [breaks]);
+  const personalMinutes = useMemo(() => sumBy('personal'), [breaks]);
+  const awayMinutes = useMemo(() => sumBy('screen-lock'), [breaks]);
 
   const openElapsed = useMemo(() => {
     if (!currentBreak) return 0;
@@ -112,6 +127,7 @@ export function useBreakManager({
 
   // Public manual API always uses 'manual'.
   const startManualBreak = () => startBreak('manual');
+  const startPersonal = () => startBreak('personal');
 
   const endBreak = async () => {
     if (!attendanceRecord || !attendanceDocRef) return;
@@ -200,10 +216,14 @@ export function useBreakManager({
     breaks,
     closedBreakMinutes,
     totalBreakMinutes,
+    manualMinutes,
+    personalMinutes,
+    awayMinutes,
     capMinutes,
     remainingCapMinutes,
     isOverCap,
     startBreak: startManualBreak,
+    startPersonal,
     endBreak,
   };
 }

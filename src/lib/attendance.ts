@@ -180,7 +180,8 @@ export function buildMonthCells(
     }
 
     if (date < todayStr) return { date, status: 'absent' };
-    return { date, status: 'present' };
+    if (date === todayStr) return { date, status: 'present' };
+    return { date, status: 'upcoming' };
   });
 }
 
@@ -214,6 +215,11 @@ export const STATUS_META: Record<AttendanceStatus, { label: string; cls: string;
     label: 'Holiday',
     cls: 'bg-gray-100 text-gray-700 border-gray-200',
     dot: 'bg-gray-400',
+  },
+  upcoming: {
+    label: 'Upcoming',
+    cls: 'bg-transparent text-muted-foreground border-dashed',
+    dot: 'bg-transparent',
   },
 };
 
@@ -330,7 +336,9 @@ export function computePayroll(args: {
   const breakCap = user.dailyBreakCapMinutes ?? 0;
 
   for (const cell of cells) {
-    if (cell.status === 'holiday') continue;
+    // Holidays/Sundays are non-working. Future ('upcoming') days haven't
+    // happened yet — don't count them in payroll until they do.
+    if (cell.status === 'holiday' || cell.status === 'upcoming') continue;
     workingDays += 1;
     switch (cell.status) {
       case 'present':

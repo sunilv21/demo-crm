@@ -143,18 +143,29 @@ service cloud.firestore {
     function isNewAttendanceOwner() {
       return isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
+    // Doc id format is `${uid}_${YYYY-MM-DD}` so we can verify ownership from
+    // the path alone — works even when the document doesn't exist yet, which
+    // the get/exists probe in the idempotent auto-punch-in needs.
+    function isOwnerByPath(docId) {
+      return isSignedIn() && docId.split('_')[0] == request.auth.uid;
+    }
 
     // Attendance:
     //   - Admin can get/list every employee's attendance.
     //   - Employees can get/list only records where userId == request.auth.uid.
     //     Firestore will allow employee LIST queries only when the query is
     //     constrained by where('userId', '==', request.auth.uid).
+    //   - For GET, we also allow non-existent docs whose path uid matches the
+    //     caller — needed so `getDoc` existence probes don't error out before
+    //     a record is created on the day's first punch-in.
     //   - Owners can create their own day record (deterministic id ties one
     //     doc per uid per date — prevents duplicate punch-in on re-login).
     //   - Owners can UPDATE their record (punchOut, breaks, status), but
     //     `punchIn` and `date` are locked — only an admin can rewrite those.
     match /attendance/{id} {
-      allow get: if isAdmin() || isAttendanceOwner();
+      allow get: if isAdmin()
+                 || isOwnerByPath(id)
+                 || isAttendanceOwner();
       allow list: if isAdmin() || isAttendanceOwner();
 
       allow create: if isNewAttendanceOwner()

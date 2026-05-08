@@ -8,7 +8,7 @@ import {
   setDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { Clock, Coffee, LogIn, LogOut, Loader2, Play } from 'lucide-react';
+import { Clock, Coffee, LogIn, LogOut, Loader2, MonitorOff, Phone, Play } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -184,7 +184,7 @@ export function PunchCard() {
   const meta = STATUS_META[status];
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
@@ -194,15 +194,25 @@ export function PunchCard() {
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col">
+      <CardContent>
         <div className="grid gap-3">
           <div>
             <div className="text-xs text-muted-foreground">Status</div>
             {todayRecord ? (
               breakManager.isOnBreak ? (
-                <Badge className="mt-1 bg-orange-100 text-orange-800 border-orange-200">
-                  On Break
-                </Badge>
+                breakManager.currentBreak?.source === 'personal' ? (
+                  <Badge className="mt-1 bg-blue-100 text-blue-800 border-blue-200">
+                    Personal Time
+                  </Badge>
+                ) : breakManager.currentBreak?.source === 'screen-lock' ? (
+                  <Badge className="mt-1 bg-purple-100 text-purple-800 border-purple-200">
+                    Away
+                  </Badge>
+                ) : (
+                  <Badge className="mt-1 bg-orange-100 text-orange-800 border-orange-200">
+                    On Break
+                  </Badge>
+                )
               ) : (
                 <Badge className={`mt-1 ${meta.cls} capitalize`}>{meta.label}</Badge>
               )
@@ -229,31 +239,52 @@ export function PunchCard() {
             </div>
           </div>
           {todayRecord && (
-            <div>
-              <div className="text-xs text-muted-foreground">
-                Break {breakManager.capMinutes > 0 && `(${breakManager.capMinutes}m cap)`}
+            <div className="border-t pt-3 space-y-1.5">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-[10px] text-orange-700 font-medium uppercase tracking-wide">Break</div>
+                  <div className="text-sm font-semibold text-orange-900">
+                    {breakManager.manualMinutes}m
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-blue-700 font-medium uppercase tracking-wide">Personal</div>
+                  <div className="text-sm font-semibold text-blue-900">
+                    {breakManager.personalMinutes}m
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-purple-700 font-medium uppercase tracking-wide">Away</div>
+                  <div className="text-sm font-semibold text-purple-900">
+                    {breakManager.awayMinutes}m
+                  </div>
+                </div>
               </div>
-              <div className="mt-1 text-sm font-medium">
-                {breakManager.totalBreakMinutes}m used
-                {breakManager.capMinutes > 0 && (
+              {breakManager.capMinutes > 0 && (
+                <div className="text-xs text-center">
+                  <span className="text-muted-foreground">
+                    {breakManager.totalBreakMinutes}m / {breakManager.capMinutes}m cap ·{' '}
+                  </span>
                   <span
-                    className={`ml-2 text-xs ${
-                      breakManager.isOverCap ? 'text-destructive' : 'text-muted-foreground'
-                    }`}
+                    className={
+                      breakManager.isOverCap
+                        ? 'text-destructive font-medium'
+                        : 'text-muted-foreground'
+                    }
                   >
                     {breakManager.isOverCap
-                      ? `Over by ${breakManager.totalBreakMinutes - breakManager.capMinutes}m`
+                      ? `over by ${breakManager.totalBreakMinutes - breakManager.capMinutes}m`
                       : `${breakManager.remainingCapMinutes}m left`}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <div className="mt-auto pt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-auto pt-4 flex flex-col gap-2">
           {!todayRecord && (
-            <Button onClick={handlePunchIn} disabled={submitting}>
+            <Button onClick={handlePunchIn} disabled={submitting} className="w-full">
               {submitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -268,25 +299,38 @@ export function PunchCard() {
                 <Button
                   onClick={() => breakManager.endBreak()}
                   variant="outline"
-                  className="border-orange-300"
+                  className="w-full border-primary"
                 >
                   <Play className="mr-2 h-4 w-4" />
                   Resume Work
                 </Button>
               ) : (
-                <Button
-                  onClick={() => breakManager.startBreak()}
-                  variant="outline"
-                  disabled={submitting}
-                >
-                  <Coffee className="mr-2 h-4 w-4" />
-                  Take Break
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => breakManager.startBreak()}
+                    variant="outline"
+                    disabled={submitting}
+                    size="sm"
+                  >
+                    <Coffee className="mr-1 h-4 w-4" />
+                    Break
+                  </Button>
+                  <Button
+                    onClick={() => breakManager.startPersonal()}
+                    variant="outline"
+                    disabled={submitting}
+                    size="sm"
+                  >
+                    <Phone className="mr-1 h-4 w-4" />
+                    Personal
+                  </Button>
+                </div>
               )}
               <Button
                 onClick={handlePunchOut}
                 disabled={submitting || breakManager.isOnBreak}
                 variant="default"
+                className="w-full"
               >
                 {submitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
