@@ -33,6 +33,13 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // CRITICAL: when the window is minimized to the tray, Chromium would
+      // otherwise throttle setTimeout / setInterval to >= 1 min after a few
+      // minutes hidden. That breaks our 60s heartbeat (false sleep-detection
+      // positives) and the 8 PM auto-punch-out setTimeout (may fire late or
+      // never). Keeping timers running at full rate while hidden is exactly
+      // what attendance tracking needs.
+      backgroundThrottling: false,
     },
   });
 

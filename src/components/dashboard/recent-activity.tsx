@@ -21,17 +21,15 @@ import {
 import type { CustomerLog } from '@/lib/types';
 import { toDate } from '@/lib/attendance';
 
-function timeAgo(date: Date): string {
-  const diffMs = Date.now() - date.getTime();
-  const sec = Math.round(diffMs / 1000);
-  if (sec < 60) return 'just now';
-  const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const days = Math.round(hr / 24);
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+function formatLogStamp(date: Date): string {
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 export function RecentActivity() {
@@ -96,7 +94,7 @@ export function RecentActivity() {
                       </p>
                     </div>
                     <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {timeAgo(when)}
+                      {formatLogStamp(when)}
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
                   </Link>

@@ -6,7 +6,7 @@ import type { CustomerLog } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Input } from "./ui/input";
@@ -103,7 +103,7 @@ export function CustomerLogs({ clientId }: { clientId?: string }) {
                                 )}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                {log.createdAt?.toDate ? formatDistanceToNow(log.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                                {log.createdAt?.toDate ? format(log.createdAt.toDate(), "dd MMM yyyy, hh:mm a") : 'Just now'}
                             </p>
                         </div>
                         <p className="text-sm text-muted-foreground">{log.activity}</p>

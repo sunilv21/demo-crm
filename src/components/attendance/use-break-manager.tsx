@@ -299,7 +299,13 @@ export function useBreakManager({
     if (attendanceRecord.punchOut) return;
 
     const handleLock = () => {
-      lockStartedAtRef.current = Date.now();
+      // If the idle handler already opened a window with an earlier start
+      // timestamp, keep it — overwriting with `Date.now()` would lose any
+      // idle minutes that preceded the explicit lock.
+      const now = Date.now();
+      if (lockStartedAtRef.current == null || lockStartedAtRef.current > now) {
+        lockStartedAtRef.current = now;
+      }
     };
 
     const handleUnlock = async () => {

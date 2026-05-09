@@ -32,8 +32,8 @@ import {
  * Renders nothing. Mounted inside <AppUserProvider>:
  *   1. Auto-creates today's attendance doc on first sign-in/page load (auto
  *      punch-in). Idempotent — re-runs are no-ops once a doc exists.
- *   2. Schedules a 9 PM IST sign-out + auto-punch-out for whoever is still
- *      logged in.
+ *   2. Schedules an end-of-shift sign-out + auto-punch-out for whoever is
+ *      still logged in (cutoff = AUTO_LOGOUT_HOUR_IST, currently 20:00 IST).
  *
  * IMPORTANT: this component uses a single-doc GET (not a collection LIST)
  * to look up today's record. The doc id is the deterministic compound
@@ -122,7 +122,7 @@ export function AutoLogoutWatcher() {
   }, [ready, firestore, authUser, appUser, todayRecord, todayLoading, today]);
 
   // -------------------------------------------------------------------------
-  // 9 PM IST auto sign-out + auto punch-out.
+  // End-of-shift auto sign-out + auto punch-out (default 8 PM IST).
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (!auth || !authUser) return;
@@ -157,6 +157,27 @@ export function AutoLogoutWatcher() {
           status,
           updatedAt: serverTimestamp(),
         });
+      }
+      // Surface the auto sign-out via an OS notification — when the desktop
+      // app is minimized to the tray, the in-app toast is invisible, so the
+      // user would otherwise have no idea they were punched out.
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        try {
+          if (Notification.permission === 'granted') {
+            new Notification('Sky Visa CRM — auto sign-out', {
+              body: 'End of shift reached. You have been signed out and punched out.',
+            });
+          } else if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              new Notification('Sky Visa CRM — auto sign-out', {
+                body: 'End of shift reached. You have been signed out and punched out.',
+              });
+            }
+          }
+        } catch {
+          // best-effort — Notification API may be unavailable in some shells
+        }
       }
       toast({
         title: 'Auto sign-out',
