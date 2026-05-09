@@ -178,19 +178,68 @@ export function useBreakManager({
   // Heartbeat — write lastActiveAt while the app is open and the user is
   // punched in. Server-side gaps in this stamp are how we detect "user closed
   // the app and walked away."
+  //
+  // Each tick also acts as a sleep / suspend detector: if the wall clock
+  // advanced significantly more than HEARTBEAT_INTERVAL_MS since the last
+  // tick, the JS event loop was paused — laptop sleep, lid close, OS
+  // throttling — and we backfill an Away break covering the gap.
   // -------------------------------------------------------------------------
+  // Refs to read latest state from inside the heartbeat closure without
+  // re-subscribing the interval each render.
+  const breaksRef = useRef(breaks);
+  breaksRef.current = breaks;
+  const writeBreaksRef = useRef<(next: AttendanceBreak[]) => Promise<void>>(writeBreaks);
+  writeBreaksRef.current = writeBreaks;
+  const lastBeatLocalMsRef = useRef<number | null>(null);
+
+  // Allowed wall-clock gap between heartbeats before we treat it as a sleep.
+  const SLEEP_DETECT_GAP_MS = HEARTBEAT_INTERVAL_MS + HEARTBEAT_BACKFILL_GAP_MS;
+
   useEffect(() => {
     if (!attendanceRecord || !attendanceDocRef) return;
     if (attendanceRecord.punchOut) return;
     let cancelled = false;
+    lastBeatLocalMsRef.current = null; // reset on record change
+
     const beat = async () => {
       if (cancelled || !attendanceDocRef) return;
+      const nowMs = Date.now();
+      const lastBeat = lastBeatLocalMsRef.current;
+      lastBeatLocalMsRef.current = nowMs;
+
+      // Sleep / suspend detection: gap between wall-clock ticks.
+      if (lastBeat != null && nowMs - lastBeat > SLEEP_DETECT_GAP_MS) {
+        const liveBreaks = breaksRef.current;
+        // Skip if a break is already open — that one already covers this gap,
+        // and we must not have two open breaks at once.
+        if (!liveBreaks.some((b) => !b.end)) {
+          const startDate = new Date(lastBeat);
+          const endDate = new Date(nowMs);
+          const durationMinutes = workMinutesBetween(startDate, endDate);
+          if (durationMinutes > 0) {
+            const sleepBreak: AttendanceBreak = {
+              id: uuid(),
+              start: Timestamp.fromDate(startDate),
+              end: Timestamp.fromDate(endDate),
+              source: 'screen-lock',
+              durationMinutes,
+            };
+            try {
+              await writeBreaksRef.current([...liveBreaks, sleepBreak]);
+            } catch {
+              // best-effort — next tick retries detection if the write failed
+            }
+          }
+        }
+      }
+
       try {
         await updateDoc(attendanceDocRef, { lastActiveAt: serverTimestamp() });
       } catch {
         // Tolerate transient permission/network errors — next tick will retry.
       }
     };
+
     beat();
     const id = setInterval(beat, HEARTBEAT_INTERVAL_MS);
     return () => {
@@ -257,15 +306,19 @@ export function useBreakManager({
       const lockStart = lockStartedAtRef.current;
       lockStartedAtRef.current = null;
       if (!lockStart) return;
-      const elapsedMs = Date.now() - lockStart;
+      const nowMs = Date.now();
+      const elapsedMs = nowMs - lockStart;
+      // Mark the heartbeat as up-to-date so the sleep-detect path doesn't also
+      // log a break for the same gap when the next heartbeat fires.
+      lastBeatLocalMsRef.current = nowMs;
       if (elapsedMs < SHORT_LOCK_THRESHOLD_MS) return; // brief lock, ignore
       // Open a break that covers the lock period.
       if (!attendanceDocRef) return;
       const startDate = new Date(lockStart);
-      const endDate = new Date();
+      const endDate = new Date(nowMs);
       const durationMinutes = workMinutesBetween(startDate, endDate);
       // Skip if there's somehow already an open break (manual one going).
-      if (breaks.some((b) => !b.end)) return;
+      if (breaksRef.current.some((b) => !b.end)) return;
       const lockBreak: AttendanceBreak = {
         id: uuid(),
         start: Timestamp.fromDate(startDate),
@@ -273,7 +326,7 @@ export function useBreakManager({
         source: 'screen-lock',
         durationMinutes,
       };
-      await writeBreaks([...breaks, lockBreak]);
+      await writeBreaksRef.current([...breaksRef.current, lockBreak]);
     };
 
     // OS idle handler — same accounting as a screen-lock. The Electron main

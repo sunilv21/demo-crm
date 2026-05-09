@@ -118,6 +118,9 @@ function setupAutoUpdater() {
       detail: 'The app will restart and apply the update.',
     });
     if (choice === 0) {
+      // Belt-and-braces: tray hijacks 'close' unless isQuitting is true. Make
+      // sure that flag is set so the install can shut down all windows.
+      isQuitting = true;
       autoUpdater.quitAndInstall();
     }
   });
