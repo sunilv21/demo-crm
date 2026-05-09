@@ -8,7 +8,12 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import type { Attendance, AttendanceBreak, BreakSource } from '@/lib/types';
-import { toDate, workMinutesBetween } from '@/lib/attendance';
+import {
+  HEARTBEAT_BACKFILL_GAP_MS,
+  HEARTBEAT_INTERVAL_MS,
+  toDate,
+  workMinutesBetween,
+} from '@/lib/attendance';
 
 const SHORT_LOCK_THRESHOLD_MS = 2 * 60 * 1000; // ignore screen locks < 2 min
 
@@ -27,6 +32,12 @@ declare global {
       onScreenUnlock?: (cb: () => void) => void;
       offScreenLock?: () => void;
       offScreenUnlock?: () => void;
+      /** Fires when OS reports the user has been idle past the desktop's
+       * idle threshold (no mouse/keyboard). Provides the idle start timestamp. */
+      onIdle?: (cb: (idleStartedAtMs: number) => void) => void;
+      onActive?: (cb: () => void) => void;
+      offIdle?: () => void;
+      offActive?: () => void;
     };
   }
 }
@@ -164,6 +175,68 @@ export function useBreakManager({
   };
 
   // -------------------------------------------------------------------------
+  // Heartbeat — write lastActiveAt while the app is open and the user is
+  // punched in. Server-side gaps in this stamp are how we detect "user closed
+  // the app and walked away."
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!attendanceRecord || !attendanceDocRef) return;
+    if (attendanceRecord.punchOut) return;
+    let cancelled = false;
+    const beat = async () => {
+      if (cancelled || !attendanceDocRef) return;
+      try {
+        await updateDoc(attendanceDocRef, { lastActiveAt: serverTimestamp() });
+      } catch {
+        // Tolerate transient permission/network errors — next tick will retry.
+      }
+    };
+    beat();
+    const id = setInterval(beat, HEARTBEAT_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [attendanceRecord?.id, attendanceRecord?.punchOut, attendanceDocRef]);
+
+  // -------------------------------------------------------------------------
+  // Heartbeat-gap reconciliation.
+  // On record load (per record id), if the previous lastActiveAt is older
+  // than HEARTBEAT_BACKFILL_GAP_MS, insert a screen-lock break covering the
+  // gap. This catches "punched in, closed the app, came back hours later."
+  // -------------------------------------------------------------------------
+  const reconciledForRecordRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!attendanceRecord || !attendanceDocRef) return;
+    if (attendanceRecord.punchOut) return;
+    if (reconciledForRecordRef.current === attendanceRecord.id) return;
+    reconciledForRecordRef.current = attendanceRecord.id;
+
+    const lastActiveAt = attendanceRecord.lastActiveAt
+      ? toDate(attendanceRecord.lastActiveAt)
+      : null;
+    if (!lastActiveAt) return;
+    const now = new Date();
+    const gapMs = now.getTime() - lastActiveAt.getTime();
+    if (gapMs < HEARTBEAT_BACKFILL_GAP_MS) return;
+    // Skip if there is already an open break — that one already covers the gap
+    // (and writing a second open break would be invalid).
+    if (breaks.some((b) => !b.end)) return;
+
+    const durationMinutes = workMinutesBetween(lastActiveAt, now);
+    if (durationMinutes <= 0) return;
+    const gapBreak: AttendanceBreak = {
+      id: uuid(),
+      start: Timestamp.fromDate(lastActiveAt),
+      end: Timestamp.fromDate(now),
+      source: 'screen-lock',
+      durationMinutes,
+    };
+    void writeBreaks([...breaks, gapBreak]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attendanceRecord?.id, attendanceRecord?.punchOut]);
+
+  // -------------------------------------------------------------------------
   // Screen-lock auto-detection.
   //   Desktop (Electron): exact `lock-screen` / `unlock-screen` events.
   //   Browser: Page Visibility API as best-effort fallback.
@@ -203,14 +276,31 @@ export function useBreakManager({
       await writeBreaks([...breaks, lockBreak]);
     };
 
+    // OS idle handler — same accounting as a screen-lock. The Electron main
+    // process tracks idle time and emits `idle` (with the timestamp the OS
+    // reports the user went idle) and `active` events.
+    const handleIdle = (idleStartedAtMs: number) => {
+      // Don't overwrite an already-running lock window.
+      if (lockStartedAtRef.current == null) {
+        lockStartedAtRef.current = idleStartedAtMs;
+      }
+    };
+    const handleActive = () => {
+      handleUnlock();
+    };
+
     // Prefer Electron native events when available.
     const electron = window.electronAPI;
     if (electron?.onScreenLock && electron?.onScreenUnlock) {
       electron.onScreenLock(handleLock);
       electron.onScreenUnlock(handleUnlock);
+      electron.onIdle?.(handleIdle);
+      electron.onActive?.(handleActive);
       return () => {
         electron.offScreenLock?.();
         electron.offScreenUnlock?.();
+        electron.offIdle?.();
+        electron.offActive?.();
       };
     }
 

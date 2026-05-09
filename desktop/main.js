@@ -2,7 +2,7 @@
 // Wraps the deployed Next.js web app in a native desktop window.
 // Uses electron-updater to pull new shell builds from GitHub Releases.
 
-const { app, BrowserWindow, Menu, dialog, shell, powerMonitor } = require('electron');
+const { app, BrowserWindow, Menu, Tray, dialog, shell, powerMonitor, nativeImage } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const config = require('./config');
@@ -10,7 +10,14 @@ const config = require('./config');
 const isDev = process.env.DEV_MODE === '1' || !app.isPackaged;
 const targetUrl = isDev ? config.DEV_URL : config.APP_URL;
 
+// OS idle threshold for auto-Away tracking. Kept in sync with
+// IDLE_AWAY_THRESHOLD_SEC in src/lib/attendance.ts (5 minutes).
+const IDLE_AWAY_THRESHOLD_SEC = 5 * 60;
+const IDLE_POLL_INTERVAL_MS = 30 * 1000;
+
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -41,6 +48,30 @@ function createWindow() {
     }
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Hijack the close button — minimize to tray instead of quitting. This
+  // keeps the app alive so heartbeats, screen-lock detection, idle tracking
+  // and the 8 PM auto-punch-out continue to run. Real quit only happens via
+  // the tray "Quit" menu (which sets isQuitting = true) or app.quit().
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      // First time we hide, show a tray hint so users know the app is still running.
+      if (tray && !mainWindow.__trayHintShown) {
+        mainWindow.__trayHintShown = true;
+        try {
+          tray.displayBalloon({
+            title: 'Sky Visa CRM is still running',
+            content:
+              'The app is minimized to the system tray so attendance tracking continues. Right-click the tray icon to quit.',
+          });
+        } catch {
+          // Balloon is best-effort — Linux/macOS may not support it.
+        }
+      }
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -124,16 +155,105 @@ function setupPowerEvents() {
   powerMonitor.on('resume', sendUnlock);
 }
 
+// ---------------------------------------------------------------------------
+// OS idle polling — `powerMonitor.getSystemIdleTime()` returns seconds since
+// the last keyboard/mouse input. We poll periodically and emit `idle` /
+// `active` IPC events when crossing IDLE_AWAY_THRESHOLD_SEC. This catches
+// the "user left the PC, app still open" case.
+// ---------------------------------------------------------------------------
+function setupIdleWatcher() {
+  let isIdle = false;
+  let idleStartedAtMs = null;
+
+  const tick = () => {
+    const seconds = powerMonitor.getSystemIdleTime();
+    if (!isIdle && seconds >= IDLE_AWAY_THRESHOLD_SEC) {
+      isIdle = true;
+      // Reconstruct when idle started: now - idle seconds. We send this so the
+      // renderer logs the break starting from the actual idle moment, not
+      // when we noticed.
+      idleStartedAtMs = Date.now() - seconds * 1000;
+      mainWindow?.webContents.send('user-idle', idleStartedAtMs);
+    } else if (isIdle && seconds < IDLE_AWAY_THRESHOLD_SEC) {
+      isIdle = false;
+      idleStartedAtMs = null;
+      mainWindow?.webContents.send('user-active');
+    }
+  };
+
+  setInterval(tick, IDLE_POLL_INTERVAL_MS);
+}
+
+// ---------------------------------------------------------------------------
+// System tray — keeps the app alive in the background after the window is
+// closed so attendance/break tracking continues. Right-click menu offers a
+// real quit path; left-click reopens the window.
+// ---------------------------------------------------------------------------
+function setupTray() {
+  const iconPath = path.join(__dirname, 'assets', 'icon.png');
+  let trayIcon;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath);
+    if (trayIcon.isEmpty()) trayIcon = nativeImage.createEmpty();
+  } catch {
+    trayIcon = nativeImage.createEmpty();
+  }
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Sky Visa CRM');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Open Sky Visa CRM',
+      click: () => {
+        if (!mainWindow) {
+          createWindow();
+        } else {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
+
+  // Single-click reopens — same as the menu item.
+  tray.on('click', () => {
+    if (!mainWindow) {
+      createWindow();
+    } else {
+      mainWindow.isVisible() ? mainWindow.focus() : mainWindow.show();
+    }
+  });
+}
+
 app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
   setupPowerEvents();
+  setupIdleWatcher();
+  setupTray();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else mainWindow?.show();
   });
 });
 
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
+// Tray keeps the process alive after the last window closes — only really
+// quit when the user explicitly chose to (isQuitting = true). On macOS the
+// app traditionally stays in the dock, so we keep the same shape there too.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (isQuitting && process.platform !== 'darwin') app.quit();
 });

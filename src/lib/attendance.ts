@@ -5,7 +5,13 @@ export const IST_TZ = 'Asia/Kolkata';
 export const DEFAULT_WORK_START = '09:30';
 export const DEFAULT_WORK_END = '18:30';
 export const DEFAULT_GRACE_MINUTES = 15;
-export const AUTO_LOGOUT_HOUR_IST = 21;
+export const AUTO_LOGOUT_HOUR_IST = 20;
+/** Heartbeat written by client every N ms while punched in. */
+export const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+/** Gap in lastActiveAt above this becomes a backfilled "Away" break on reopen. */
+export const HEARTBEAT_BACKFILL_GAP_MS = 2 * 60 * 1000;
+/** OS idle threshold (no mouse/keyboard) for auto-Away on desktop. */
+export const IDLE_AWAY_THRESHOLD_SEC = 5 * 60;
 
 export const LEAVE_QUOTAS = {
   casual: 12,

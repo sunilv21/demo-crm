@@ -65,6 +65,9 @@ export type Attendance = {
   breakMinutes?: number;
   // Active = workMinutes - breakMinutes (computed at punch-out and on the fly).
   activeMinutes?: number;
+  /** Heartbeat written by client every minute while app is open and punched in.
+   * Gaps in this timestamp are reconciled into screen-lock breaks on next login. */
+  lastActiveAt?: any;
   createdAt: any;
   updatedAt: any;
 };
