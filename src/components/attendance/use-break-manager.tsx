@@ -40,10 +40,12 @@ interface UseBreakManagerArgs {
 export interface BreakManager {
   isOnBreak: boolean;
   currentBreak: AttendanceBreak | undefined;
+  /** Live elapsed seconds for the currently-open break, or 0. Ticks every second. */
+  currentBreakElapsedSeconds: number;
   breaks: AttendanceBreak[];
   closedBreakMinutes: number; // sum of ALL closed break durations
   totalBreakMinutes: number; // closed + currently-open elapsed (all sources)
-  // Per-source breakdowns (CLOSED only):
+  // Per-source breakdowns — closed totals + live elapsed when that source is active:
   manualMinutes: number;
   personalMinutes: number;
   awayMinutes: number;
@@ -63,14 +65,19 @@ export function useBreakManager({
   attendanceDocRef,
   capMinutes,
 }: UseBreakManagerArgs): BreakManager {
-  // Re-render every 30s so elapsed counters update.
+  // Re-render every second so the live break counter ticks visibly.
+  // We only run the fast tick while a break is open — otherwise idle at 30s.
   const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 30 * 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const breaks = (attendanceRecord?.breaks ?? []) as AttendanceBreak[];
+  const hasOpenBreak = breaks.some((b) => !b.end);
+  useEffect(() => {
+    const id = setInterval(
+      () => setTick((n) => n + 1),
+      hasOpenBreak ? 1000 : 30 * 1000,
+    );
+    return () => clearInterval(id);
+  }, [hasOpenBreak]);
+
   const currentBreak = breaks.find((b) => !b.end);
 
   const closedBreakMinutes = useMemo(() => {
@@ -84,14 +91,23 @@ export function useBreakManager({
       .filter((b) => b.end && b.source === source)
       .reduce((sum, b) => sum + (b.durationMinutes ?? 0), 0);
 
-  const manualMinutes = useMemo(() => sumBy('manual'), [breaks]);
-  const personalMinutes = useMemo(() => sumBy('personal'), [breaks]);
-  const awayMinutes = useMemo(() => sumBy('screen-lock'), [breaks]);
+  const closedManualMinutes = useMemo(() => sumBy('manual'), [breaks]);
+  const closedPersonalMinutes = useMemo(() => sumBy('personal'), [breaks]);
+  const closedAwayMinutes = useMemo(() => sumBy('screen-lock'), [breaks]);
 
-  const openElapsed = useMemo(() => {
-    if (!currentBreak) return 0;
-    return workMinutesBetween(toDate(currentBreak.start), new Date());
-  }, [currentBreak]);
+  // Live elapsed for the currently-open break (recomputes each tick via setTick).
+  const currentBreakElapsedSeconds = currentBreak
+    ? Math.max(0, Math.floor((Date.now() - toDate(currentBreak.start).getTime()) / 1000))
+    : 0;
+  const openElapsed = Math.floor(currentBreakElapsedSeconds / 60);
+
+  // Per-source totals fold the live open break in so the matching counter
+  // ticks while a user is on that break.
+  const liveAddFor = (source: BreakSource) =>
+    currentBreak?.source === source ? openElapsed : 0;
+  const manualMinutes = closedManualMinutes + liveAddFor('manual');
+  const personalMinutes = closedPersonalMinutes + liveAddFor('personal');
+  const awayMinutes = closedAwayMinutes + liveAddFor('screen-lock');
 
   const totalBreakMinutes = closedBreakMinutes + openElapsed;
   const remainingCapMinutes = Math.max(0, capMinutes - totalBreakMinutes);
@@ -213,6 +229,7 @@ export function useBreakManager({
   return {
     isOnBreak,
     currentBreak,
+    currentBreakElapsedSeconds,
     breaks,
     closedBreakMinutes,
     totalBreakMinutes,

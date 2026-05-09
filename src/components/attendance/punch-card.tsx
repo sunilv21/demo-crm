@@ -39,6 +39,23 @@ import { useBreakManager } from '@/components/attendance/use-break-manager';
 
 const DEFAULT_DAILY_BREAK_CAP_MINUTES = 40;
 
+/**
+ * Display a per-source break total. When `liveSeconds` is non-null the source
+ * is currently running, so we show `Xm Ys` ticking by the second; otherwise
+ * just `Xm` for closed totals.
+ */
+function formatSourceTotal(totalMinutes: number, liveSeconds: number | null): string {
+  if (liveSeconds == null) return `${totalMinutes}m`;
+  return `${totalMinutes}m ${liveSeconds % 60}s`;
+}
+
+/** Format raw elapsed seconds as "Xm Ys" for the live break timer. */
+function formatLiveTimer(elapsedSeconds: number): string {
+  const m = Math.floor(elapsedSeconds / 60);
+  const s = elapsedSeconds % 60;
+  return `${m}m ${s}s`;
+}
+
 export function PunchCard() {
   const firestore = useFirestore();
   const { authUser, appUser, isLoading: appUserLoading } = useAppUser();
@@ -243,20 +260,35 @@ export function PunchCard() {
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <div className="text-[10px] text-orange-700 font-medium uppercase tracking-wide">Break</div>
-                  <div className="text-sm font-semibold text-orange-900">
-                    {breakManager.manualMinutes}m
+                  <div className="text-sm font-semibold text-orange-900 tabular-nums">
+                    {formatSourceTotal(
+                      breakManager.manualMinutes,
+                      breakManager.currentBreak?.source === 'manual'
+                        ? breakManager.currentBreakElapsedSeconds
+                        : null,
+                    )}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-blue-700 font-medium uppercase tracking-wide">Personal</div>
-                  <div className="text-sm font-semibold text-blue-900">
-                    {breakManager.personalMinutes}m
+                  <div className="text-sm font-semibold text-blue-900 tabular-nums">
+                    {formatSourceTotal(
+                      breakManager.personalMinutes,
+                      breakManager.currentBreak?.source === 'personal'
+                        ? breakManager.currentBreakElapsedSeconds
+                        : null,
+                    )}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-purple-700 font-medium uppercase tracking-wide">Away</div>
-                  <div className="text-sm font-semibold text-purple-900">
-                    {breakManager.awayMinutes}m
+                  <div className="text-sm font-semibold text-purple-900 tabular-nums">
+                    {formatSourceTotal(
+                      breakManager.awayMinutes,
+                      breakManager.currentBreak?.source === 'screen-lock'
+                        ? breakManager.currentBreakElapsedSeconds
+                        : null,
+                    )}
                   </div>
                 </div>
               </div>
@@ -302,7 +334,7 @@ export function PunchCard() {
                   className="w-full border-primary"
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  Resume Work
+                  Resume Work ({formatLiveTimer(breakManager.currentBreakElapsedSeconds)})
                 </Button>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
