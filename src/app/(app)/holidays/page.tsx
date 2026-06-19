@@ -54,6 +54,7 @@ import {
 } from '@/firebase';
 import type { Holiday } from '@/lib/types';
 import { formatDateLong } from '@/lib/attendance';
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 
 const holidaySchema = z.object({
   date: z.string().min(1, 'Date is required.'),
@@ -65,6 +66,7 @@ export default function HolidaysPage() {
   const { authUser, isAdmin } = useAppUser();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [holidayToDelete, setHolidayToDelete] = useState<Holiday | null>(null);
 
   const holidaysQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'holidays') : null),
@@ -99,6 +101,7 @@ export default function HolidaysPage() {
     if (!firestore) return;
     deleteDocumentNonBlocking(doc(firestore, 'holidays', h.id));
     toast({ title: 'Holiday removed', description: h.name });
+    setHolidayToDelete(null);
   };
 
   return (
@@ -199,7 +202,7 @@ export default function HolidaysPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => remove(h)}
+                          onClick={() => setHolidayToDelete(h)}
                           aria-label="Remove holiday"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -213,6 +216,21 @@ export default function HolidaysPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDeleteDialog
+        open={!!holidayToDelete}
+        onOpenChange={(o) => !o && setHolidayToDelete(null)}
+        onConfirm={() => holidayToDelete && remove(holidayToDelete)}
+        confirmText={holidayToDelete?.name || ''}
+        confirmLabel="Remove"
+        description={
+          <>
+            This will remove the holiday{' '}
+            <span className="font-semibold text-foreground">{holidayToDelete?.name}</span>
+            {holidayToDelete ? ` (${formatDateLong(holidayToDelete.date)})` : ''}.
+          </>
+        }
+      />
     </>
   );
 }

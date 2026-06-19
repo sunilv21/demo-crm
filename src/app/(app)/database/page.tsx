@@ -17,6 +17,7 @@ import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, a
 import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -182,7 +183,7 @@ export default function DatabasePage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+      <div>
         <div className="bg-card border rounded-lg mt-4">
           <Table>
             <TableHeader>
@@ -235,15 +236,13 @@ export default function DatabasePage() {
                                   <Pencil className="mr-2 h-4 w-4"/>
                                   Edit
                               </DropdownMenuItem>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                    className="text-destructive"
-                                    onSelect={(e) => { e.preventDefault(); setClientToDelete(client); }}
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
+                              <DropdownMenuItem
+                                  className="text-destructive"
+                                  onSelect={(e) => { e.preventDefault(); setClientToDelete(client); }}
+                              >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                       </TableCell>
@@ -259,22 +258,19 @@ export default function DatabasePage() {
           )}
         </div>
 
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the client
-              <span className="font-bold"> {clientToDelete?.name}</span> and all associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <ConfirmDeleteDialog
+          open={!!clientToDelete}
+          onOpenChange={(open) => !open && setClientToDelete(null)}
+          onConfirm={handleDeleteClient}
+          confirmText={clientToDelete?.name || ''}
+          description={
+            <>
+              This action cannot be undone. This will permanently delete the client{' '}
+              <span className="font-semibold text-foreground">{clientToDelete?.name}</span> and all associated data.
+            </>
+          }
+        />
+      </div>
     </>
   );
 }

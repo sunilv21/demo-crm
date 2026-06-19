@@ -72,20 +72,21 @@ import {
                                                                                 import { FollowUpForm } from '@/components/forms/follow-up-form';
                                                                                 import { BookingForm } from '@/components/forms/booking-form';
 import { LastLogActivity } from '@/components/clients/last-log-activity';
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 
 
                                                                                 const ClientRowSkeleton = () => (
                                                                                     <TableRow>
-                                                                                          <TableCell className="font-medium w-[250px]"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-24" /></div></TableCell>
-                                                                                                <TableCell className="w-[240px]"><Skeleton className="h-4 w-32" /></TableCell>
-                                                                                                      <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                                                                                                            <TableCell className="w-[100px]"><Skeleton className="h-4 w-20" /></TableCell>
-                                                                                                                  <TableCell className="w-[150px]"><Skeleton className="h-4 w-20" /></TableCell>
-                                                                                                                        <TableCell className="w-[120px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                                                                                                                              <TableCell className="w-[110px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                                                                                                                                    <TableCell className="w-[120px]"><Skeleton className="h-4 w-24" /></TableCell>
+                                                                                          <TableCell className="font-medium w-[180px]"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-24" /></div></TableCell>
+                                                                                                <TableCell className="w-[150px]"><Skeleton className="h-4 w-28" /></TableCell>
+                                                                                                      <TableCell className="w-[50px]"><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                                                                                                            <TableCell className="w-[60px]"><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                                                                                                                  <TableCell className="w-[120px]"><Skeleton className="h-4 w-20" /></TableCell>
+                                                                                                                        <TableCell className="w-[110px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                                                                                                                              <TableCell className="w-[90px]"><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                                                                                                                                    <TableCell className="w-[100px]"><Skeleton className="h-4 w-20" /></TableCell>
                                                                                                                                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                                                                                                                                <TableCell className="w-[50px]"><MoreHorizontal className="h-4 w-4" /></TableCell>
+                                                                                                                                                <TableCell className="w-[56px] sticky right-0 bg-card z-10"><MoreHorizontal className="h-4 w-4" /></TableCell>
                                                                                                                                                     </TableRow>
                                                                                                                                                     );
 
@@ -490,38 +491,33 @@ export default function ClientsPage() {
                 </DialogContent>
             </Dialog>
             
-            <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the client
-                        <span className="font-bold"> {clientToDelete?.name}</span> and all associated data.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <ConfirmDeleteDialog
+                open={!!clientToDelete}
+                onOpenChange={(open) => !open && setClientToDelete(null)}
+                onConfirm={handleDeleteClient}
+                confirmText={clientToDelete?.name || ''}
+                description={
+                    <>
+                        This action cannot be undone. This will permanently delete the client{' '}
+                        <span className="font-semibold text-foreground">{clientToDelete?.name}</span> and all associated data.
+                    </>
+                }
+            />
 
             <div className="bg-card border rounded-lg mt-4">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[250px]">Client</TableHead>
-                            <TableHead className="w-[240px]">Contact</TableHead>
-                            <TableHead>PAX</TableHead>
-                            <TableHead className="w-[100px]">Docs</TableHead>
-                            <TableHead className="w-[150px]">Type</TableHead>
-                            <TableHead className="w-[120px]">Visa Status</TableHead>
-                            <TableHead className="w-[110px]">Status</TableHead>
-                            <TableHead className="w-[120px]">Date Created</TableHead>
+                            <TableHead className="w-[180px]">Client</TableHead>
+                            <TableHead className="w-[150px]">Contact</TableHead>
+                            <TableHead className="w-[50px] text-center">PAX</TableHead>
+                            <TableHead className="w-[60px] text-center">Docs</TableHead>
+                            <TableHead className="w-[120px]">Type</TableHead>
+                            <TableHead className="w-[110px]">Visa Status</TableHead>
+                            <TableHead className="w-[90px]">Status</TableHead>
+                            <TableHead className="w-[100px]">Date Created</TableHead>
                             <TableHead>Last Log</TableHead>
-                            <TableHead className="w-[50px]">Actions</TableHead>
+                            <TableHead className="w-[56px] text-right sticky right-0 bg-card z-20">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -551,8 +547,8 @@ export default function ClientsPage() {
                                     <span>{client.phone}</span>
                                 </div>
                             </TableCell>
-                            <TableCell>{client.pax || 1}</TableCell>
-                            <TableCell>{client.requiredDocuments?.length || 'N/A'}</TableCell>
+                            <TableCell className="text-center">{client.pax || 1}</TableCell>
+                            <TableCell className="text-center">{client.requiredDocuments?.length || 'N/A'}</TableCell>
                             <TableCell>{client.services ? serviceTypeMap[client.services] || client.services : 'N/A'}{client.travelPurpose ? ` / ${travelPurposeMap[client.travelPurpose] || client.travelPurpose}`: ''}</TableCell>
                             <TableCell>
                                 {client.visaStatus && (
@@ -590,7 +586,7 @@ export default function ClientsPage() {
                             <TableCell>
                                 <LastLogActivity clientId={client.id} />
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right sticky right-0 bg-card z-10">
                                 <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon">

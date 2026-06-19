@@ -45,6 +45,7 @@ import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import { CustomerLogForm } from '../forms/customer-log-form';
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 
 const RowSkeleton = () => (
     <TableRow>
@@ -65,6 +66,7 @@ export function FollowUpList() {
   const [editingFollowUp, setEditingFollowUp] = useState<FollowUp | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [logClient, setLogClient] = useState<Partial<Client> & {id:string, name: string} | null>(null);
+  const [followUpToDelete, setFollowUpToDelete] = useState<FollowUp | null>(null);
 
   const ready = !!firestore && !!user && !isUserLoading;
 
@@ -157,11 +159,12 @@ export function FollowUpList() {
     toast({ title: `Follow-up marked as ${!followUp.done ? 'complete' : 'incomplete'}.` });
   };
 
-  const handleDelete = (followUpId: string) => {
+  const handleDelete = (followUp: FollowUp) => {
     if (!firestore) return;
-    const followUpRef = doc(firestore, 'follow_ups', followUpId);
+    const followUpRef = doc(firestore, 'follow_ups', followUp.id);
     deleteDocumentNonBlocking(followUpRef);
     toast({ variant: 'destructive', title: "Follow-up deleted" });
+    setFollowUpToDelete(null);
   };
 
   const openEditDialog = (followUp: FollowUp) => {
@@ -298,7 +301,7 @@ export function FollowUpList() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => openEditDialog(followUp)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
                                     <DropdownMenuItem asChild><Link href={`/clients/${followUp.clientId}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Client</Link></DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(followUp.id)}>
+                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setFollowUpToDelete(followUp); }}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </DropdownMenuItem>
@@ -316,6 +319,20 @@ export function FollowUpList() {
             </div>
         )}
       </Card>
+
+      <ConfirmDeleteDialog
+        open={!!followUpToDelete}
+        onOpenChange={(o) => !o && setFollowUpToDelete(null)}
+        onConfirm={() => followUpToDelete && handleDelete(followUpToDelete)}
+        confirmText={followUpToDelete?.clientName || ''}
+        description={
+          <>
+            This will permanently delete the follow-up for{' '}
+            <span className="font-semibold text-foreground">{followUpToDelete?.clientName}</span>
+            {followUpToDelete?.date ? ` on ${followUpToDelete.date}` : ''}. To confirm, type the client name below.
+          </>
+        }
+      />
     </>
   );
 }

@@ -74,7 +74,7 @@ const ClientProfileSkeleton = () => (
             </div>
         </div>
             <Card>
-            <CardHeader><CardTitle>Activity Feed</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Logs Feed</CardTitle></CardHeader>
             <CardContent>
                 <div className="space-y-4">
                     <Skeleton className="h-12 w-full" />
@@ -231,7 +231,7 @@ export default function ClientProfilePage() {
                                     </div>
 
                                     <div className='border-t border-border pt-6'>
-                                        <h3 className="text-sm font-medium mb-4 text-muted-foreground">Notes</h3>
+                                        <h3 className="text-sm font-medium mb-4 text-muted-foreground">Additional Preferences</h3>
                                         <div className="flex items-start gap-3">
                                             <NotepadText className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
                                             <p className="text-sm text-foreground whitespace-pre-wrap">{client.preferences || 'No notes available.'}</p>

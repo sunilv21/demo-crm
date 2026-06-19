@@ -65,7 +65,7 @@ export function CustomerLogs({ clientId }: { clientId?: string }) {
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>Activity Feed</CardTitle>
+            <CardTitle>{clientId ? 'Logs Feed' : 'Activity Feed'}</CardTitle>
             {!clientId && (
                 <div className="relative max-w-sm w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

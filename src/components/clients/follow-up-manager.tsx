@@ -9,6 +9,7 @@ import { FollowUpForm } from '../forms/follow-up-form';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
 import { ClientFollowUps } from './client-follow-ups';
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 
 export function FollowUpManager({ client }: { client: Client }) {
     const firestore = useFirestore();
@@ -16,6 +17,7 @@ export function FollowUpManager({ client }: { client: Client }) {
     const { toast } = useToast();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingFollowUp, setEditingFollowUp] = useState<FollowUp | null>(null);
+    const [followUpToDelete, setFollowUpToDelete] = useState<FollowUp | null>(null);
 
     const followUpsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -69,12 +71,18 @@ export function FollowUpManager({ client }: { client: Client }) {
         }, { merge: true });
     }, [firestore, user]);
 
-    const handleDelete = useCallback((followUpId: string) => {
-        if (!firestore) return;
-        const followUpRef = doc(firestore, 'follow_ups', followUpId);
+    const requestDelete = useCallback((followUpId: string) => {
+        const fu = (followUps ?? []).find(f => f.id === followUpId) ?? null;
+        setFollowUpToDelete(fu);
+    }, [followUps]);
+
+    const confirmDelete = useCallback(() => {
+        if (!firestore || !followUpToDelete) return;
+        const followUpRef = doc(firestore, 'follow_ups', followUpToDelete.id);
         deleteDocumentNonBlocking(followUpRef);
         toast({ variant: 'destructive', title: "Follow-up deleted" });
-    }, [firestore, toast]);
+        setFollowUpToDelete(null);
+    }, [firestore, followUpToDelete, toast]);
 
     const handleEdit = useCallback((followUp: FollowUp) => {
         setEditingFollowUp(followUp);
@@ -93,8 +101,21 @@ export function FollowUpManager({ client }: { client: Client }) {
                 isLoading={isLoading}
                 onToggleDone={handleToggleDone}
                 onEdit={handleEdit}
-                onDelete={handleDelete}
+                onDelete={requestDelete}
                 onNew={handleNew}
+            />
+            <ConfirmDeleteDialog
+                open={!!followUpToDelete}
+                onOpenChange={(o) => !o && setFollowUpToDelete(null)}
+                onConfirm={confirmDelete}
+                confirmText={followUpToDelete?.clientName || client.name}
+                description={
+                    <>
+                        This will permanently delete this follow-up for{' '}
+                        <span className="font-semibold text-foreground">{followUpToDelete?.clientName || client.name}</span>
+                        {followUpToDelete?.date ? ` on ${followUpToDelete.date}` : ''}. To confirm, type the client name below.
+                    </>
+                }
             />
              <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                 <DialogContent>

@@ -43,6 +43,26 @@ service cloud.firestore {
     function isAdminOrManager() {
       return userRole() == 'admin' || userRole() == 'manager';
     }
+    // A public lead-capture submission (from /lead?source=... posted on social
+    // media). Allowed unauthenticated, but tightly shaped to limit abuse:
+    // must be a brand-new lead, marked public, with a name and phone.
+    function isValidPublicLead() {
+      let d = request.resource.data;
+      return d.status == 'new'
+        && d.createdBy == 'public_form'
+        && d.name is string && d.name.size() > 1 && d.name.size() < 200
+        && d.phone is string && d.phone.size() > 0 && d.phone.size() < 40;
+    }
+    // A public client intake (/intake form) submission. Same idea as above:
+    // unauthenticated, but must be a public-tagged lead-status record with a
+    // name and phone.
+    function isValidPublicClient() {
+      let d = request.resource.data;
+      return d.status == 'lead'
+        && d.createdBy == 'public_form'
+        && d.name is string && d.name.size() > 1 && d.name.size() < 200
+        && d.phone is string && d.phone.size() > 0 && d.phone.size() < 40;
+    }
 
     // -------------------------------------------------------------------------
     // Users
@@ -94,7 +114,10 @@ service cloud.firestore {
     }
 
     match /clients/{id} {
-      allow read, create, update: if isSignedIn();
+      allow read, update: if isSignedIn();
+      // Public intake form (/intake) writes here unauthenticated; staff can
+      // also create clients while signed in.
+      allow create: if isSignedIn() || isValidPublicClient();
       allow delete: if isAdminOrManager();
 
       match /itineraries/{itineraryId} {
@@ -114,7 +137,10 @@ service cloud.firestore {
     }
 
     match /leads/{id} {
-      allow read, create, update: if isSignedIn();
+      allow read, update: if isSignedIn();
+      // Public lead-capture form (/lead) writes here unauthenticated; staff can
+      // also create leads while signed in.
+      allow create: if isSignedIn() || isValidPublicLead();
       allow delete: if isAdminOrManager();
     }
 

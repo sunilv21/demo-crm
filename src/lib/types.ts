@@ -153,14 +153,37 @@ export type Client = {
   updatedBy: string;
 };
 
+export type LeadStatus = 'new' | 'contacted' | 'proposal' | 'won' | 'lost';
+
 export type Lead = {
   id: string;
   name: string;
   email?: string;
   phone: string;
   avatar: string;
-  status: 'new' | 'contacted' | 'proposal' | 'won' | 'lost';
+  status: LeadStatus;
   source?: string;
+  // Richer optional detail captured from website leads / for conversion.
+  nationality?: string;
+  preferredDestination?: string;
+  travelPurpose?: string;
+  preferredTravelDates?: { from?: string; to?: string };
+  budget?: number;
+  pax?: number;
+  notes?: string;
+  // Set when a lead has been converted into a client record.
+  convertedToClientId?: string;
+  convertedAt?: any;
+  // Fields written by the external marketing website (/api/leads relay).
+  // It uses `destination`/`message` rather than preferredDestination/notes,
+  // and prefixes source as `website:<form>`.
+  destination?: string;
+  message?: string;
+  rawPayload?: Record<string, any>;
+  localRef?: { collection: string; id: string } | null;
+  sourceWebsite?: string;
+  phoneDigits?: string;
+  phoneSuffix10?: string;
   createdAt: any;
   updatedAt: any;
   createdBy: string;

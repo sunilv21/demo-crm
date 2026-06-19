@@ -80,9 +80,9 @@ export default function AppLayout({
         <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
             <AppSidebarNav />
         </Sidebar>
-        <SidebarInset className="flex flex-col">
+        <SidebarInset className="flex flex-col min-w-0">
           <AppHeader />
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
+          <main className="flex-1 overflow-auto min-w-0 p-4 lg:p-6">
             {children}
           </main>
         </SidebarInset>
