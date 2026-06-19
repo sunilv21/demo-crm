@@ -14,7 +14,18 @@
       "Bash(node -e \"console.log\\('react:', require\\('react/package.json'\\).version, '| react-dom:', require\\('react-dom/package.json'\\).version, '| next:', require\\('next/package.json'\\).version\\)\")",
       "Bash(node -e \"console.log\\(require\\('firebase/package.json'\\).version\\)\")",
       "Bash(node -e \"console.log\\('firebase:', require\\('firebase/package.json'\\).version, '| react:', require\\('react/package.json'\\).version, '| next:', require\\('next/package.json'\\).version\\)\")",
-      "Bash(npx --yes firebase-tools --version)"
+      "Bash(npx --yes firebase-tools --version)",
+      "Bash(git tag *)",
+      "Bash(git push *)",
+      "Bash(gh run *)",
+      "PowerShell(gh run list --workflow=desktop-release.yml --limit=3)",
+      "Bash(npx firebase *)",
+      "Bash(git add *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
+      "Bash(curl -s \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
+      "Bash(curl -sL -o /dev/null -w \"HTTP %{http_code}  final=%{url_effective}\\\\n\" \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
+      "Bash(curl -sL \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
+      "Bash(curl -s \"https://api.restcountries.com/countries/v5?q=canada\" -H \"Authorization: Bearer rc_live_d30359b48d6148b7925a351755d5e958\")"
     ]
   }
 }

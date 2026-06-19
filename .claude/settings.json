@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(grep -n \"^    \\\\`}</style>\" \"src/app/\\(app\\)/itinerary-builder/itinerary-form.tsx\")"
+    ]
+  }
+}

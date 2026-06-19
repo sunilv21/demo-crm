@@ -3,22 +3,18 @@
 import { useState, useEffect } from 'react';
 import { type CountryCode } from 'libphonenumber-js';
 
+// Shape returned by our /api/countries route (already normalized server-side).
 export interface Country {
   name: {
     common: string;
     official: string;
   };
   cca2: CountryCode;
-  idd: {
-    root: string;
-    suffixes: string[];
-  };
+  callingCodes: string[];
   demonyms: {
-    eng: {
-      f: string;
-      m: string;
-    }
-  }
+    f: string;
+    m: string;
+  } | null;
 }
 
 export type CountryInfo = {
@@ -34,12 +30,13 @@ export function useCountries() {
   useEffect(() => {
     async function fetchCountries() {
       try {
-        const response = await fetch('https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2');
+        const response = await fetch('/api/countries');
         if (!response.ok) {
           throw new Error('Failed to fetch country data');
         }
-        const data: Country[] = await response.json();
-        
+        const json = await response.json();
+        const data: Country[] = Array.isArray(json?.countries) ? json.countries : [];
+
         const sortedData = data.sort((a, b) => {
             const aName = a.name.common;
             const bName = b.name.common;
@@ -60,7 +57,7 @@ export function useCountries() {
   }, []);
 
   const countryNames = countries.map(c => c.name.common).sort();
-  
+
   const countryOptions: CountryInfo[] = countries
     .filter(c => c.cca2)
     .map(c => ({
@@ -71,7 +68,7 @@ export function useCountries() {
 
   const nationalities = [...new Set(countries
     .filter(c => c.demonyms)
-    .flatMap(c => [c.demonyms.eng.m, c.demonyms.eng.f])
+    .flatMap(c => [c.demonyms!.m, c.demonyms!.f])
     .filter(Boolean))
   ].sort();
 

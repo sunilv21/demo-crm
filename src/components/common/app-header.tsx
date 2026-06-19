@@ -49,7 +49,7 @@ export function AppHeader() {
   const { isMobile } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-40 flex h-10 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
+    <header className="sticky top-0 z-40 flex h-10 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 print:hidden">
       {isMobile ? (
          <Sheet>
           <SheetTrigger asChild>
