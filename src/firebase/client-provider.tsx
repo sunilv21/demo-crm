@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -8,6 +9,19 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Public, unauthenticated routes (lead/intake capture forms). These must render
+// immediately and must NOT wait for the Firebase auth state to resolve — the
+// visitor isn't logging in, and the app-shell skeleton is meaningless to them.
+function isPublicRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === '/lead' ||
+    pathname.startsWith('/lead/') ||
+    pathname === '/intake' ||
+    pathname.startsWith('/intake/')
+  );
+}
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -64,6 +78,8 @@ function AppLayoutSkeleton() {
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const [services, setServices] = useState<FirebaseServices | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const pathname = usePathname();
+  const publicRoute = isPublicRoute(pathname);
 
   useEffect(() => {
     const s = initializeFirebase();
@@ -78,8 +94,17 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     return () => unsub();
   }, []);
 
-  // ⛔ BLOCK ALL FIRESTORE UNTIL READY
-  if (!services || !authReady) {
+  // Firebase SDK init is synchronous-fast; everything below needs `services`.
+  if (!services) {
+    // Public capture forms get no app-shell skeleton (it's meaningless to a
+    // logged-out visitor and adds perceived weight); they paint instantly.
+    return publicRoute ? null : <AppLayoutSkeleton />;
+  }
+
+  // ⛔ BLOCK FIRESTORE UNTIL AUTH READY — but ONLY for the authenticated app.
+  // Public forms write unauthenticated and don't read on load, so they must not
+  // wait for the (network) auth round-trip.
+  if (!publicRoute && !authReady) {
     return <AppLayoutSkeleton />;
   }
 

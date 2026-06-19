@@ -25,7 +25,11 @@
       "Bash(curl -s \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
       "Bash(curl -sL -o /dev/null -w \"HTTP %{http_code}  final=%{url_effective}\\\\n\" \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
       "Bash(curl -sL \"https://restcountries.com/v3.1/all?fields=name,idd,demonyms,cca2\")",
-      "Bash(curl -s \"https://api.restcountries.com/countries/v5?q=canada\" -H \"Authorization: Bearer rc_live_d30359b48d6148b7925a351755d5e958\")"
+      "Bash(curl -s \"https://api.restcountries.com/countries/v5?q=canada\" -H \"Authorization: Bearer rc_live_d30359b48d6148b7925a351755d5e958\")",
+      "Read(//c/Users/sunil/Desktop/Radsting Devs/travel website dynamic/src/**)",
+      "Bash(node -e \"const d={...require\\('./package.json'\\).dependencies,...require\\('./package.json'\\).devDependencies}; console.log\\(Object.keys\\(d\\).filter\\(k=>/firebase-admin/.test\\(k\\)\\).join\\(', '\\)||'NOT installed'\\)\")",
+      "Bash(grep -iE \"SERVICE_ACCOUNT|ADMIN|GOOGLE_APPLICATION\" .env)",
+      "Bash(find src/app/api -name route.ts)"
     ]
   }
 }

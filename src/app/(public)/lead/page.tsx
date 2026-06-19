@@ -62,24 +62,26 @@ function LeadCapture() {
 
 export default function PublicLeadPage() {
   return (
-    <div className="relative min-h-screen w-full">
+    // The gradient paints instantly so the page never looks blank while the
+    // (lazily-loaded, lightweight) hero photo streams in over it.
+    <div className="relative min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Desktop Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-fixed hidden sm:block"
+        className="fixed inset-0 bg-cover bg-center hidden sm:block"
         style={{
-          backgroundImage: `url('https://images.pexels.com/photos/531602/pexels-photo-531602.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')`,
+          backgroundImage: `url('https://images.pexels.com/photos/531602/pexels-photo-531602.jpeg?auto=compress&cs=tinysrgb&w=1200&q=55')`,
         }}
       >
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-black/50" />
       </div>
       {/* Mobile Background */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-fixed block sm:hidden"
+        className="fixed inset-0 bg-cover bg-center block sm:hidden"
         style={{
-          backgroundImage: `url('https://images.pexels.com/photos/2531237/pexels-photo-2531237.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')`,
+          backgroundImage: `url('https://images.pexels.com/photos/2531237/pexels-photo-2531237.jpeg?auto=compress&cs=tinysrgb&w=720&q=55')`,
         }}
       >
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-black/50" />
       </div>
 
       <Suspense fallback={<div className="relative z-10 min-h-screen flex items-center justify-center text-white">Loading…</div>}>
