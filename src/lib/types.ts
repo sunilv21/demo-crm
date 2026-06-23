@@ -190,22 +190,80 @@ export type Lead = {
   updatedBy: string;
 };
 
+export type BookingType =
+| 'flight'
+| 'hotel'
+| 'car'
+| 'activity'
+| 'other';
+
+export type BookingStatus =
+  | 'draft'
+  | 'pending'
+  | 'confirmed'
+  | 'cancelled';
+
+export type PaymentStatus =
+| 'unpaid'
+| 'partial'
+| 'paid'
+| 'refunded';
+
 export type Booking = {
   id: string;
+
+  // Client
   clientId: string;
   clientName: string;
-  destination: string;
+
+  // Booking
+  bookingType: BookingType;
+  destination?: string;
+
   startDate: string;
   endDate: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
-  progress: number; // 0-100
-  itineraryType?: string;
+
+  status: BookingStatus;
+  progress: number;
+
+  // Financials
   total: number;
+  amountPaid?: number;
+  balanceAmount?: number;
+  paymentStatus?: PaymentStatus;
+
+  // Supplier
+  supplierName?: string;
+  supplierCost?: number;
+  supplierReference?: string;
+
+  // Generic Dynamic Data
+  bookingDetails?: Record<string, any>;
+
+  // Documents
+  documents?: {
+  name: string;
+  url?: string;
+  uploadedAt?: any;
+  }[];
+
+  // Notes
+  remarks?: string;
+
+  // Timeline
+  timeline?: {
+  action: string;
+  userId: string;
+  userName: string;
+  createdAt: any;
+  }[];
+
   createdAt: any;
   updatedAt: any;
   createdBy: string;
   updatedBy: string;
 };
+
 
 export type Invoice = {
   id: string;

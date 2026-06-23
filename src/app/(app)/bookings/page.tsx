@@ -153,15 +153,37 @@ export default function BookingsPage() {
               Create New Booking
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Booking</DialogTitle>
-            </DialogHeader>
-            <BookingForm onSubmit={handleAddBooking} />
-             <DialogFooter>
-                <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-                <Button type="submit" form="booking-form">Create Booking</Button>
-            </DialogFooter>
+          <DialogContent className="max-w-7xl w-[95vw]">
+
+            <div className="flex h-full flex-col">
+
+              <DialogHeader className="border-b px-6 py-4 shrink-0">
+                <DialogTitle>
+                  {editingBooking ? 'Edit Booking' : 'Create Booking'}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+  <BookingForm
+    onSubmit={handleAddBooking}
+    booking={editingBooking || undefined}
+  />
+</div>
+
+<DialogFooter className="border-t px-6 py-4 shrink-0">
+  <Button
+    variant="outline"
+    onClick={() => setIsFormOpen(false)}
+  >
+    Cancel
+  </Button>
+
+  <Button type="submit" form="booking-form">
+    Create Booking
+  </Button>
+</DialogFooter>
+            </div>
+
           </DialogContent>
         </Dialog>
       </PageHeader>
@@ -341,23 +363,39 @@ export default function BookingsPage() {
       </div>
 
       <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Edit Booking</DialogTitle>
-            </DialogHeader>
-            {editingBooking && (
-                <BookingForm 
-                    booking={editingBooking}
-                    onSubmit={handleUpdateBooking} 
-                    clientId={editingBooking.clientId}
-                    clientName={editingBooking.clientName}
-                />
-            )}
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setEditingBooking(null)}>Cancel</Button>
-                <Button type="submit" form="booking-form">Save Changes</Button>
-            </DialogFooter>
-        </DialogContent>
+        <DialogContent className="max-w-7xl w-[95vw]">
+  <div className="flex h-full flex-col">
+
+    <DialogHeader className="border-b px-6 py-4 shrink-0">
+      <DialogTitle>Edit Booking</DialogTitle>
+    </DialogHeader>
+
+    <div className="flex-1 overflow-y-auto px-6 py-4">
+      {editingBooking && (
+        <BookingForm
+          booking={editingBooking}
+          onSubmit={handleUpdateBooking}
+          clientId={editingBooking.clientId}
+          clientName={editingBooking.clientName}
+        />
+      )}
+    </div>
+
+    <DialogFooter className="border-t px-6 py-4 shrink-0">
+      <Button
+        variant="outline"
+        onClick={() => setEditingBooking(null)}
+      >
+        Cancel
+      </Button>
+
+      <Button type="submit" form="booking-form">
+        Save Changes
+      </Button>
+    </DialogFooter>
+
+  </div>
+</DialogContent>
       </Dialog>
       
       <AlertDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)}>

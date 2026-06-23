@@ -14,7 +14,14 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import {
+  CalendarIcon,
+  Plane,
+  Bed,
+  Car,
+  MapPinned,
+  PlusCircle,
+} from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -25,6 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import type { Booking, Client } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
@@ -32,12 +44,37 @@ import { useState } from 'react';
 
 const formSchema = z.object({
   clientId: z.string().min(1, { message: 'Client is required.' }),
-  destination: z.string().min(2, { message: 'Destination is required.' }),
-  startDate: z.date({ required_error: 'Start date is required.' }),
-  endDate: z.date({ required_error: 'End date is required.' }),
-  total: z.coerce.number().min(0, { message: 'Total must be a positive number.' }).optional(),
-  status: z.enum(['confirmed', 'pending', 'cancelled']),
-  itineraryType: z.string().optional(),
+
+  destination: z.string().optional(),
+
+  startDate: z.date({
+    required_error: 'Start date is required.',
+  }),
+
+  endDate: z.date({
+    required_error: 'End date is required.',
+  }),
+
+  total: z.coerce.number().min(0).optional(),
+
+  bookingType: z.enum([
+    'flight',
+    'hotel',
+    'car',
+    'activity',
+    'other',
+  ]),
+
+  status: z.enum([
+  'draft',
+  'pending',
+  'confirmed',
+  'cancelled',
+]),
+
+  amountPaid: z.coerce.number().optional(),
+  supplierName: z.string().optional(),
+  remarks: z.string().optional(),
 });
 
 type BookingFormValues = z.infer<typeof formSchema>;
@@ -66,12 +103,23 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       startDate: booking ? new Date(booking.startDate) : undefined,
       endDate: booking ? new Date(booking.endDate) : undefined,
       total: booking?.total || undefined,
-      status: booking?.status || 'pending',
-      itineraryType: booking?.itineraryType || '',
+      status: booking?.status || 'draft',
+      bookingType: booking?.bookingType || 'flight',
+      amountPaid: booking?.amountPaid || 0,
+      supplierName: booking?.supplierName || '',
+      remarks: booking?.remarks || '',
     },
   });
-
+  
+  const selectedBookingType = form.watch('bookingType');
+  
   function handleSubmit(values: BookingFormValues) {
+    const progressMap = {
+  draft: 10,
+  pending: 50,
+  confirmed: 100,
+  cancelled: 0,
+};
     if (!user) {
         console.error("User is not authenticated. Cannot submit form.");
         return;
@@ -100,7 +148,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       startDate: values.startDate.toISOString(),
       endDate: values.endDate.toISOString(),
       total: values.total ?? 0,
-      progress: values.status === 'confirmed' ? 100 : values.status === 'pending' ? 50 : 0,
+      progress: progressMap[values.status] ?? 0,
       ...auditFields
     } as Omit<Booking, 'id'>);
   }
@@ -109,71 +157,171 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} id="booking-form" className="space-y-4">
         <FormField
-          control={form.control}
-          name="clientId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Client</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!clientId || isLoadingClients}>
-                <FormControl>
+            control={form.control}
+            name="bookingType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Booking Type</FormLabel>
+                <Tabs
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  className="w-full">
+                  <TabsList className="grid w-full grid-cols-5">
+                    <TabsTrigger value="flight">
+                      <Plane className="h-4 w-4 mr-2" />
+                      Flight
+                    </TabsTrigger>
+                    <TabsTrigger value="hotel">
+                      <Bed className="h-4 w-4 mr-2" />
+                      Hotel
+                    </TabsTrigger>
+                    <TabsTrigger value="car">
+                      <Car className="h-4 w-4 mr-2" />
+                      Car
+                    </TabsTrigger>
+                    <TabsTrigger value="activity">
+                      <MapPinned className="h-4 w-4 mr-2" />
+                      Activity
+                    </TabsTrigger>
+                    <TabsTrigger value="other">
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Other
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+
+            {selectedBookingType === 'flight' && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold text-lg">
+                Flight Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input placeholder="Airline" />
+                <Input placeholder="PNR Number" />
+                <Input placeholder="Ticket Number" />
+                <Input placeholder="Departure Airport" />
+                <Input placeholder="Arrival Airport" />
+                <Select>
                   <SelectTrigger>
-                    <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select a client"} />
+                    <SelectValue placeholder="Cabin Class" />
                   </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {clients?.map(client => (
-                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
+                  <SelectContent>
+                    <SelectItem value="economy">
+                      Economy
+                    </SelectItem>
+                    <SelectItem value="business">
+                      Business
+                    </SelectItem>
+                    <SelectItem value="first">
+                      First
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           )}
-        />
-        <FormField
-          control={form.control}
-          name="destination"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Destination</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Paris, France" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+              {selectedBookingType === 'hotel' && (
+                <div className="border rounded-lg p-4 space-y-4">
+                  <h3 className="font-semibold text-lg">
+                    Hotel Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input placeholder="Hotel Name" />
+                    <Input placeholder="City" />
+                    <Input placeholder="Country" />
+                    <Input placeholder="Room Type" />
+                    <Input type="number" placeholder="Number Of Rooms" />
+                    <Input type="number" placeholder="Number Of Guests" />
+                  </div>
+                </div>
+              )}
+              {selectedBookingType === 'car' && (
+                <div className="border rounded-lg p-4 space-y-4">
+                  <h3 className="font-semibold text-lg">
+                    Car Rental Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input placeholder="Rental Company" />
+                    <Input placeholder="Vehicle Type" />
+                    <Input placeholder="Pickup Location" />
+                    <Input placeholder="Drop Location" />
+                    <Input placeholder="Driver Name" />
+                    <Input placeholder="Driver Contact" />
+                  </div>
+                </div>
+              )}
+
+            {selectedBookingType === 'activity' && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold text-lg">
+                Activity Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input placeholder="Activity Name" />
+                <Input placeholder="Location" />
+                <Input placeholder="Supplier Name" />
+                <Input placeholder="Voucher Number" />
+                <Input type="number" placeholder="Adults" />
+                <Input type="number" placeholder="Children" />
+                <Input type="number" placeholder="Infants" />
+                <Input placeholder="Pickup Point" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <FormLabel>Activity Date</FormLabel>
+                  <Input type="date" />
+                </div>
+                <div>
+                  <FormLabel>Activity Time</FormLabel>
+                  <Input type="time" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Input type="number" placeholder="Cost Price" />
+                <Input type="number" placeholder="Selling Price" />
+                <Input type="number" placeholder="Profit" />
+              </div>
+            </div>
           )}
-        />
-         <FormField
-          control={form.control}
-          name="itineraryType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Booking Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a booking type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Flight">Flight</SelectItem>
-                  <SelectItem value="Hotel">Hotel</SelectItem>
-                  <SelectItem value="Tour">Tour</SelectItem>
-                  <SelectItem value="Rental">Car Rental</SelectItem>
-                  <SelectItem value="Package">Package</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
+        
+          {selectedBookingType === 'other' && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold text-lg">
+                Other Booking
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input placeholder="Booking Name" />
+                <Input placeholder="Reference Number" />
+                <Input placeholder="Supplier" />
+                <Input placeholder="Description" />
+              </div>
+
+            </div>
           )}
-        />
-        <div className="grid grid-cols-2 gap-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
             control={form.control}
             name="startDate"
             render={({ field }) => (
                 <FormItem className="flex flex-col">
-                <FormLabel>Start Date</FormLabel>
+                <FormLabel>
+                  {selectedBookingType === 'hotel'
+                    ? 'Check In'
+                    : selectedBookingType === 'car'
+                    ? 'Pickup Date'
+                    : selectedBookingType === 'activity'
+                    ? 'Activity Date'
+                    : selectedBookingType === 'other'
+                    ? 'Booking Date'
+                    : 'Departure Date'}
+                </FormLabel>
                 <Popover open={isStartDatePickerOpen} onOpenChange={setIsStartDatePickerOpen}>
                     <PopoverTrigger asChild>
                     <FormControl>
@@ -214,7 +362,17 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
             name="endDate"
             render={({ field }) => (
                 <FormItem className="flex flex-col">
-                <FormLabel>End Date</FormLabel>
+               <FormLabel>
+                  {selectedBookingType === 'hotel'
+                    ? 'Check Out'
+                    : selectedBookingType === 'car'
+                    ? 'Drop Date'
+                    : selectedBookingType === 'activity'
+                    ? 'End Time'
+                    : selectedBookingType === 'other'
+                    ? 'Valid Until'
+                    : 'Return Date'}
+                </FormLabel>
                 <Popover open={isEndDatePickerOpen} onOpenChange={setIsEndDatePickerOpen}>
                     <PopoverTrigger asChild>
                     <FormControl>
@@ -250,6 +408,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                 </FormItem>
             )}
             />
+
         </div>
          <FormField
           control={form.control}
@@ -277,7 +436,8 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="pending">Hold</SelectItem>
                   <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
