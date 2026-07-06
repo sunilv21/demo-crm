@@ -7,6 +7,7 @@ import { z } from 'zod';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -43,6 +44,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui
 import { Label } from '../ui/label';
 
 
+const SERVICE_OPTIONS = [
+  { value: 'flight', label: 'Flight' },
+  { value: 'hotel', label: 'Hotel' },
+  { value: 'visa', label: 'Visa' },
+  { value: 'transfers', label: 'Transfers' },
+  { value: 'activity', label: 'Activity' },
+  { value: 'localTours', label: 'Local Tours' },
+] as const;
+
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name is required.' }),
   email: z.string().email({ message: 'Invalid email address.' }).optional().or(z.literal('')),
@@ -56,16 +66,31 @@ const formSchema = z.object({
   preferredTravelDates: z.object({
     from: z.date().optional(),
     to: z.date().optional(),
-  }).optional(),
-  budget: z.coerce.number().optional(),
-  hotelPreference: z.string().optional(),
-  services: z.enum(['visa', 'fullPackage', 'packageOnly']).optional(),
+  }).optional().refine(data => {
+    if (!data) return true;
+    if (data.from && !data.to) return false;
+    if (data.to && !data.from) return false;
+    return true;
+  }, {
+    message: 'Both start and end dates are required if either is provided.',
+    path: ['to'],
+  }),
+  tripDestinations: z.array(z.object({
+    destination: z.string().optional(),
+    from: z.date().optional(),
+    to: z.date().optional(),
+  })).optional(),
+  services: z.array(z.enum(['flight', 'hotel', 'visa', 'transfers', 'activity', 'localTours'])).optional(),
   additionalServices: z.array(z.string()).optional(),
   preferences: z.string().optional(),
   status: z.enum(['active', 'inactive', 'lead', 'prospect']),
   visaStatus: z.enum(['toStart', 'inProcess', 'applied', 'approved', 'rejected', 'completed', 'travelling', '']).optional(),
   pax: z.coerce.number().int().min(1, "PAX must be at least 1.").optional(),
-  companions: z.array(z.object({ name: z.string().min(1, 'Companion name is required.') })).optional(),
+  companions: z.array(z.object({
+    name: z.string().min(1, 'Companion name is required.'),
+    type: z.enum(['adult', 'child', 'infant']).optional(),
+  })).optional(),
+  assignedEmployee: z.string().optional(),
 }).refine(data => !data.phone || !data.country || isValidPhoneNumber(data.phone, data.country as CountryCode), {
   message: "Invalid phone number for the selected country.",
   path: ["phone"],
@@ -79,6 +104,8 @@ interface ClientFormProps {
   client?: Client;
   isPublicForm?: boolean;
   isSubmitting?: boolean;
+  canAssign?: boolean;
+  staffUsers?: { id: string; name: string }[];
 }
 
 const FormCard: React.FC<React.PropsWithChildren<{isPublicForm: boolean} & React.HTMLAttributes<HTMLDivElement>>> = ({ isPublicForm, className, ...props }) => {
@@ -198,7 +225,7 @@ const Combobox = ({
   );
 };
 
-export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false }, ref) => {
+export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false, canAssign = false, staffUsers = [] }, ref) => {
   const { countryNames, countryOptions, nationalities } = useCountries();
   const { user } = useUser();
   const FORM_KEY = client ? `client-form-${client.id}` : 'new-client-form';
@@ -219,21 +246,30 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         from: client?.preferredTravelDates?.from ? new Date(client.preferredTravelDates.from) : undefined,
         to: client?.preferredTravelDates?.to ? new Date(client.preferredTravelDates.to) : undefined,
       },
-      budget: client?.budget || undefined,
-      hotelPreference: client?.hotelPreference || '',
-      services: client?.services,
+      tripDestinations: client?.tripDestinations?.map(d => ({
+        destination: d.destination || '',
+        from: d.from ? new Date(d.from) : undefined,
+        to: d.to ? new Date(d.to) : undefined,
+      })) || [],
+      services: Array.isArray(client?.services) ? client.services : (client?.services ? [client.services as any] : []),
       additionalServices: client?.additionalServices || [],
       preferences: client?.preferences || '',
       status: client?.status || 'prospect',
       visaStatus: client?.visaStatus || '',
       pax: client?.pax || 1,
       companions: client?.companions || [],
+      assignedEmployee: client?.assignedEmployee || '',
     },
   });
   
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "companions",
+  });
+
+  const { fields: tripFields, append: appendTrip, remove: removeTrip } = useFieldArray({
+    control: form.control,
+    name: "tripDestinations",
   });
 
   const { clearSavedData } = useFormPersistence<ClientFormValues>(FORM_KEY, form);
@@ -270,6 +306,17 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         from: values.preferredTravelDates?.from?.toISOString() ?? null,
         to: values.preferredTravelDates?.to?.toISOString() ?? null,
     };
+
+    dataToSubmit.assignedEmployee =
+        values.assignedEmployee && values.assignedEmployee !== 'unassigned'
+            ? values.assignedEmployee
+            : null;
+
+    dataToSubmit.tripDestinations = (values.tripDestinations || []).map(d => ({
+        destination: d.destination || null,
+        from: d.from ? d.from.toISOString() : null,
+        to: d.to ? d.to.toISOString() : null,
+    }));
 
     if (!dataToSubmit.additionalServices) {
       dataToSubmit.additionalServices = [];
@@ -308,15 +355,15 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         from: undefined,
         to: undefined,
       },
-      budget: undefined,
-      hotelPreference: '',
-      services: undefined,
+      tripDestinations: [],
+      services: [],
       additionalServices: [],
       preferences: '',
       status: 'prospect',
       visaStatus: '',
       pax: 1,
       companions: [],
+      assignedEmployee: '',
     });
     if(!client){
         clearSavedData();
@@ -428,6 +475,40 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
   return (
     <Form {...form}>
       <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+        {canAssign && (
+        <FormCard isPublicForm={isPublicForm}>
+            <CardHeader>
+                <CardTitle>Assignment</CardTitle>
+                <CardDescription>Assign this client to an employee who will handle it.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <FormField
+                    control={form.control}
+                    name="assignedEmployee"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className={formLabelClass}>Assigned Employee</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ''}>
+                                <FormControl>
+                                    <SelectTrigger className={formSelectTriggerClass}>
+                                        <SelectValue placeholder="Unassigned" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className={formSelectContentClass}>
+                                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                                    {staffUsers.map((u) => (
+                                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </FormCard>
+        )}
+
         <FormCard isPublicForm={isPublicForm}>
             <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -597,6 +678,27 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                                     </FormItem>
                                 )}
                                 />
+                                <FormField
+                                control={form.control}
+                                name={`companions.${index}.type`}
+                                render={({ field }) => (
+                                    <FormItem className="w-32">
+                                    <Select onValueChange={field.onChange} value={field.value ?? 'adult'}>
+                                        <FormControl>
+                                            <SelectTrigger className={formSelectTriggerClass}>
+                                                <SelectValue placeholder="Type" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent className={formSelectContentClass}>
+                                            <SelectItem value="adult">Adult</SelectItem>
+                                            <SelectItem value="child">Child</SelectItem>
+                                            <SelectItem value="infant">Infant</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
                                 <Button
                                 type="button"
                                 variant="ghost"
@@ -614,7 +716,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => append({ name: "" })}
+                            onClick={() => append({ name: "", type: "adult" })}
                         >
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Add Companion
@@ -704,55 +806,83 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         name="preferredTravelDates.to"
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
-                            <FormLabel className={formLabelClass}>Preferred End Date</FormLabel>
+                            <FormLabel className={formLabelClass}>Preferred End Date *</FormLabel>
                                 <DatePicker field={field} isPublicForm={isPublicForm} />
                             <FormMessage />
                             </FormItem>
                         )}
                     />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="budget"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className={formLabelClass}>Budget (₹)</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="Enter budget" {...field} value={field.value ?? ''} className={formInputClass}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="hotelPreference"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className={formLabelClass}>Hotel Preference</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger className={formSelectTriggerClass}>
-                                    <SelectValue placeholder="Select hotel type" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className={formSelectContentClass}>
-                                    <SelectItem value="luxury">5-star</SelectItem>
-                                    <SelectItem value="mid-range">4-star</SelectItem>
-                                    <SelectItem value="budget">3-star</SelectItem>
-                                    <SelectItem value="boutique">Boutique</SelectItem>
-                                    <SelectItem value="no-preference">No Preference</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
+
+                <div className="mt-2">
+                    <Label className={formLabelClass}>Trip Destinations</Label>
+                    <p className={cn("text-sm mt-1", isPublicForm ? 'text-white/70' : 'text-muted-foreground')}>
+                        Add each country the client will visit on this trip, with dates.
+                    </p>
+                    <div className="space-y-3 mt-2">
+                        {tripFields.map((tripField, index) => (
+                            <div key={tripField.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
+                                <FormField
+                                    control={form.control}
+                                    name={`tripDestinations.${index}.destination`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel className={formLabelClass}>Destination</FormLabel>
+                                            <FormControl>
+                                                <Combobox field={field} data={countryNames} placeholder="Select country" isPublicForm={isPublicForm} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`tripDestinations.${index}.from`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel className={formLabelClass}>From</FormLabel>
+                                            <DatePicker field={field} isPublicForm={isPublicForm} />
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`tripDestinations.${index}.to`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel className={formLabelClass}>To</FormLabel>
+                                            <DatePicker field={field} isPublicForm={isPublicForm} />
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeTrip(index)}
+                                    className={cn(isPublicForm ? 'text-white/80 hover:text-white' : '', 'hover:bg-destructive/10 hover:text-destructive')}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => appendTrip({ destination: '', from: undefined, to: undefined })}
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Destination
+                    </Button>
                 </div>
             </CardContent>
         </FormCard>
-        
+
         <FormCard isPublicForm={isPublicForm}>
             <CardHeader>
                 <CardTitle>Services</CardTitle>
@@ -765,26 +895,33 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                 render={({ field }) => (
                     <FormItem className="space-y-3">
                         <FormLabel className={formLabelClass}>Service Type</FormLabel>
-                        <FormControl>
-                            <RadioGroup
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                                className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0"
-                            >
-                                <div className="flex items-center space-x-3 space-y-0">
-                                    <RadioGroupItem value="visa" id="visa" />
-                                    <Label htmlFor="visa" className={formRadioLabelClass}>Visa</Label>
-                                </div>
-                                <div className="flex items-center space-x-3 space-y-0">
-                                    <RadioGroupItem value="fullPackage" id="fullPackage" />
-                                    <Label htmlFor="fullPackage" className={formRadioLabelClass}>Full Package with Visa</Label>
-                                </div>
-                                <div className="flex items-center space-x-3 space-y-0">
-                                    <RadioGroupItem value="packageOnly" id="packageOnly" />
-                                    <Label htmlFor="packageOnly" className={formRadioLabelClass}>Package Only</Label>
-                                </div>
-                            </RadioGroup>
-                        </FormControl>
+                        <FormDescription className={isPublicForm ? 'text-white/70' : ''}>
+                            Select one or more services the client needs.
+                        </FormDescription>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {SERVICE_OPTIONS.map((option) => {
+                                const current = field.value || [];
+                                const checked = current.includes(option.value);
+                                return (
+                                    <div key={option.value} className="flex items-center space-x-3 space-y-0">
+                                        <Checkbox
+                                            id={`service-${option.value}`}
+                                            checked={checked}
+                                            onCheckedChange={(isChecked) => {
+                                                field.onChange(
+                                                    isChecked
+                                                        ? [...current, option.value]
+                                                        : current.filter((v) => v !== option.value)
+                                                );
+                                            }}
+                                        />
+                                        <Label htmlFor={`service-${option.value}`} className={formRadioLabelClass}>
+                                            {option.label}
+                                        </Label>
+                                    </div>
+                                );
+                            })}
+                        </div>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -916,7 +1053,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                 {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
              </Button>
         ) : (
-            <DialogFooter>
+            <DialogFooter className="sticky bottom-0 z-20 -mx-6 -mb-4 border-t bg-background px-6 py-4">
                 <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
                 <Button type="submit" disabled={isSubmitting} form="client-form">
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -930,3 +1067,5 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
 });
 
 ClientForm.displayName = "ClientForm";
+
+

@@ -28,10 +28,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { Booking, Client } from '@/lib/types';
-import { useState } from 'react';
+import { buildDetailEntries, bookingReference } from '@/lib/booking-details';
+import { Fragment, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { BookingForm } from '@/components/forms/booking-form';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
@@ -72,7 +72,7 @@ const BookingRowSkeleton = () => (
 
 export default function ClientBookingsPage() {
   const firestore = useFirestore();
-  const { isAdminOrManager } = useAppUser();
+  const { canViewRevenue } = useAppUser();
   const params = useParams();
   const clientId = params.clientId as string;
   const { user } = useUser();
@@ -130,11 +130,11 @@ export default function ClientBookingsPage() {
               Create New Booking
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-            <ScrollArea className="max-h-[75vh] p-4">
-              <DialogHeader>
-                <DialogTitle>Create New Booking</DialogTitle>
-              </DialogHeader>
+          <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 gap-0">
+            <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
+              <DialogTitle>Create New Booking</DialogTitle>
+            </DialogHeader>
+            <div className="px-6 py-4">
               {client && (
                 <BookingForm
                   onSubmit={handleAddBooking}
@@ -142,8 +142,8 @@ export default function ClientBookingsPage() {
                   clientName={client.name}
                 />
               )}
-            </ScrollArea>
-            <DialogFooter>
+            </div>
+            <DialogFooter className="sticky bottom-0 z-20 bg-background border-t px-6 py-4 mt-0">
               <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
               <Button type="submit" form="booking-form">Create Booking</Button>
             </DialogFooter>
@@ -157,30 +157,49 @@ export default function ClientBookingsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Booking ID</TableHead>
+                  <TableHead>Reference</TableHead>
                   <TableHead>Itinerary</TableHead>
                   <TableHead>Dates</TableHead>
-                  {isAdminOrManager && <TableHead>Total</TableHead>}
+                  {canViewRevenue && <TableHead className="text-right">Customer</TableHead>}
+                  {canViewRevenue && <TableHead className="text-right">Cost</TableHead>}
+                  {canViewRevenue && <TableHead className="text-right">Profit</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading && Array.from({length: 3}).map((_, i) => <BookingRowSkeleton key={i} />)}
-                {!isLoading && bookings?.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="font-medium">{`BK-${booking.id.slice(-5)}`}</TableCell>
+                {!isLoading && bookings?.map((booking) => {
+                  const ref = bookingReference(booking);
+                  const detailEntries = buildDetailEntries(booking);
+                  return (
+                  <Fragment key={booking.id}>
+                  <TableRow>
+                    <TableCell className="font-medium">{ref ? ref.value : '—'}</TableCell>
                     <TableCell>
                       <div className="flex items-center">
                         <ItineraryIcon type={booking.bookingType} />
-                        {booking.bookingType ? booking.bookingType.charAt(0).toUpperCase() + booking.bookingType.slice(1) : 'N/A'}
+                        {booking.bookingType === 'car'
+                          ? 'Transfer'
+                          : booking.bookingType
+                            ? booking.bookingType.charAt(0).toUpperCase() + booking.bookingType.slice(1)
+                            : 'N/A'}
                       </div>
                     </TableCell>
                     <TableCell>
                       {new Date(booking.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} -{' '}
                       {new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </TableCell>
-                    {isAdminOrManager && <TableCell>₹{booking.total.toLocaleString()}</TableCell>}
+                    {canViewRevenue && <TableCell className="text-right">₹{(booking.total || 0).toLocaleString()}</TableCell>}
+                    {canViewRevenue && <TableCell className="text-right text-muted-foreground">₹{(booking.supplierCost || 0).toLocaleString()}</TableCell>}
+                    {canViewRevenue && (() => {
+                      const p = booking.profit ?? ((booking.total || 0) - (booking.supplierCost || 0));
+                      return (
+                        <TableCell className={`text-right font-semibold ${p >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₹{p.toLocaleString()}
+                        </TableCell>
+                      );
+                    })()}
                     <TableCell>
                       <Badge
                         variant={
@@ -223,7 +242,23 @@ export default function ClientBookingsPage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                  {detailEntries.length > 0 && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={canViewRevenue ? 8 : 5} className="pt-0">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 rounded-md bg-muted/40 p-3 text-xs">
+                          {detailEntries.map(({ label, value }) => (
+                            <div key={label} className="min-w-0">
+                              <span className="text-muted-foreground">{label}: </span>
+                              <span className="text-foreground break-words">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
             {!isLoading && bookings?.length === 0 && (
@@ -236,9 +271,9 @@ export default function ClientBookingsPage() {
       </Card>
 
       <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-          <ScrollArea className="max-h-[75vh] p-4">
-            <DialogHeader><DialogTitle>Edit Booking</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4"><DialogTitle>Edit Booking</DialogTitle></DialogHeader>
+          <div className="px-6 py-4">
             {editingBooking && client && (
               <BookingForm
                 booking={editingBooking}
@@ -247,8 +282,8 @@ export default function ClientBookingsPage() {
                 clientName={client.name}
               />
             )}
-          </ScrollArea>
-          <DialogFooter>
+          </div>
+          <DialogFooter className="sticky bottom-0 z-20 bg-background border-t px-6 py-4 mt-0">
             <Button variant="outline" onClick={() => setEditingBooking(null)}>Cancel</Button>
             <Button type="submit" form="booking-form">Save Changes</Button>
           </DialogFooter>

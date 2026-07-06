@@ -49,7 +49,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useAppUser, type Role } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
-const ALL_ROLES: Role[] = ['admin', 'manager', 'employee'];
+const ALL_ROLES: Role[] = ['admin', 'manager', 'employee', 'agent'];
 const ADMIN_MANAGER: Role[] = ['admin', 'manager'];
 const ADMIN_ONLY: Role[] = ['admin'];
 

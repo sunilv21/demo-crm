@@ -3,59 +3,75 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { mockClients, mockBookings } from '@/lib/data';
-import { useEffect, useState } from 'react';
-
-type RecentClient = {
-  id: string;
-  name?: string;
-  email?: string;
-  avatar?: string;
-  value: number;
-};
-
-const generateRecentClients = () => mockBookings
-    .slice(0, 5)
-    .map(booking => {
-      const client = mockClients.find(c => c.id === booking.clientId);
-      return {
-        ...(client || {}),
-        id: booking.id, // Use booking id to ensure uniqueness
-        value: booking.status === 'confirmed' ? (Math.random() * 5000 + 2000) : 0,
-      }
-    });
+import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Booking } from '@/lib/types';
+import Link from 'next/link';
+import { useMemo } from 'react';
 
 export function RecentBookings() {
-  const [recentClients, setRecentClients] = useState<RecentClient[]>([]);
+  const firestore = useFirestore();
+  const { canViewRevenue, isAdminOrManager, authUser } = useAppUser();
 
-  useEffect(() => {
-    setRecentClients(generateRecentClients());
-  }, []);
+  // Non-admins may only list bookings they created (server-enforced).
+  const bookingsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (!isAdminOrManager) {
+      if (!authUser) return null;
+      return query(collection(firestore, 'bookings'), where('createdBy', '==', authUser.uid));
+    }
+    return collection(firestore, 'bookings');
+  }, [firestore, isAdminOrManager, authUser]);
+  const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
+
+  const recent = useMemo(() => {
+    return [...(bookings ?? [])]
+      .sort((a, b) => {
+        const at = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.startDate).getTime();
+        const bt = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.startDate).getTime();
+        return bt - at;
+      })
+      .slice(0, 5);
+  }, [bookings]);
 
   return (
     <Card className="col-span-1 lg:col-span-1">
       <CardHeader>
         <CardTitle>Recent Bookings</CardTitle>
-        <CardDescription>You made 4 bookings this month.</CardDescription>
+        <CardDescription>Your latest bookings.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-8">
-          {recentClients.map((client) => client && (
-            <div className="flex items-center" key={client.id}>
-              <Avatar className="h-9 w-9">
-                <AvatarFallback>
-                  <User className="h-5 w-5 text-muted-foreground" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="ml-4 space-y-1">
-                <p className="text-sm font-medium leading-none">{client.name}</p>
-                <p className="text-sm text-muted-foreground">{client.email}</p>
+        <div className="space-y-6">
+          {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {!isLoading && recent.length === 0 && (
+            <p className="text-sm text-muted-foreground">No bookings yet.</p>
+          )}
+          {!isLoading &&
+            recent.map((booking) => (
+              <div className="flex items-center" key={booking.id}>
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback>
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="ml-4 space-y-1 min-w-0">
+                  <Link
+                    href={`/clients/${booking.clientId}`}
+                    className="text-sm font-medium leading-none text-primary hover:underline truncate block"
+                  >
+                    {booking.clientName || 'Unknown Client'}
+                  </Link>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {booking.status}
+                  </p>
+                </div>
+                {canViewRevenue && (
+                  <div className="ml-auto font-medium whitespace-nowrap">
+                    ₹{(booking.total || 0).toLocaleString()}
+                  </div>
+                )}
               </div>
-              <div className="ml-auto font-medium">
-                {client.value > 0 ? `+$${client.value.toFixed(2)}` : ''}
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </CardContent>
     </Card>

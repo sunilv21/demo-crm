@@ -43,6 +43,14 @@ service cloud.firestore {
     function isAdminOrManager() {
       return userRole() == 'admin' || userRole() == 'manager';
     }
+    // True when the given client is assigned to the requesting user. Uses get()
+    // (which bypasses read rules), guarded by exists() so a missing client
+    // doesn't throw and poison the whole rule expression.
+    function clientAssignedToMe(clientId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/clients/$(clientId))
+        && get(/databases/$(database)/documents/clients/$(clientId)).data.assignedEmployee == request.auth.uid;
+    }
     // A public lead-capture submission (from /lead?source=... posted on social
     // media). Allowed unauthenticated, but tightly shaped to limit abuse:
     // must be a brand-new lead, marked public, with a name and phone.
@@ -108,13 +116,29 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // Bookings are stored as a flat top-level collection. Each doc has a
     // `clientId` field; per-client views use where('clientId','==',id).
+    // Bookings: admins/managers see all. Everyone else may read/update a booking
+    // only if they created it OR it belongs to a client assigned to them.
+    // List queries for non-admins MUST be constrained (where createdBy == uid,
+    // or where clientId == <an assigned client>) or Firestore rejects them.
     match /bookings/{id} {
-      allow read, create, update: if isSignedIn();
+      allow read, update: if isSignedIn() && (
+                             isAdminOrManager()
+                             || resource.data.createdBy == request.auth.uid
+                             || clientAssignedToMe(resource.data.clientId)
+                           );
+      allow create: if isSignedIn();
       allow delete: if isAdminOrManager();
     }
 
+    // Clients: admins/managers see all. Everyone else may read/update only
+    // clients assigned to them or that they created. Non-admin list queries
+    // MUST be constrained by where('assignedEmployee','==', uid).
     match /clients/{id} {
-      allow read, update: if isSignedIn();
+      allow read, update: if isSignedIn() && (
+                             isAdminOrManager()
+                             || resource.data.assignedEmployee == request.auth.uid
+                             || resource.data.createdBy == request.auth.uid
+                           );
       // Public intake form (/intake) writes here unauthenticated; staff can
       // also create clients while signed in.
       allow create: if isSignedIn() || isValidPublicClient();

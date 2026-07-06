@@ -47,9 +47,9 @@ import {
                                                               PaginationPrevious,
                                                               PaginationEllipsis,
                                                               } from '@/components/ui/pagination';
-                                                              import type { Client, CustomerLog, FollowUp, Booking } from '@/lib/types';
+                                                              import type { Client, CustomerLog, FollowUp, Booking, User as StaffUser } from '@/lib/types';
                                                               import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser, useAppUser } from '@/firebase';
-                                                              import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+                                                              import { collection, doc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
                                                               import { Skeleton } from '@/components/ui/skeleton';
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
                                                               import { ClientForm } from '@/components/forms/client-form';
@@ -91,9 +91,12 @@ import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
                                                                                                                                                     );
 
                                                                                                                                                     const serviceTypeMap: { [key: string]: string } = {
-                                                                                                                                                        visa: 'Visa',
-                                                                                                                                                            fullPackage: 'Full Package',
-                                                                                                                                                                packageOnly: 'Package Only',
+                                                                                                                                                        flight: 'Flight',
+                                                                                                                                                            hotel: 'Hotel',
+                                                                                                                                                                visa: 'Visa',
+                                                                                                                                                                transfers: 'Transfers',
+                                                                                                                                                                activity: 'Activity',
+                                                                                                                                                                localTours: 'Local Tours',
                                                                                                                                                                 };
 
                                                                                                                                                                 const travelPurposeMap: { [key: string]: string } = {
@@ -106,7 +109,7 @@ import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 export default function ClientsPage() {
     const firestore = useFirestore();
     const { user } = useUser();
-    const { canDelete } = useAppUser();
+    const { canDelete, isAdminOrManager } = useAppUser();
     const { toast } = useToast();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -125,11 +128,25 @@ export default function ClientsPage() {
 
     const clientsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
+        // Non-admins may only list their own clients (server-enforced). Constrain
+        // the query by assignedEmployee and sort client-side (avoids a composite index).
+        if (!isAdminOrManager) {
+            if (!user) return null;
+            return query(collection(firestore, 'clients'), where('assignedEmployee', '==', user.uid));
+        }
         const [field, direction] = sortOrder.split('-');
         return query(collection(firestore, 'clients'), orderBy(field, direction as 'asc' | 'desc'));
-    }, [firestore, sortOrder]);
+    }, [firestore, sortOrder, isAdminOrManager, user]);
 
     const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
+
+    // Staff list for the "Assigned Employee" dropdown (admins/managers only).
+    const usersQuery = useMemoFirebase(
+        () => (firestore && isAdminOrManager ? collection(firestore, 'users') : null),
+        [firestore, isAdminOrManager]
+    );
+    const { data: staffUsers } = useCollection<StaffUser>(usersQuery);
+    const staffOptions = (staffUsers || []).map(u => ({ id: u.id, name: u.name }));
 
     useEffect(() => {
         if (clients) {
@@ -164,13 +181,34 @@ export default function ClientsPage() {
                     ? client.visaStatus === mappedVisaStatus
                     : true;
                 
-                return searchMatch && statusMatch && typeMatch && visaStatusMatch;
+                // Only admins/managers see all clients; everyone else (employees,
+                // agents) sees clients assigned to them OR that they created.
+                const assignmentMatch = isAdminOrManager
+                    ? true
+                    : client.assignedEmployee === user?.uid || client.createdBy === user?.uid;
+
+                return searchMatch && statusMatch && typeMatch && visaStatusMatch && assignmentMatch;
             });
+
+            // Non-admin queries drop the server-side orderBy, so sort here.
+            if (!isAdminOrManager) {
+                const [field, direction] = sortOrder.split('-');
+                const dir = direction === 'asc' ? 1 : -1;
+                results.sort((a, b) => {
+                    if (field === 'name') {
+                        return (a.name || '').localeCompare(b.name || '') * dir;
+                    }
+                    const at = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+                    const bt = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+                    return (at - bt) * dir;
+                });
+            }
+
             setFilteredClients(results);
         } else {
             setFilteredClients([]);
         }
-    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter]);
+    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, isAdminOrManager, user?.uid, sortOrder]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -178,7 +216,12 @@ export default function ClientsPage() {
     
     const handleAddClient = (newClientData: Partial<Client>) => {
         if (!clientsQuery) return;
-        addDocumentNonBlocking(collection(firestore!, 'clients'), newClientData);
+        // Employees (non admin/manager) always own the clients they create.
+        const dataToSave: Partial<Client> = { ...newClientData };
+        if (!isAdminOrManager && user) {
+            dataToSave.assignedEmployee = user.uid;
+        }
+        addDocumentNonBlocking(collection(firestore!, 'clients'), dataToSave);
         setIsFormOpen(false);
         toast({
             title: "Client Created",
@@ -360,12 +403,12 @@ export default function ClientsPage() {
                                 New Client
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="md:max-w-2xl">
-                            <DialogHeader>
+                        <DialogContent className="md:max-w-2xl w-[95vw] max-h-[90vh] p-0 gap-0">
+                            <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
                                 <DialogTitle>Create New Client</DialogTitle>
                             </DialogHeader>
-                            <div className="max-h-[70vh] overflow-y-auto p-1">
-                                <ClientForm onSubmit={handleAddClient} onCancel={() => setIsFormOpen(false)} />
+                            <div className="px-6 py-4">
+                                <ClientForm onSubmit={handleAddClient} onCancel={() => setIsFormOpen(false)} canAssign={isAdminOrManager} staffUsers={staffOptions} />
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -462,12 +505,12 @@ export default function ClientsPage() {
             </Dialog>
             
             <Dialog open={!!editingClient} onOpenChange={(open) => !open && setEditingClient(null)}>
-                <DialogContent className="md:max-w-2xl">
-                    <DialogHeader>
+                <DialogContent className="md:max-w-2xl w-[95vw] max-h-[90vh] p-0 gap-0">
+                    <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
                         <DialogTitle>Edit {editingClient?.name}</DialogTitle>
                     </DialogHeader>
-                    <div className="max-h-[70vh] overflow-y-auto p-1">
-                        {editingClient && <ClientForm client={editingClient} onSubmit={handleUpdateClient} onCancel={() => setEditingClient(null)} />}
+                    <div className="px-6 py-4">
+                        {editingClient && <ClientForm client={editingClient} onSubmit={handleUpdateClient} onCancel={() => setEditingClient(null)} canAssign={isAdminOrManager} staffUsers={staffOptions} />}
                     </div>
                 </DialogContent>
             </Dialog>
@@ -549,7 +592,7 @@ export default function ClientsPage() {
                             </TableCell>
                             <TableCell className="text-center">{client.pax || 1}</TableCell>
                             <TableCell className="text-center">{client.requiredDocuments?.length || 'N/A'}</TableCell>
-                            <TableCell>{client.services ? serviceTypeMap[client.services] || client.services : 'N/A'}{client.travelPurpose ? ` / ${travelPurposeMap[client.travelPurpose] || client.travelPurpose}`: ''}</TableCell>
+                            <TableCell>{(() => { const svc = Array.isArray(client.services) ? client.services : client.services ? [client.services] : []; return svc.length > 0 ? svc.map(s => serviceTypeMap[s] || s).join(', ') : 'N/A'; })()}{client.travelPurpose ? ` / ${travelPurposeMap[client.travelPurpose] || client.travelPurpose}`: ''}</TableCell>
                             <TableCell>
                                 {client.visaStatus && (
                                     <Badge

@@ -5,10 +5,11 @@ import { RecentBookings } from '@/components/dashboard/recent-bookings';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { PendingFollowUps } from '@/components/dashboard/pending-follow-ups';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
+import { TeamClientLoad } from '@/components/dashboard/team-client-load';
 import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, where } from 'firebase/firestore';
 import type { Booking, Lead, Client } from '@/lib/types';
-import { IndianRupee, Users, Activity, CreditCard, UserCheck, CheckCircle, XCircle } from 'lucide-react';
+import { IndianRupee, Users, Activity, CreditCard, UserCheck, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type MonthlyData = {
@@ -18,17 +19,33 @@ type MonthlyData = {
 
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const { isAdminOrManager } = useAppUser();
+  const { isAdminOrManager, canViewRevenue, authUser } = useAppUser();
   const [totalRevenue, setTotalRevenue] = useState(0);
     const [lastMonthRevenue, setLastMonthRevenue] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
   const [conversionRate, setConversionRate] = useState(0);
   const [chartData, setChartData] = useState<MonthlyData[]>([]);
   const [newClientsThisMonth, setNewClientsThisMonth] = useState(0);
   const [activeClientsPreviousMonth, setActiveClientsPreviousMonth] = useState(0);
   
-  const clientsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
+  // Non-admins may only read their own clients/bookings (server-enforced).
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (!isAdminOrManager) {
+      if (!authUser) return null;
+      return query(collection(firestore, 'clients'), where('assignedEmployee', '==', authUser.uid));
+    }
+    return collection(firestore, 'clients');
+  }, [firestore, isAdminOrManager, authUser]);
   const leadsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'leads') : null, [firestore]);
-  const bookingsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'bookings') : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (!isAdminOrManager) {
+      if (!authUser) return null;
+      return query(collection(firestore, 'bookings'), where('createdBy', '==', authUser.uid));
+    }
+    return collection(firestore, 'bookings');
+  }, [firestore, isAdminOrManager, authUser]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: leads, isLoading: isLoadingLeads } = useCollection<Lead>(leadsQuery);
@@ -42,10 +59,21 @@ export default function DashboardPage() {
       const thisYear = now.getFullYear();
       const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
 
-      const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+      // Revenue is private to each agent — scope it to the bookings they own.
+      const ownBookings = canViewRevenue && authUser
+        ? bookings.filter(b => b.createdBy === authUser.uid)
+        : bookings;
+
+      const confirmedBookings = ownBookings.filter(b => b.status === 'confirmed');
       const revenue = confirmedBookings.reduce((sum, booking) => sum + (booking.total || 0), 0);
       setTotalRevenue(revenue);
-      
+
+      const profit = confirmedBookings.reduce(
+        (sum, booking) => sum + (booking.profit ?? ((booking.total || 0) - (booking.supplierCost || 0))),
+        0
+      );
+      setTotalProfit(profit);
+
       const lastMonthRev = confirmedBookings
         .filter(b => {
             const bookingDate = new Date(b.startDate);
@@ -74,7 +102,7 @@ export default function DashboardPage() {
       
       setChartData(dataForChart);
     }
-  }, [bookings]);
+  }, [bookings, canViewRevenue, authUser]);
 
   useEffect(() => {
     if (leads && leads.length > 0) {
@@ -120,17 +148,27 @@ export default function DashboardPage() {
       <PageHeader title="Dashboard" description="Welcome to your Sky Visa CRM." />
       <div
         className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${
-          isAdminOrManager ? 'xl:grid-cols-6' : 'xl:grid-cols-5'
+          canViewRevenue ? 'xl:grid-cols-7' : 'xl:grid-cols-5'
         }`}
       >
-        {isAdminOrManager && (
+        {canViewRevenue && (
           <StatCard
-            title="Total Revenue"
+            title="My Revenue"
             value={`₹${(totalRevenue).toLocaleString()}`}
             icon={IndianRupee}
             isLoading={isLoading}
             variant="warning"
             description={`Last Month: ${lastMonthRevenue.toLocaleString()}`}
+          />
+        )}
+        {canViewRevenue && (
+          <StatCard
+            title="My Profit"
+            value={`₹${(totalProfit).toLocaleString()}`}
+            icon={TrendingUp}
+            isLoading={isLoading}
+            variant="success"
+            description="From confirmed bookings"
           />
         )}
         <StatCard
@@ -171,9 +209,15 @@ export default function DashboardPage() {
           description={`Total rejected: ${rejectedVisas}`}
         />
       </div>
-      {isAdminOrManager && (
+      {canViewRevenue && (
         <div className="grid gap-4 mt-8 md:grid-cols-1 lg:grid-cols-3">
           <OverviewChart data={chartData} isLoading={isLoadingBookings} />
+          <RecentBookings />
+        </div>
+      )}
+      {isAdminOrManager && !canViewRevenue && (
+        <div className="grid gap-4 mt-8 md:grid-cols-1 lg:grid-cols-3">
+          <TeamClientLoad />
           <RecentBookings />
         </div>
       )}

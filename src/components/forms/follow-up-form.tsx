@@ -21,8 +21,8 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Button } from '../ui/button';
 
@@ -44,10 +44,19 @@ interface FollowUpFormProps {
 
 export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>(({ onSubmit, followUp, clientForNewTask }, ref) => {
   const firestore = useFirestore();
+  const { isAdminOrManager, authUser } = useAppUser();
   const [open, setOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  
-  const clientsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
+
+  // Non-admins may only list their own clients (server-enforced).
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (!isAdminOrManager) {
+      if (!authUser) return null;
+      return query(collection(firestore, 'clients'), where('assignedEmployee', '==', authUser.uid));
+    }
+    return collection(firestore, 'clients');
+  }, [firestore, isAdminOrManager, authUser]);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
   const form = useForm<FormValues>({
@@ -142,7 +151,7 @@ export const FollowUpForm = React.forwardRef<HTMLFormElement, FollowUpFormProps>
             name="date"
             render={({ field }) => (
                 <FormItem className="flex flex-col">
-                <FormLabel>Follow-up Date</FormLabel>
+                <FormLabel>Follow-up Date *</FormLabel>
                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                     <PopoverTrigger asChild>
                     <FormControl>

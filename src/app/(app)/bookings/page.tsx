@@ -45,7 +45,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
 import { useAppUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { query, doc, collection, serverTimestamp } from 'firebase/firestore';
+import { query, doc, collection, serverTimestamp, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -62,12 +62,21 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 const ItineraryIcon = ({ type }: { type?: string }) => {
-  if (type?.includes('Flight')) return <Plane className="mr-2 h-4 w-4 text-muted-foreground" />;
-  if (type?.includes('Tour')) return <Flag className="mr-2 h-4 w-4 text-muted-foreground" />;
-  if (type?.includes('Hotel')) return <Bed className="mr-2 h-4 w-4 text-muted-foreground" />;
-  if (type?.includes('Rental')) return <Car className="mr-2 h-4 w-4 text-muted-foreground" />;
-  return null;
+  switch (type) {
+    case 'flight': return <Plane className="mr-2 h-4 w-4 text-muted-foreground" />;
+    case 'hotel': return <Bed className="mr-2 h-4 w-4 text-muted-foreground" />;
+    case 'car': return <Car className="mr-2 h-4 w-4 text-muted-foreground" />;
+    case 'activity': return <Flag className="mr-2 h-4 w-4 text-muted-foreground" />;
+    default: return null;
+  }
 };
+
+const bookingTypeLabel = (type?: string) =>
+  type === 'car'
+    ? 'Transfer'
+    : type
+      ? type.charAt(0).toUpperCase() + type.slice(1)
+      : 'N/A';
 
 const BookingRowSkeleton = () => (
     <TableRow>
@@ -85,7 +94,7 @@ const BookingRowSkeleton = () => (
 export default function BookingsPage() {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { isAdminOrManager } = useAppUser();
+  const { canViewRevenue, isAdminOrManager } = useAppUser();
   const { toast } = useToast();
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,14 +105,23 @@ export default function BookingsPage() {
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // Non-admins may only list bookings they created (server-enforced).
+    if (!isAdminOrManager) {
+      if (!user) return null;
+      return query(collection(firestore, 'bookings'), where('createdBy', '==', user.uid));
+    }
     return collection(firestore, 'bookings');
-  }, [firestore]);
+  }, [firestore, isAdminOrManager, user]);
 
   const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
 
   useEffect(() => {
     if (!bookings) return;
     let results = bookings;
+    // Agents manage only their own bookings (their revenue is private to them).
+    if (canViewRevenue && user) {
+      results = results.filter(booking => booking.createdBy === user.uid);
+    }
     if (searchTerm) {
       results = results.filter(booking =>
         booking.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,7 +133,7 @@ export default function BookingsPage() {
       results = results.filter(booking => booking.status === statusFilter.toLowerCase());
     }
     setFilteredBookings(results);
-  }, [searchTerm, statusFilter, bookings]);
+  }, [searchTerm, statusFilter, bookings, canViewRevenue, user?.uid]);
 
   const handleAddBooking = (newBookingData: Omit<Booking, 'id'>) => {
     if (!firestore || !newBookingData.clientId) return;
@@ -141,7 +159,19 @@ export default function BookingsPage() {
       setBookingToCancel(null);
   };
 
-  const displayBookings = searchTerm || statusFilter !== 'All' ? filteredBookings : bookings || [];
+  // Agents only ever work with their own bookings; everyone else sees all.
+  const scopedBookings = (canViewRevenue && user)
+    ? (bookings || []).filter(b => b.createdBy === user.uid)
+    : (bookings || []);
+  const displayBookings = searchTerm || statusFilter !== 'All' ? filteredBookings : scopedBookings;
+
+  // Revenue / profit summary (agents only) from their confirmed bookings.
+  const confirmedScoped = scopedBookings.filter(b => b.status === 'confirmed');
+  const totalRevenue = confirmedScoped.reduce((s, b) => s + (b.total || 0), 0);
+  const totalProfit = confirmedScoped.reduce(
+    (s, b) => s + (b.profit ?? ((b.total || 0) - (b.supplierCost || 0))),
+    0
+  );
 
   return (
     <>
@@ -153,45 +183,46 @@ export default function BookingsPage() {
               Create New Booking
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-7xl w-[95vw]">
-
-            <div className="flex h-full flex-col">
-
-              <DialogHeader className="border-b px-6 py-4 shrink-0">
+          <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 gap-0">
+              <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
                 <DialogTitle>
-                  {editingBooking ? 'Edit Booking' : 'Create Booking'}
+                  Create Booking
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-  <BookingForm
-    onSubmit={handleAddBooking}
-    booking={editingBooking || undefined}
-  />
-</div>
+              <div className="px-6 py-4">
+                <BookingForm
+                  onSubmit={handleAddBooking}
+                />
+              </div>
 
-<DialogFooter className="border-t px-6 py-4 shrink-0">
-  <Button
-    variant="outline"
-    onClick={() => setIsFormOpen(false)}
-  >
-    Cancel
-  </Button>
+              <DialogFooter className="sticky bottom-0 z-20 bg-background border-t px-6 py-4 mt-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsFormOpen(false)}
+                >
+                  Cancel
+                </Button>
 
-  <Button type="submit" form="booking-form">
-    Create Booking
-  </Button>
-</DialogFooter>
-            </div>
+                <Button type="submit" form="booking-form">
+                  Create Booking
+                </Button>
+              </DialogFooter>
 
           </DialogContent>
         </Dialog>
       </PageHeader>
-      <div className={`grid gap-4 mb-8 ${isAdminOrManager ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
-        <StatCard title="New Bookings Today" value={isLoading ? "..." : (bookings?.length || 0).toString()} />
-        <StatCard title="Upcoming Departures" value={isLoading ? "..." : (bookings?.filter(b => new Date(b.startDate) > new Date()).length || 0).toString()} />
-        {isAdminOrManager && (
-          <StatCard title="Pending Payments" value={isLoading ? "..." : `₹${(bookings?.filter(b=>b.status === 'pending').reduce((acc, b) => acc + b.total, 0) || 0).toLocaleString()}`} />
+      <div className={`grid gap-4 mb-8 ${canViewRevenue ? 'md:grid-cols-2 lg:grid-cols-5' : 'md:grid-cols-2'}`}>
+        <StatCard title="New Bookings Today" value={isLoading ? "..." : (displayBookings?.length || 0).toString()} />
+        <StatCard title="Upcoming Departures" value={isLoading ? "..." : (displayBookings?.filter(b => new Date(b.startDate) > new Date()).length || 0).toString()} />
+        {canViewRevenue && (
+          <StatCard title="Revenue" value={isLoading ? "..." : `₹${totalRevenue.toLocaleString()}`} variant="warning" />
+        )}
+        {canViewRevenue && (
+          <StatCard title="Profit" value={isLoading ? "..." : `₹${totalProfit.toLocaleString()}`} variant="success" />
+        )}
+        {canViewRevenue && (
+          <StatCard title="Pending Payments" value={isLoading ? "..." : `₹${(scopedBookings.filter(b=>b.status === 'pending').reduce((acc, b) => acc + (b.total || 0), 0) || 0).toLocaleString()}`} />
         )}
       </div>
       <div className="bg-card border rounded-lg p-4 mb-6">
@@ -265,7 +296,9 @@ export default function BookingsPage() {
               <TableHead>Customer</TableHead>
               <TableHead>Itinerary</TableHead>
               <TableHead>Dates</TableHead>
-              {isAdminOrManager && <TableHead>Total</TableHead>}
+              {canViewRevenue && <TableHead className="text-right">Customer</TableHead>}
+              {canViewRevenue && <TableHead className="text-right">Cost</TableHead>}
+              {canViewRevenue && <TableHead className="text-right">Profit</TableHead>}
               <TableHead>Status</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
@@ -275,16 +308,36 @@ export default function BookingsPage() {
             {!isLoading && displayBookings.map((booking) => (
               <TableRow key={booking.id}>
                 <TableCell className="font-medium">{`BK-${booking.id.slice(-5)}`}</TableCell>
-                <TableCell>{booking.clientName}</TableCell>
+                <TableCell>
+                  {booking.clientId ? (
+                    <Link
+                      href={`/clients/${booking.clientId}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {booking.clientName}
+                    </Link>
+                  ) : (
+                    booking.clientName
+                  )}
+                </TableCell>
                 <TableCell className="flex items-center">
-                  <ItineraryIcon type={booking.itineraryType} />
-                  {booking.itineraryType || 'N/A'}
+                  <ItineraryIcon type={booking.bookingType} />
+                  {bookingTypeLabel(booking.bookingType)}
                 </TableCell>
                 <TableCell>
                   {new Date(booking.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} -{' '}
                   {new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </TableCell>
-                {isAdminOrManager && <TableCell>₹{booking.total.toLocaleString()}</TableCell>}
+                {canViewRevenue && <TableCell className="text-right">₹{(booking.total || 0).toLocaleString()}</TableCell>}
+                {canViewRevenue && <TableCell className="text-right text-muted-foreground">₹{(booking.supplierCost || 0).toLocaleString()}</TableCell>}
+                {canViewRevenue && (() => {
+                  const p = booking.profit ?? ((booking.total || 0) - (booking.supplierCost || 0));
+                  return (
+                    <TableCell className={`text-right font-semibold ${p >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ₹{p.toLocaleString()}
+                    </TableCell>
+                  );
+                })()}
                 <TableCell>
                   <Badge
                     variant={
@@ -338,7 +391,7 @@ export default function BookingsPage() {
         )}
       </div>
        <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
-        <div>Showing {displayBookings.length} of {bookings?.length || 0}</div>
+        <div>Showing {displayBookings.length} of {scopedBookings.length}</div>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
@@ -363,39 +416,35 @@ export default function BookingsPage() {
       </div>
 
       <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
-        <DialogContent className="max-w-7xl w-[95vw]">
-  <div className="flex h-full flex-col">
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
+            <DialogTitle>Edit Booking</DialogTitle>
+          </DialogHeader>
 
-    <DialogHeader className="border-b px-6 py-4 shrink-0">
-      <DialogTitle>Edit Booking</DialogTitle>
-    </DialogHeader>
+          <div className="px-6 py-4">
+            {editingBooking && (
+              <BookingForm
+                booking={editingBooking}
+                onSubmit={handleUpdateBooking}
+                clientId={editingBooking.clientId}
+                clientName={editingBooking.clientName}
+              />
+            )}
+          </div>
 
-    <div className="flex-1 overflow-y-auto px-6 py-4">
-      {editingBooking && (
-        <BookingForm
-          booking={editingBooking}
-          onSubmit={handleUpdateBooking}
-          clientId={editingBooking.clientId}
-          clientName={editingBooking.clientName}
-        />
-      )}
-    </div>
+          <DialogFooter className="sticky bottom-0 z-20 bg-background border-t px-6 py-4 mt-0">
+            <Button
+              variant="outline"
+              onClick={() => setEditingBooking(null)}
+            >
+              Cancel
+            </Button>
 
-    <DialogFooter className="border-t px-6 py-4 shrink-0">
-      <Button
-        variant="outline"
-        onClick={() => setEditingBooking(null)}
-      >
-        Cancel
-      </Button>
-
-      <Button type="submit" form="booking-form">
-        Save Changes
-      </Button>
-    </DialogFooter>
-
-  </div>
-</DialogContent>
+            <Button type="submit" form="booking-form">
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
       
       <AlertDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)}>

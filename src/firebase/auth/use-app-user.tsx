@@ -9,7 +9,7 @@ import { useDoc } from '@/firebase/firestore/use-doc';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { User as AppUser } from '@/lib/types';
 
-export type Role = 'admin' | 'manager' | 'employee';
+export type Role = 'admin' | 'manager' | 'employee' | 'agent';
 
 export interface AppUserContextValue {
   authUser: FirebaseUser | null;
@@ -19,12 +19,15 @@ export interface AppUserContextValue {
   isAdmin: boolean;
   isManager: boolean;
   isEmployee: boolean;
+  isAgent: boolean;
   isAdminOrManager: boolean;
   canManageUsers: boolean;
   canDelete: boolean;
   canManageInvoices: boolean;
   canViewInvoices: boolean;
   canViewAdminPages: boolean;
+  // Revenue / pricing-margin details are private to agents only.
+  canViewRevenue: boolean;
 }
 
 const AppUserContext = createContext<AppUserContextValue | undefined>(undefined);
@@ -79,10 +82,14 @@ export const AppUserProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const value = useMemo<AppUserContextValue>(() => {
     const rawRole = (appUser?.role ?? 'employee') as Role;
-    const role: Role = rawRole === 'admin' || rawRole === 'manager' ? rawRole : 'employee';
+    const role: Role =
+      rawRole === 'admin' || rawRole === 'manager' || rawRole === 'agent'
+        ? rawRole
+        : 'employee';
     const isAdmin = role === 'admin';
     const isManager = role === 'manager';
     const isEmployee = role === 'employee';
+    const isAgent = role === 'agent';
     const isAdminOrManager = isAdmin || isManager;
 
     return {
@@ -93,12 +100,14 @@ export const AppUserProvider: React.FC<{ children: ReactNode }> = ({ children })
       isAdmin,
       isManager,
       isEmployee,
+      isAgent,
       isAdminOrManager,
       canManageUsers: isAdmin,
       canDelete: isAdminOrManager,
       canManageInvoices: isAdmin,
       canViewInvoices: isAdminOrManager,
       canViewAdminPages: isAdminOrManager,
+      canViewRevenue: isAgent,
     };
   }, [authUser, appUser, isUserLoading, isDocLoading]);
 

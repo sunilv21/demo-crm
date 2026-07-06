@@ -1,7 +1,5 @@
 'use client';
 
-import { PageHeader } from '@/components/common/page-header';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
 import type { Client, CustomerLog } from '@/lib/types';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
@@ -34,7 +32,7 @@ function ClientDetailLayout({
     return collection(firestore, 'customer_logs');
   }, [firestore]);
 
-  const { data: client, isLoading } = useDoc<Client>(clientRef);
+  const { data: client } = useDoc<Client>(clientRef);
   
   const handleUpdateClient = (updatedData: Partial<Client>) => {
     if (!clientRef) return;
@@ -66,32 +64,29 @@ function ClientDetailLayout({
   };
 
   return (
-    <>
-      <PageHeader title={isLoading ? <Skeleton className="h-8 w-48" /> : client?.name || "Client"} />
-      <div className="grid lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-3 space-y-8">
-          {children}
-        </div>
-        <aside className="lg:col-span-1 space-y-6">
-          <div className="sticky top-20 space-y-6">
-            <ClientQuickAccess />
-            {client && (
-              <>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Add a Log</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <CustomerLogForm client={client} onSubmit={handleAddLog} />
-                    </CardContent>
-                </Card>
-                <FollowUpManager client={client} />
-              </>
-            )}
-          </div>
-        </aside>
+    <div className="grid lg:grid-cols-4 gap-8">
+      <div className="lg:col-span-3 space-y-8">
+        {children}
       </div>
-    </>
+      <aside className="lg:col-span-1">
+        <div className="space-y-6 lg:sticky lg:top-20">
+          <ClientQuickAccess />
+          {client && (
+            <>
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Add a Log</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <CustomerLogForm client={client} onSubmit={handleAddLog} />
+                  </CardContent>
+              </Card>
+              <FollowUpManager client={client} />
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
   );
 }
 

@@ -1,6 +1,9 @@
 
+export type PaxType = 'adult' | 'child' | 'infant';
+
 export type Companion = {
     name: string;
+    type?: PaxType;
 };
 
 export type User = {
@@ -10,7 +13,7 @@ export type User = {
   phone?: string;
   jobTitle?: string;
   avatar?: string;
-  role: 'employee' | 'manager' | 'admin';
+  role: 'employee' | 'manager' | 'admin' | 'agent';
   baseSalary?: number;
   workStartTime?: string;
   workEndTime?: string;
@@ -135,9 +138,11 @@ export type Client = {
   preferredDestination?: string;
   travelPurpose?: string;
   preferredTravelDates?: { from?: string; to?: string };
+  // Multi-destination itinerary: each country visited on the trip with its dates
+  tripDestinations?: { destination?: string; from?: string; to?: string }[];
   budget?: number;
   hotelPreference?: string;
-  services?: 'visa' | 'fullPackage' | 'packageOnly';
+  services?: ('flight' | 'hotel' | 'visa' | 'transfers' | 'activity' | 'localTours')[];
   additionalServices?: ('travelInsurance' | 'airportPickup' | 'localTours')[];
   assignedEmployee?: string;
   visaStatus?: 'toStart' | 'inProcess' | 'applied' | 'approved' | 'rejected' | 'completed' | 'travelling';
@@ -220,6 +225,23 @@ export type Booking = {
   bookingType: BookingType;
   destination?: string;
 
+  // Flight-specific
+  isOneWay?: boolean;
+  hasLayover?: boolean;
+  layoverAirport?: string;
+  isMultiCity?: boolean;
+  sectors?: {
+    origin?: string;
+    destination?: string;
+    departure?: string;
+    cabinClass?: string;
+    flightNumber?: string;
+    airportCode?: string;
+  }[];
+
+  // Portal the booking was made through (flight/hotel/etc.)
+  bookingPortal?: string;
+
   startDate: string;
   endDate: string;
 
@@ -236,6 +258,9 @@ export type Booking = {
   supplierName?: string;
   supplierCost?: number;
   supplierReference?: string;
+
+  // Profit = total (customer price) − supplierCost (booking price)
+  profit?: number;
 
   // Generic Dynamic Data
   bookingDetails?: Record<string, any>;

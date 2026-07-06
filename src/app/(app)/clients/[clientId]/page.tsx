@@ -2,9 +2,9 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useAppUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { doc, serverTimestamp } from 'firebase/firestore';
-import type { Client } from '@/lib/types';
+import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import type { Client, User as StaffUser } from '@/lib/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,9 +15,19 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { CustomerLogs } from '@/components/customer-logs';
+import { ClientBookings } from '@/components/clients/client-bookings';
 import { ClientForm } from '@/components/forms/client-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { StatusUpdateForm } from '@/components/forms/status-update-form';
+
+const serviceLabels: Record<string, string> = {
+    flight: 'Flight',
+    hotel: 'Hotel',
+    visa: 'Visa',
+    transfers: 'Transfers',
+    activity: 'Activity',
+    localTours: 'Local Tours',
+};
 
 const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value?: string | number | null }) => {
     if (!value) return null;
@@ -89,7 +99,7 @@ const ClientProfileSkeleton = () => (
 export default function ClientProfilePage() {
     const params = useParams();
     const firestore = useFirestore();
-    const { isAdminOrManager } = useAppUser();
+    const { isAdminOrManager, authUser } = useAppUser();
     const { toast } = useToast();
     const clientId = params.clientId as string;
 
@@ -103,10 +113,33 @@ export default function ClientProfilePage() {
 
     const { data: client, isLoading } = useDoc<Client>(clientRef);
 
+    // Staff list for reassignment (admins/managers only).
+    const usersQuery = useMemoFirebase(
+        () => (firestore && isAdminOrManager ? collection(firestore, 'users') : null),
+        [firestore, isAdminOrManager]
+    );
+    const { data: staffUsers } = useCollection<StaffUser>(usersQuery);
+    const staffOptions = (staffUsers || []).map(u => ({ id: u.id, name: u.name }));
+
     if (isLoading || !client) {
         return <ClientProfileSkeleton />;
     }
-    
+
+    // Only admins/managers can view any client; others (employees, agents)
+    // may only view clients assigned to them OR that they created.
+    if (
+        !isAdminOrManager &&
+        client.assignedEmployee !== authUser?.uid &&
+        client.createdBy !== authUser?.uid
+    ) {
+        return (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+                <h2 className="text-xl font-semibold">Access restricted</h2>
+                <p className="text-muted-foreground mt-2">This client is not assigned to you.</p>
+            </div>
+        );
+    }
+
     const handleUpdateClient = (updatedData: Partial<Client>) => {
         if (!clientRef) return;
         setDocumentNonBlocking(clientRef, { ...updatedData, updatedAt: serverTimestamp() }, { merge: true });
@@ -208,7 +241,7 @@ export default function ClientProfilePage() {
                             {isEditingDetails ? (
                                 <>
                                     <div className="max-h-[60vh] overflow-y-auto pr-2">
-                                    <ClientForm client={client} onSubmit={handleUpdateClient} onCancel={() => setIsEditingDetails(false)} />
+                                    <ClientForm client={client} onSubmit={handleUpdateClient} onCancel={() => setIsEditingDetails(false)} canAssign={isAdminOrManager} staffUsers={staffOptions} />
                                     </div>
                                 </>
                             ) : (
@@ -221,9 +254,7 @@ export default function ClientProfilePage() {
                                             <DetailItem icon={UserCheck} label="Gender" value={client.gender} />
                                             <DetailItem icon={Briefcase} label="Travel Purpose" value={client.travelPurpose} />
                                             <DetailItem icon={Plane} label="Preferred Destination" value={client.preferredDestination} />
-                                            {isAdminOrManager && <DetailItem icon={IndianRupee} label="Budget" value={client.budget ? `₹${client.budget.toLocaleString()}`: undefined} />}
-                                            <DetailItem icon={Hotel} label="Hotel Preference" value={client.hotelPreference} />
-                                            <DetailItem icon={Cog} label="Services" value={client.services} />
+                                            <DetailItem icon={Cog} label="Services" value={(() => { const svc = Array.isArray(client.services) ? client.services : client.services ? [client.services as string] : []; return svc.length > 0 ? svc.map(s => serviceLabels[s] || s).join(', ') : undefined; })()} />
                                             <DetailItem icon={FileText} label="Visa Status" value={client.visaStatus} />
                                             <DetailItem icon={Cog} label="Additional Services" value={client.additionalServices?.join(', ')} />
                                             {client.followUpDate && <DetailItem icon={Bell} label="Follow-up Date" value={format(new Date(client.followUpDate), 'PPP')} />}
@@ -243,6 +274,7 @@ export default function ClientProfilePage() {
                     </Card>
                 </div>
             </div>
+            <ClientBookings clientId={clientId} />
             <CustomerLogs clientId={clientId} />
         </div>
     );
