@@ -44,6 +44,22 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui
 import { Label } from '../ui/label';
 
 
+// Firestore rejects `undefined` anywhere (incl. nested objects / array items).
+// Recursively replace undefined with null. Safe here because dates are already
+// serialized and serverTimestamp() sentinels are added separately, not cleaned.
+function deepStripUndefined(value: any): any {
+  if (Array.isArray(value)) return value.map(deepStripUndefined);
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const key of Object.keys(value)) {
+      const cleaned = deepStripUndefined(value[key]);
+      out[key] = cleaned === undefined ? null : cleaned;
+    }
+    return out;
+  }
+  return value === undefined ? null : value;
+}
+
 const SERVICE_OPTIONS = [
   { value: 'flight', label: 'Flight' },
   { value: 'hotel', label: 'Hotel' },
@@ -56,7 +72,7 @@ const SERVICE_OPTIONS = [
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name is required.' }),
   email: z.string().email({ message: 'Invalid email address.' }).optional().or(z.literal('')),
-  country: z.string().min(1, { message: 'Country is required.' }),
+  country: z.string().optional(),
   phone: z.string().min(1, { message: 'Phone is required.' }),
   travelPurpose: z.string().optional(),
   dateOfBirth: z.date().optional(),
@@ -66,15 +82,7 @@ const formSchema = z.object({
   preferredTravelDates: z.object({
     from: z.date().optional(),
     to: z.date().optional(),
-  }).optional().refine(data => {
-    if (!data) return true;
-    if (data.from && !data.to) return false;
-    if (data.to && !data.from) return false;
-    return true;
-  }, {
-    message: 'Both start and end dates are required if either is provided.',
-    path: ['to'],
-  }),
+  }).optional(),
   tripDestinations: z.array(z.object({
     destination: z.string().optional(),
     from: z.date().optional(),
@@ -298,7 +306,10 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
     // Now, perform specific transformations
     dataToSubmit.phone = phoneNumber?.format('E.164') || values.phone;
     dataToSubmit.avatar = client?.avatar || randomAvatar;
-    dataToSubmit.companions = values.companions || [];
+    dataToSubmit.companions = (values.companions || []).map(c => ({
+        name: c.name,
+        type: c.type || 'adult',
+    }));
     
     dataToSubmit.dateOfBirth = values.dateOfBirth ? values.dateOfBirth.toISOString() : null;
 
@@ -331,7 +342,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
           };
 
     onSubmit({
-      ...dataToSubmit,
+      ...deepStripUndefined(dataToSubmit),
       ...auditFields
     } as Partial<Client>);
 
@@ -557,7 +568,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         name="country"
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
-                            <FormLabel className={formLabelClass}>Country *</FormLabel>
+                            <FormLabel className={formLabelClass}>Country</FormLabel>
                             <Combobox
                                 field={field}
                                 data={countryOptions}
@@ -806,7 +817,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         name="preferredTravelDates.to"
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
-                            <FormLabel className={formLabelClass}>Preferred End Date *</FormLabel>
+                            <FormLabel className={formLabelClass}>Preferred End Date</FormLabel>
                                 <DatePicker field={field} isPublicForm={isPublicForm} />
                             <FormMessage />
                             </FormItem>
