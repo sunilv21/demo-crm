@@ -69,24 +69,36 @@ const SERVICE_OPTIONS = [
   { value: 'localTours', label: 'Local Tours' },
 ] as const;
 
+// Form values are persisted to localStorage (useFormPersistence), where Dates
+// are serialized to strings. Revive strings back into Date objects so z.date()
+// validation doesn't fail with "Expected date, received string".
+const optionalDate = z.preprocess((v) => {
+  if (v === '' || v === null || v === undefined) return undefined;
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+  return v;
+}, z.date().optional());
+
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name is required.' }),
   email: z.string().email({ message: 'Invalid email address.' }).optional().or(z.literal('')),
   country: z.string().optional(),
   phone: z.string().min(1, { message: 'Phone is required.' }),
   travelPurpose: z.string().optional(),
-  dateOfBirth: z.date().optional(),
+  dateOfBirth: optionalDate,
   gender: z.enum(['male', 'female', 'other']).optional(),
   nationality: z.string().optional(),
   preferredDestination: z.string().optional(),
   preferredTravelDates: z.object({
-    from: z.date().optional(),
-    to: z.date().optional(),
+    from: optionalDate,
+    to: optionalDate,
   }).optional(),
   tripDestinations: z.array(z.object({
     destination: z.string().optional(),
-    from: z.date().optional(),
-    to: z.date().optional(),
+    from: optionalDate,
+    to: optionalDate,
   })).optional(),
   services: z.array(z.enum(['flight', 'hotel', 'visa', 'transfers', 'activity', 'localTours'])).optional(),
   additionalServices: z.array(z.string()).optional(),
