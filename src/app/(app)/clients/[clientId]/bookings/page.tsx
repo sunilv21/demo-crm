@@ -20,6 +20,7 @@ import {
   Car,
   Pencil,
   XCircle,
+  Printer,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -29,7 +30,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Booking, Client } from '@/lib/types';
 import { buildDetailEntries, bookingReference } from '@/lib/booking-details';
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useRef } from 'react';
+import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
+import { PrintableBookings } from '@/components/bookings/printable-bookings';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
@@ -80,6 +83,9 @@ export default function ClientBookingsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
+  const [printSettings, setPrintSettings] = useState<PrintSettings>(defaultSettings);
+  const printContentRef = useRef<HTMLDivElement>(null);
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore || !clientId) return null;
@@ -118,38 +124,317 @@ export default function ClientBookingsPage() {
     setBookingToCancel(null);
   };
 
+  const handlePrint = () => {
+    setPrintSettingsOpen(false);
+    setTimeout(() => {
+      const printContent = document.querySelector('.print-content');
+      if (printContent) {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          // Get the outer HTML to include the print-container class
+          const contentHTML = printContent.innerHTML;
+          
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Booking Summary</title>
+              <style>
+                * {
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                  margin: 0;
+                  padding: 0;
+                  background: white;
+                  color: black;
+                }
+                .print-container {
+                  max-width: 210mm;
+                  margin: 0 auto;
+                  padding: 20px;
+                  background: white;
+                }
+                @page {
+                  size: A4;
+                  margin: 15mm;
+                }
+                h1 {
+                  font-size: 24px;
+                  font-weight: bold;
+                  margin-bottom: 16px;
+                  border-bottom: 2px solid #1f2937;
+                  padding-bottom: 16px;
+                }
+                h2 {
+                  font-size: 18px;
+                  font-weight: 600;
+                  margin-bottom: 12px;
+                }
+                h3 {
+                  font-size: 14px;
+                  font-weight: 500;
+                  margin-bottom: 8px;
+                }
+                p {
+                  margin: 4px 0;
+                  font-size: 14px;
+                }
+                .bg-gray-50 {
+                  background-color: #f9fafb;
+                }
+                .p-4 {
+                  padding: 16px;
+                }
+                .rounded-t-lg {
+                  border-top-left-radius: 8px;
+                  border-top-right-radius: 8px;
+                }
+                .border {
+                  border: 1px solid #e5e7eb;
+                }
+                .border-t-0 {
+                  border-top: none;
+                }
+                .rounded-b-lg {
+                  border-bottom-left-radius: 8px;
+                  border-bottom-right-radius: 8px;
+                }
+                .mb-6 {
+                  margin-bottom: 24px;
+                }
+                .mt-2 {
+                  margin-top: 8px;
+                }
+                .mt-3 {
+                  margin-top: 12px;
+                }
+                .text-sm {
+                  font-size: 14px;
+                }
+                .text-xs {
+                  font-size: 12px;
+                }
+                .text-lg {
+                  font-size: 18px;
+                }
+                .text-gray-900 {
+                  color: #111827;
+                }
+                .text-gray-700 {
+                  color: #374151;
+                }
+                .text-gray-600 {
+                  color: #4b5563;
+                }
+                .text-gray-500 {
+                  color: #6b7280;
+                }
+                .text-green-800 {
+                  color: #166534;
+                }
+                .text-green-100 {
+                  background-color: #dcfce7;
+                }
+                .text-yellow-800 {
+                  color: #854d0e;
+                }
+                .text-yellow-100 {
+                  background-color: #fef9c3;
+                }
+                .text-red-800 {
+                  color: #991b1b;
+                }
+                .text-red-100 {
+                  background-color: #fee2e2;
+                }
+                .text-red-700 {
+                  color: #b91c1c;
+                }
+                .text-green-700 {
+                  color: #15803d;
+                }
+                .font-medium {
+                  font-weight: 500;
+                }
+                .font-semibold {
+                  font-weight: 600;
+                }
+                .grid {
+                  display: grid;
+                }
+                .grid-cols-2 {
+                  grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+                .grid-cols-3 {
+                  grid-template-columns: repeat(3, minmax(0, 1fr));
+                }
+                .gap-4 {
+                  gap: 16px;
+                }
+                .gap-2 {
+                  gap: 8px;
+                }
+                .col-span-2 {
+                  grid-column: span 2 / span 2;
+                }
+                .col-span-1 {
+                  grid-column: span 1 / span 1;
+                }
+                .inline-block {
+                  display: inline-block;
+                }
+                .px-3 {
+                  padding-left: 12px;
+                  padding-right: 12px;
+                }
+                .py-1 {
+                  padding-top: 4px;
+                  padding-bottom: 4px;
+                }
+                .rounded-full {
+                  border-radius: 9999px;
+                }
+                .flex {
+                  display: flex;
+                }
+                .justify-between {
+                  justify-content: space-between;
+                }
+                .items-start {
+                  align-items: flex-start;
+                }
+                .text-right {
+                  text-align: right;
+                }
+                .space-y-2 > * + * {
+                  margin-top: 8px;
+                }
+                .border-b {
+                  border-bottom: 1px solid #e5e7eb;
+                }
+                .border-gray-300 {
+                  border-color: #d1d5db;
+                }
+                .border-gray-200 {
+                  border-color: #e5e7eb;
+                }
+                .last\\:border-0:last-child {
+                  border: none;
+                }
+                .pt-4 {
+                  padding-top: 16px;
+                }
+                .mt-4 {
+                  margin-top: 16px;
+                }
+                .border-collapse {
+                  border-collapse: collapse;
+                }
+                .w-full {
+                  width: 100%;
+                }
+                .text-left {
+                  text-align: left;
+                }
+                .py-2 {
+                  padding-top: 8px;
+                  padding-bottom: 8px;
+                }
+                .px-3 {
+                  padding-left: 12px;
+                  padding-right: 12px;
+                }
+                .list-disc {
+                  list-style-type: disc;
+                }
+                .list-inside {
+                  list-style-position: inside;
+                }
+                .text-center {
+                  text-align: center;
+                }
+                .pt-4 {
+                  padding-top: 16px;
+                }
+                .mt-8 {
+                  margin-top: 32px;
+                }
+                .page-break-inside-avoid {
+                  break-inside: avoid;
+                  page-break-inside: avoid;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="print-container">
+                ${contentHTML}
+              </div>
+            </body>
+            </html>
+          `);
+          printWindow.document.close();
+          printWindow.focus();
+          
+          // Wait for content to load before printing
+          printWindow.onload = function() {
+            setTimeout(() => {
+              printWindow.print();
+              printWindow.close();
+            }, 500);
+          };
+        }
+      }
+    }, 100);
+  };
+
   const isLoading = isLoadingBookings || isLoadingClient;
 
   return (
     <>
       <PageHeader title="Client Bookings" description="Manage all bookings for this client.">
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!client}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create New Booking
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 gap-0">
-            <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
-              <DialogTitle>Create New Booking</DialogTitle>
-            </DialogHeader>
-            <div className="px-6 py-4">
-              {client && (
-                <BookingForm
-                  onSubmit={handleAddBooking}
-                  clientId={client.id}
-                  clientName={client.name}
-                />
-              )}
-            </div>
-            <DialogFooter className="sticky bottom-0 z-20 bg-background border-t px-6 py-4 mt-0">
-              <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-              <Button type="submit" form="booking-form">Create Booking</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            disabled={!client || !bookings || bookings.length === 0}
+            onClick={() => setPrintSettingsOpen(true)}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!client}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create New Booking
+              </Button>
+            </DialogTrigger>
+          </Dialog>
+        </div>
       </PageHeader>
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
+            <DialogTitle>Create New Booking</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            {client && (
+              <BookingForm
+                onSubmit={handleAddBooking}
+                clientId={client.id}
+                clientName={client.name}
+              />
+            )}
+          </div>
+          <DialogFooter className="sticky bottom-0 z-20 bg-background border-t px-6 py-4 mt-0">
+            <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
+            <Button type="submit" form="booking-form">Create Booking</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="p-0">
@@ -246,12 +531,39 @@ export default function ClientBookingsPage() {
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={canViewRevenue ? 8 : 5} className="pt-0">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 rounded-md bg-muted/40 p-3 text-xs">
-                          {detailEntries.map(({ label, value }) => (
-                            <div key={label} className="min-w-0">
-                              <span className="text-muted-foreground">{label}: </span>
-                              <span className="text-foreground break-words">{value}</span>
-                            </div>
-                          ))}
+                          {detailEntries.map((entry) => {
+                            if (entry.isTable && Array.isArray(entry.value)) {
+                              return (
+                                <div key={entry.label} className="col-span-2 sm:col-span-4">
+                                  <span className="text-muted-foreground font-medium">{entry.label}: </span>
+                                  <table className="mt-2 w-full text-left border-collapse">
+                                    <thead>
+                                      <tr className="border-b border-border">
+                                        <th className="py-1 px-2 text-muted-foreground font-medium">From</th>
+                                        <th className="py-1 px-2 text-muted-foreground font-medium">To</th>
+                                        <th className="py-1 px-2 text-muted-foreground font-medium">Date</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {entry.value.map((row: any, idx: number) => (
+                                        <tr key={idx} className="border-b border-border/50 last:border-0">
+                                          <td className="py-1 px-2">{row.from}</td>
+                                          <td className="py-1 px-2">{row.to}</td>
+                                          <td className="py-1 px-2">{row.date}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={entry.label} className="min-w-0">
+                                <span className="text-muted-foreground">{entry.label}: </span>
+                                <span className="text-foreground break-words">{entry.value}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -302,6 +614,25 @@ export default function ClientBookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintSettingsDialog
+        open={printSettingsOpen}
+        onOpenChange={setPrintSettingsOpen}
+        settings={printSettings}
+        onSettingsChange={setPrintSettings}
+        onPrint={handlePrint}
+      />
+
+      {/* Hidden printable content */}
+      <div className="print-content hidden" ref={printContentRef}>
+        {client && bookings && (
+          <PrintableBookings
+            client={client}
+            bookings={bookings}
+            settings={printSettings}
+          />
+        )}
+      </div>
     </>
   );
 }

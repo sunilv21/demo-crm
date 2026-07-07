@@ -33,7 +33,8 @@
       "Bash(ls firestore.rules firestore.indexes.json)",
       "Bash(find . -name \"firestore.rules\" -not -path \"*/node_modules/*\")",
       "Bash(ls -la desktop)",
-      "Bash(cat desktop/package.json)"
+      "Bash(cat desktop/package.json)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

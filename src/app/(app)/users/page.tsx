@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { KeyRound, Loader2, Pencil, PlusCircle } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { KeyRound, Loader2, Mail, Pencil, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -36,6 +37,7 @@ import { User as UserIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/common/page-header';
 import {
+  useAuth,
   useCollection,
   useFirebaseApp,
   useFirestore,
@@ -202,6 +204,8 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
   const [breakCap, setBreakCap] = useState<string>('40');
   const [newPassword, setNewPassword] = useState<string>('');
   const [resetting, setResetting] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const auth = useAuth();
 
   useEffect(() => {
     if (!user) return;
@@ -256,13 +260,42 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
       });
       setNewPassword('');
     } catch (err: any) {
+      const code = err?.code || '';
+      const description =
+        code === 'functions/not-found' || code === 'internal' || /not-found|internal/i.test(err?.message || '')
+          ? 'The password-reset function isn’t available. Use "Send reset email" below instead, or deploy Cloud Functions.'
+          : err?.message || 'Please try again.';
       toast({
         variant: 'destructive',
-        title: 'Password reset failed',
-        description: err?.message || 'Please try again.',
+        title: 'Direct reset failed',
+        description,
       });
     } finally {
       setResetting(false);
+    }
+  };
+
+  // Reliable fallback that needs no Cloud Function: email the user a reset link.
+  const handleSendResetEmail = async () => {
+    if (!auth || !user?.email) {
+      toast({ variant: 'destructive', title: 'No email on file for this user.' });
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      toast({
+        title: 'Reset email sent',
+        description: `A password-reset link was sent to ${user.email}.`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not send reset email',
+        description: err?.message || 'Please try again.',
+      });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -348,7 +381,7 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
           <div className="border-t pt-4 mt-2 space-y-2">
             <Label htmlFor="newPassword" className="text-sm">Reset Password</Label>
             <p className="text-xs text-muted-foreground">
-              Set a new password for this user directly. They can change it later from their profile.
+              Set a new password directly (requires Cloud Functions), or email the user a reset link.
             </p>
             <div className="flex gap-2">
               <Input
@@ -371,9 +404,24 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
                 ) : (
                   <KeyRound className="mr-2 h-4 w-4" />
                 )}
-                Reset
+                Set
               </Button>
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={handleSendResetEmail}
+              disabled={sendingEmail || !user?.email}
+            >
+              {sendingEmail ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              Send reset email{user?.email ? ` to ${user.email}` : ''}
+            </Button>
           </div>
         </div>
         <DialogFooter>

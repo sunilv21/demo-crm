@@ -86,21 +86,55 @@
 
 @layer utilities {
   @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     body, html {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      background: white;
-      color: black;
+      background: white !important;
+      color: black !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
-    .print-hidden {
-      display: none;
+    /* Show print content */
+    .print-content {
+      display: block !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      background: white !important;
+      z-index: 9999 !important;
     }
-    .print-exact-background {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+    /* Hide everything else */
+    body > *:not(.print-content) {
+      display: none !important;
+    }
+    /* A4 page formatting */
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+    /* Prevent page breaks inside booking cards */
+    .page-break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    /* Page break before new sections if needed */
+    .page-break-before {
+      break-before: page !important;
+      page-break-before: always !important;
     }
   }
   .break-inside-avoid {
     break-inside: avoid;
+  }
+  .page-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .page-break-before {
+    break-before: page;
+    page-break-before: always;
   }
 }

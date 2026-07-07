@@ -54,13 +54,15 @@ export function bookingReference(booking: Booking): { label: string; value: stri
 }
 
 // Collect the type-specific details (plus a few top-level flight fields) for display.
-export function buildDetailEntries(booking: Booking): { label: string; value: string }[] {
-  const entries: { label: string; value: string }[] = [];
+export function buildDetailEntries(booking: Booking): { label: string; value: string | any[]; isTable?: boolean }[] {
+  const entries: { label: string; value: string | any[]; isTable?: boolean }[] = [];
   const d = (booking.bookingDetails || {}) as Record<string, any>;
 
   Object.keys(d).forEach((key) => {
     const v = d[key];
     if (v === undefined || v === null || v === "") return;
+    // Skip individual departure/arrival airports for multicity bookings since they're shown in the sectors table
+    if (booking.isMultiCity && (key === 'departureAirport' || key === 'arrivalAirport')) return;
     entries.push({ label: DETAIL_LABELS[key] || key, value: String(v) });
   });
 
@@ -68,14 +70,19 @@ export function buildDetailEntries(booking: Booking): { label: string; value: st
   if (booking.isOneWay) entries.push({ label: "Trip", value: "One Way" });
   if (booking.hasLayover && booking.layoverAirport)
     entries.push({ label: "Layover", value: booking.layoverAirport });
-  if (booking.isMultiCity && booking.sectors?.length)
+  if (booking.isMultiCity && booking.sectors?.length) {
     entries.push({
       label: "Sectors",
       value: booking.sectors
-        .map((s) => [s.origin, s.destination].filter(Boolean).join("→"))
-        .filter(Boolean)
-        .join(", "),
+        .map((s) => ({
+          from: s.origin || '',
+          to: s.destination || '',
+          date: s.departure ? new Date(s.departure).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+        }))
+        .filter((s) => s.from || s.to),
+      isTable: true,
     });
+  }
 
   return entries;
 }

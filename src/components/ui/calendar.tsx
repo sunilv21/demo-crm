@@ -6,14 +6,6 @@ import { DayPicker, DropdownProps } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./select"
-import { ScrollArea } from "./scroll-area"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -84,29 +76,23 @@ function Calendar({
             } as React.ChangeEvent<HTMLSelectElement>
             onChange?.(changeEvent)
           }
+          // Use native select for Safari compatibility
           return (
-            <Select
+            <select
               value={value?.toString()}
-              onValueChange={(value) => {
-                handleChange(value)
-              }}
+              onChange={(e) => handleChange(e.target.value)}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background px-3 py-1 h-7 w-[70px]"
+              {...props}
             >
-              <SelectTrigger className="pr-1.5 focus:ring-0">
-                <SelectValue>{selected?.props?.children}</SelectValue>
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <ScrollArea className="h-80">
-                  {options.map((option, id: number) => (
-                    <SelectItem
-                      key={`${option.props.value}-${id}`}
-                      value={option.props.value?.toString() ?? ""}
-                    >
-                      {option.props.children}
-                    </SelectItem>
-                  ))}
-                </ScrollArea>
-              </SelectContent>
-            </Select>
+              {options.map((option, id: number) => (
+                <option
+                  key={`${option.props.value}-${id}`}
+                  value={option.props.value?.toString() ?? ""}
+                >
+                  {option.props.children}
+                </option>
+              ))}
+            </select>
           )
         },
       }}
