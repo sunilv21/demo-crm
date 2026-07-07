@@ -110,7 +110,7 @@ const formSchema = z.object({
     name: z.string().min(1, 'Companion name is required.'),
     type: z.enum(['adult', 'child', 'infant']).optional(),
   })).optional(),
-  assignedEmployee: z.string().optional(),
+  assignedEmployees: z.array(z.string()).optional(),
 }).refine(data => !data.phone || !data.country || isValidPhoneNumber(data.phone, data.country as CountryCode), {
   message: "Invalid phone number for the selected country.",
   path: ["phone"],
@@ -278,7 +278,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       visaStatus: client?.visaStatus || '',
       pax: client?.pax || 1,
       companions: client?.companions || [],
-      assignedEmployee: client?.assignedEmployee || '',
+      assignedEmployees: client?.assignedEmployees || [],
     },
   });
   
@@ -330,10 +330,9 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         to: values.preferredTravelDates?.to?.toISOString() ?? null,
     };
 
-    dataToSubmit.assignedEmployee =
-        values.assignedEmployee && values.assignedEmployee !== 'unassigned'
-            ? values.assignedEmployee
-            : null;
+    dataToSubmit.assignedEmployees = values.assignedEmployees && values.assignedEmployees.length > 0
+        ? values.assignedEmployees
+        : null;
 
     dataToSubmit.tripDestinations = (values.tripDestinations || []).map(d => ({
         destination: d.destination || null,
@@ -386,7 +385,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       visaStatus: '',
       pax: 1,
       companions: [],
-      assignedEmployee: '',
+      assignedEmployees: [],
     });
     if(!client){
         clearSavedData();
@@ -507,23 +506,36 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
             <CardContent>
                 <FormField
                     control={form.control}
-                    name="assignedEmployee"
+                    name="assignedEmployees"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className={formLabelClass}>Assigned Employee</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ''}>
-                                <FormControl>
-                                    <SelectTrigger className={formSelectTriggerClass}>
-                                        <SelectValue placeholder="Unassigned" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className={formSelectContentClass}>
-                                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                                    {staffUsers.map((u) => (
-                                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <FormLabel className={formLabelClass}>Assigned Employees</FormLabel>
+                            <div className="space-y-2">
+                                {staffUsers.map((u) => (
+                                    <div key={u.id} className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id={`employee-${u.id}`}
+                                            checked={field.value?.includes(u.id) || false}
+                                            onChange={(e) => {
+                                                const currentValue = field.value || [];
+                                                if (e.target.checked) {
+                                                    field.onChange([...currentValue, u.id]);
+                                                } else {
+                                                    field.onChange(currentValue.filter((id: string) => id !== u.id));
+                                                }
+                                            }}
+                                            className="h-4 w-4 rounded border-gray-300"
+                                        />
+                                        <label
+                                            htmlFor={`employee-${u.id}`}
+                                            className={`text-sm ${isPublicForm ? 'text-white' : 'text-gray-700'}`}
+                                        >
+                                            {u.name}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
                             <FormMessage />
                         </FormItem>
                     )}

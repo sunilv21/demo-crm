@@ -124,7 +124,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
     if (!firestore) return null;
     if (!isAdminOrManager) {
       if (!user) return null;
-      return query(collection(firestore, 'clients'), where('assignedEmployee', '==', user.uid));
+      return query(collection(firestore, 'clients'), where('assignedEmployees', 'array-contains', user.uid));
     }
     return collection(firestore, 'clients');
   }, [firestore, isAdminOrManager, user]);
@@ -200,7 +200,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
         status: 'prospect',
         avatar: '',
         // The creator owns the client they add inline (shows in their client list).
-        assignedEmployee: user.uid,
+        assignedEmployees: [user.uid],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: user.uid,

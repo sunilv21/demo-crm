@@ -33,7 +33,7 @@ export default function DashboardPage() {
     if (!firestore) return null;
     if (!isAdminOrManager) {
       if (!authUser) return null;
-      return query(collection(firestore, 'clients'), where('assignedEmployee', '==', authUser.uid));
+      return query(collection(firestore, 'clients'), where('assignedEmployees', 'array-contains', authUser.uid));
     }
     return collection(firestore, 'clients');
   }, [firestore, isAdminOrManager, authUser]);

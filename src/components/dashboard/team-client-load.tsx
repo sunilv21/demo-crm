@@ -29,7 +29,11 @@ export function TeamClientLoad() {
   const rows = useMemo(() => {
     const counts = new Map<string, number>();
     (clients ?? []).forEach((c) => {
-      if (c.assignedEmployee) counts.set(c.assignedEmployee, (counts.get(c.assignedEmployee) || 0) + 1);
+      if (c.assignedEmployees && c.assignedEmployees.length > 0) {
+        c.assignedEmployees.forEach((empId) => {
+          counts.set(empId, (counts.get(empId) || 0) + 1);
+        });
+      }
     });
     return (users ?? [])
       .map((u) => ({ id: u.id, name: u.name, role: u.role, count: counts.get(u.id) || 0 }))

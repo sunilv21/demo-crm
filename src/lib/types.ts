@@ -144,7 +144,7 @@ export type Client = {
   hotelPreference?: string;
   services?: ('flight' | 'hotel' | 'visa' | 'transfers' | 'activity' | 'localTours')[];
   additionalServices?: ('travelInsurance' | 'airportPickup' | 'localTours')[];
-  assignedEmployee?: string;
+  assignedEmployees?: string[];
   visaStatus?: 'toStart' | 'inProcess' | 'applied' | 'approved' | 'rejected' | 'completed' | 'travelling';
   visaHistory?: VisaHistoryItem[];
   previousTrips?: PreviousTrip[];

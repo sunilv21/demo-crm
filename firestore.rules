@@ -49,7 +49,7 @@ service cloud.firestore {
     function clientAssignedToMe(clientId) {
       return isSignedIn()
         && exists(/databases/$(database)/documents/clients/$(clientId))
-        && get(/databases/$(database)/documents/clients/$(clientId)).data.assignedEmployee == request.auth.uid;
+        && request.auth.uid in get(/databases/$(database)/documents/clients/$(clientId)).data.assignedEmployees;
     }
     // A public lead-capture submission (from /lead?source=... posted on social
     // media). Allowed unauthenticated, but tightly shaped to limit abuse:
@@ -132,11 +132,11 @@ service cloud.firestore {
 
     // Clients: admins/managers see all. Everyone else may read/update only
     // clients assigned to them or that they created. Non-admin list queries
-    // MUST be constrained by where('assignedEmployee','==', uid).
+    // MUST be constrained by where('assignedEmployees','array-contains', uid).
     match /clients/{id} {
       allow read, update: if isSignedIn() && (
                              isAdminOrManager()
-                             || resource.data.assignedEmployee == request.auth.uid
+                             || (request.auth.uid in resource.data.assignedEmployees)
                              || resource.data.createdBy == request.auth.uid
                            );
       // Public intake form (/intake) writes here unauthenticated; staff can

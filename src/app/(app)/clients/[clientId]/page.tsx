@@ -129,7 +129,7 @@ export default function ClientProfilePage() {
     // may only view clients assigned to them OR that they created.
     if (
         !isAdminOrManager &&
-        client.assignedEmployee !== authUser?.uid &&
+        !(client.assignedEmployees?.includes(authUser?.uid || '') || false) &&
         client.createdBy !== authUser?.uid
     ) {
         return (

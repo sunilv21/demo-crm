@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/common/page-header';
 import {
   Table,
@@ -129,10 +129,10 @@ export default function ClientsPage() {
     const clientsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         // Non-admins may only list their own clients (server-enforced). Constrain
-        // the query by assignedEmployee and sort client-side (avoids a composite index).
+        // the query by assignedEmployees and sort client-side (avoids a composite index).
         if (!isAdminOrManager) {
             if (!user) return null;
-            return query(collection(firestore, 'clients'), where('assignedEmployee', '==', user.uid));
+            return query(collection(firestore, 'clients'), where('assignedEmployees', 'array-contains', user.uid));
         }
         const [field, direction] = sortOrder.split('-');
         return query(collection(firestore, 'clients'), orderBy(field, direction as 'asc' | 'desc'));
@@ -147,12 +147,20 @@ export default function ClientsPage() {
     );
     const { data: staffUsers } = useCollection<StaffUser>(usersQuery);
     const staffOptions = (staffUsers || []).map(u => ({ id: u.id, name: u.name }));
+    const staffUserNames = useMemo(
+        () => new Map((staffUsers || []).map((u) => [u.id, u.name || u.id])),
+        [staffUsers]
+    );
 
     useEffect(() => {
-        if (clients) {
-            const activeClients = clients.filter(c => c.status !== 'inactive');
-            
-            const results = activeClients.filter(client => {
+        if (!clients) {
+            setFilteredClients([]);
+            return;
+        }
+
+        const activeClients = clients.filter(c => c.status !== 'inactive');
+        
+        const results = activeClients.filter(client => {
                 const lowercasedTerm = searchTerm.toLowerCase();
                 const searchMatch = searchTerm 
                     ? client.name.toLowerCase().includes(lowercasedTerm) ||
@@ -185,7 +193,7 @@ export default function ClientsPage() {
                 // agents) sees clients assigned to them OR that they created.
                 const assignmentMatch = isAdminOrManager
                     ? true
-                    : client.assignedEmployee === user?.uid || client.createdBy === user?.uid;
+                    : user?.uid && (client.assignedEmployees?.includes(user.uid) || false) || client.createdBy === user?.uid;
 
                 return searchMatch && statusMatch && typeMatch && visaStatusMatch && assignmentMatch;
             });
@@ -205,9 +213,6 @@ export default function ClientsPage() {
             }
 
             setFilteredClients(results);
-        } else {
-            setFilteredClients([]);
-        }
     }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, isAdminOrManager, user?.uid, sortOrder]);
 
     useEffect(() => {
@@ -219,7 +224,7 @@ export default function ClientsPage() {
         // Employees (non admin/manager) always own the clients they create.
         const dataToSave: Partial<Client> = { ...newClientData };
         if (!isAdminOrManager && user) {
-            dataToSave.assignedEmployee = user.uid;
+            dataToSave.assignedEmployees = [user.uid];
         }
         addDocumentNonBlocking(collection(firestore!, 'clients'), dataToSave);
         setIsFormOpen(false);
@@ -554,7 +559,8 @@ export default function ClientsPage() {
                             <TableHead className="w-[180px]">Client</TableHead>
                             <TableHead className="w-[150px]">Contact</TableHead>
                             <TableHead className="w-[50px] text-center">PAX</TableHead>
-                            <TableHead className="w-[60px] text-center">Docs</TableHead>
+                            {!isAdminOrManager && <TableHead className="w-[60px] text-center">Docs</TableHead>}
+                            {isAdminOrManager && <TableHead className="w-[120px]">Assigned Employee</TableHead>}
                             <TableHead className="w-[120px]">Type</TableHead>
                             <TableHead className="w-[110px]">Visa Status</TableHead>
                             <TableHead className="w-[90px]">Status</TableHead>
@@ -591,7 +597,16 @@ export default function ClientsPage() {
                                 </div>
                             </TableCell>
                             <TableCell className="text-center">{client.pax || 1}</TableCell>
-                            <TableCell className="text-center">{client.requiredDocuments?.length || 'N/A'}</TableCell>
+                            {!isAdminOrManager && (
+                                <TableCell className="text-center">{client.requiredDocuments?.length || 'N/A'}</TableCell>
+                            )}
+                            {isAdminOrManager && (
+                                <TableCell className="text-sm text-muted-foreground">
+                                    {client.assignedEmployees?.length
+                                        ? client.assignedEmployees.map((id) => staffUserNames.get(id) || id).join(', ')
+                                        : 'Unassigned'}
+                                </TableCell>
+                            )}
                             <TableCell>{(() => { const svc = Array.isArray(client.services) ? client.services : client.services ? [client.services] : []; return svc.length > 0 ? svc.map(s => serviceTypeMap[s] || s).join(', ') : 'N/A'; })()}{client.travelPurpose ? ` / ${travelPurposeMap[client.travelPurpose] || client.travelPurpose}`: ''}</TableCell>
                             <TableCell>
                                 {client.visaStatus && (
