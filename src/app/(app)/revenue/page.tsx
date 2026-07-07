@@ -139,6 +139,8 @@ export default function RevenuePage() {
   const { toast } = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
+  // Month selected for the comparison cards (0-11).
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [collectTarget, setCollectTarget] = useState<{
     clientName: string;
     balance: number;
@@ -214,10 +216,12 @@ export default function RevenuePage() {
     // Attach the creation date (revenue is attributed to the created month).
     const withDate = confirmed.map((b) => ({ b, date: toDateSafe(b.createdAt) }));
 
-    const thisMonth = now.getMonth();
-    const thisYear = now.getFullYear();
-    const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
-    const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+    // Comparison period: the selected month (within the selected year) vs the
+    // month immediately before it (wrapping into the prior year for January).
+    const selMonth = selectedMonth;
+    const selYear = year;
+    const prevMonth = selMonth === 0 ? 11 : selMonth - 1;
+    const prevYear = selMonth === 0 ? selYear - 1 : selYear;
 
     const inMonth = (date: Date | null, m: number, y: number) =>
       !!date && date.getMonth() === m && date.getFullYear() === y;
@@ -230,12 +234,14 @@ export default function RevenuePage() {
     const margin = yearRevenue ? Math.round((yearProfit / yearRevenue) * 100) : 0;
     const avgValue = yearCount ? yearRevenue / yearCount : 0;
 
-    const thisMonthRevenue = withDate
-      .filter(({ date }) => inMonth(date, thisMonth, thisYear))
-      .reduce((s, { b }) => s + bookingRevenue(b), 0);
-    const lastMonthRevenue = withDate
-      .filter(({ date }) => inMonth(date, lastMonth, lastMonthYear))
-      .reduce((s, { b }) => s + bookingRevenue(b), 0);
+    const selMonthBookings = withDate.filter(({ date }) => inMonth(date, selMonth, selYear));
+    const prevMonthBookings = withDate.filter(({ date }) => inMonth(date, prevMonth, prevYear));
+    const thisMonthRevenue = selMonthBookings.reduce((s, { b }) => s + bookingRevenue(b), 0);
+    const lastMonthRevenue = prevMonthBookings.reduce((s, { b }) => s + bookingRevenue(b), 0);
+    const thisMonthProfit = selMonthBookings.reduce((s, { b }) => s + bookingProfit(b), 0);
+    const lastMonthProfit = prevMonthBookings.reduce((s, { b }) => s + bookingProfit(b), 0);
+    const thisMonthLabel = `${MONTHS[selMonth]} ${selYear}`;
+    const lastMonthLabel = `${MONTHS[prevMonth]} ${prevYear}`;
 
     // Bookings that still have money to collect, grouped into one row per client
     // so the balance shown is the client's combined outstanding, not per booking.
@@ -298,7 +304,8 @@ export default function RevenuePage() {
           .filter((y): y is number => typeof y === 'number')
       )
     );
-    if (!years.includes(thisYear)) years.push(thisYear);
+    const currentYear = now.getFullYear();
+    if (!years.includes(currentYear)) years.push(currentYear);
     years.sort((a, b) => b - a);
 
     return {
@@ -309,6 +316,10 @@ export default function RevenuePage() {
       avgValue,
       thisMonthRevenue,
       lastMonthRevenue,
+      thisMonthProfit,
+      lastMonthProfit,
+      thisMonthLabel,
+      lastMonthLabel,
       pendingCollections,
       pendingClients,
       monthly,
@@ -317,7 +328,7 @@ export default function RevenuePage() {
       recent,
       years,
     };
-  }, [bookings, year, now]);
+  }, [bookings, year, selectedMonth, now]);
 
   const isLoading = isUserLoading || isLoadingBookings;
 
@@ -395,14 +406,37 @@ export default function RevenuePage() {
         />
       </div>
 
-      <div className="grid gap-4 mt-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Monthly comparison</h2>
+          <p className="text-sm text-muted-foreground">Compare any month against the one before it.</p>
+        </div>
+        <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(Number(v))}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((m, i) => (
+              <SelectItem key={m} value={String(i)}>
+                {m} {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-4 mt-3 md:grid-cols-2 lg:grid-cols-4">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">{stats.thisMonthLabel}</CardTitle>
             <CalendarClock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatINR(stats.thisMonthRevenue)}</div>
+            <div className="mt-1 flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Profit</span>
+              <span className="font-semibold text-green-600">{formatINR(stats.thisMonthProfit)}</span>
+            </div>
             <div className="mt-1">
               <DeltaBadge change={monthChange} />
             </div>
@@ -410,12 +444,16 @@ export default function RevenuePage() {
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Month</CardTitle>
+            <CardTitle className="text-sm font-medium">{stats.lastMonthLabel}</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatINR(stats.lastMonthRevenue)}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Revenue booked last calendar month</p>
+            <div className="mt-1 flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Profit</span>
+              <span className="font-semibold text-green-600">{formatINR(stats.lastMonthProfit)}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Previous month</p>
           </CardContent>
         </Card>
       </div>
