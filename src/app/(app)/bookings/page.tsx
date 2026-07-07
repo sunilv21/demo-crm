@@ -20,6 +20,7 @@ import {
   Flag,
   Bed,
   Car,
+  Stamp,
   Eye,
   Pencil,
   XCircle,
@@ -67,6 +68,7 @@ const ItineraryIcon = ({ type }: { type?: string }) => {
     case 'hotel': return <Bed className="mr-2 h-4 w-4 text-muted-foreground" />;
     case 'car': return <Car className="mr-2 h-4 w-4 text-muted-foreground" />;
     case 'activity': return <Flag className="mr-2 h-4 w-4 text-muted-foreground" />;
+    case 'visa': return <Stamp className="mr-2 h-4 w-4 text-muted-foreground" />;
     default: return null;
   }
 };

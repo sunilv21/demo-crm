@@ -33,6 +33,13 @@ export const DETAIL_LABELS: Record<string, string> = {
   referenceNumber: "Reference",
   supplier: "Supplier",
   description: "Description",
+  // Visa
+  visaType: "Visa Type",
+  processingType: "Processing",
+  entryType: "Entry",
+  applicants: "Applicants",
+  passportNumber: "Passport No",
+  applicationNumber: "Application No",
 };
 
 // The real-world reference for a booking (PNR / hotel booking id / voucher / …),
@@ -46,6 +53,8 @@ export function bookingReference(booking: Booking): { label: string; value: stri
       return d.hotelBookingId ? { label: "Booking ID", value: String(d.hotelBookingId) } : null;
     case "activity":
       return d.voucherNumber ? { label: "Voucher", value: String(d.voucherNumber) } : null;
+    case "visa":
+      return d.applicationNumber ? { label: "Application No", value: String(d.applicationNumber) } : null;
     case "other":
       return d.referenceNumber ? { label: "Reference", value: String(d.referenceNumber) } : null;
     default:
@@ -53,9 +62,24 @@ export function bookingReference(booking: Booking): { label: string; value: stri
   }
 }
 
+export type DetailColumn = { key: string; label: string };
+export type DetailEntry = {
+  label: string;
+  value: string | any[];
+  isTable?: boolean;
+  columns?: DetailColumn[];
+};
+
+const fmtDay = (value?: string): string => {
+  if (!value) return "-";
+  const dt = new Date(value);
+  if (isNaN(dt.getTime())) return String(value);
+  return dt.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+};
+
 // Collect the type-specific details (plus a few top-level flight fields) for display.
-export function buildDetailEntries(booking: Booking): { label: string; value: string | any[]; isTable?: boolean }[] {
-  const entries: { label: string; value: string | any[]; isTable?: boolean }[] = [];
+export function buildDetailEntries(booking: Booking): DetailEntry[] {
+  const entries: DetailEntry[] = [];
   const d = (booking.bookingDetails || {}) as Record<string, any>;
 
   Object.keys(d).forEach((key) => {
@@ -73,6 +97,11 @@ export function buildDetailEntries(booking: Booking): { label: string; value: st
   if (booking.isMultiCity && booking.sectors?.length) {
     entries.push({
       label: "Sectors",
+      columns: [
+        { key: 'from', label: 'From' },
+        { key: 'to', label: 'To' },
+        { key: 'date', label: 'Date' },
+      ],
       value: booking.sectors
         .map((s) => ({
           from: s.origin || '',
@@ -81,6 +110,25 @@ export function buildDetailEntries(booking: Booking): { label: string; value: st
         }))
         .filter((s) => s.from || s.to),
       isTable: true,
+    });
+  }
+
+  // Visa: one row per applicant with passport + validity.
+  if (booking.bookingType === 'visa' && booking.visaApplicants?.length) {
+    entries.push({
+      label: "Applicants",
+      columns: [
+        { key: 'name', label: 'Name' },
+        { key: 'passportNumber', label: 'Passport' },
+        { key: 'validFrom', label: 'Valid From' },
+        { key: 'validUntil', label: 'Valid Until' },
+      ],
+      value: booking.visaApplicants.map((a) => ({
+        name: a.name || '-',
+        passportNumber: a.passportNumber || '-',
+        validFrom: fmtDay(a.validFrom),
+        validUntil: fmtDay(a.validUntil),
+      })),
     });
   }
 

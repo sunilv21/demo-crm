@@ -143,19 +143,12 @@ export function PrintableBookings({ client, bookings, settings }: PrintableBooki
           (e) => !e.isTable && e.label !== 'Portal' && e.label !== 'Supplier'
         );
         const tableEntries = detailEntries.filter((e) => e.isTable && Array.isArray(e.value));
-        const route = tableEntries.length
-          ? (() => {
-              const rows = (tableEntries[0].value as any[]) || [];
-              return rows.length ? `${rows[0].from} → ${rows[rows.length - 1].to}` : '';
-            })()
-          : '';
 
         const start = dstr(booking.startDate);
         const end = dstr(booking.endDate);
         const dateText = start && end && end !== start ? `${start} – ${end}` : start || end || '—';
 
         const sub: { label: string; value: string }[] = [];
-        if (route) sub.push({ label: 'Route', value: route });
         if (settings.showPortal && booking.bookingPortal) sub.push({ label: 'Portal', value: booking.bookingPortal });
         if (settings.showSupplier && booking.supplierName) sub.push({ label: 'Supplier', value: booking.supplierName });
         if (settings.showReferences && ref) sub.push({ label: ref.label, value: ref.value });
@@ -197,6 +190,30 @@ export function PrintableBookings({ client, bookings, settings }: PrintableBooki
                   <div key={e.label} className="kv"><span className="k">{e.label}</span><span className="c">:</span><span className="v">{e.value as string}</span></div>
                 ))}
               </div>
+
+              {tableEntries.map((entry) => {
+                const cols = entry.columns ?? [
+                  { key: 'from', label: 'From' },
+                  { key: 'to', label: 'To' },
+                  { key: 'date', label: 'Date' },
+                ];
+                const rows = entry.value as any[];
+                return (
+                  <div key={entry.label} className="bk-tbl-wrap">
+                    <div className="bk-tbl-title">{entry.label}</div>
+                    <table className="bk-tbl">
+                      <thead>
+                        <tr>{cols.map((c) => <th key={c.key}>{c.label}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, i) => (
+                          <tr key={i}>{cols.map((c) => <td key={c.key}>{row[c.key]}</td>)}</tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
 
               {sub.length > 0 && (
                 <div className="bk-sub">
@@ -328,6 +345,12 @@ const INV_CSS = `
 .bk-grid{ display:flex; flex-wrap:wrap; padding:0 16px 12px; }
 .bk-grid .kv{ display:flex; width:50%; font-size:12px; margin:3px 0; }
 .bk-grid .k{ width:96px; color:#6b7280; } .bk-grid .c{ width:12px; color:#9ca3af; } .bk-grid .v{ color:#111827; font-weight:600; }
+
+.bk-tbl-wrap{ padding:0 16px 12px; }
+.bk-tbl-title{ font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; }
+.bk-tbl{ width:100%; border-collapse:collapse; font-size:11px; }
+.bk-tbl th{ text-align:left; background:#eff6ff; color:#1e3a8a; font-weight:600; padding:5px 8px; border:1px solid #dbeafe; }
+.bk-tbl td{ padding:5px 8px; border:1px solid #e5e7eb; color:#111827; }
 
 .bk-sub{ display:flex; flex-wrap:wrap; gap:24px; background:#eff6ff; padding:9px 16px; border-top:1px solid #dbeafe; }
 .bk-sub-i{ display:flex; font-size:11px; }

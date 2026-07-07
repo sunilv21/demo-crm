@@ -18,7 +18,7 @@ import {
 } from "../ui/table";
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
-import { Plane, Flag, Bed, Car, PlusCircle, ChevronRight } from "lucide-react";
+import { Plane, Flag, Bed, Car, PlusCircle, ChevronRight, Stamp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ItineraryIcon = ({ type }: { type?: string }) => {
@@ -27,6 +27,7 @@ const ItineraryIcon = ({ type }: { type?: string }) => {
   if (t?.includes("tour")) return <Flag className="mr-2 h-4 w-4 text-muted-foreground" />;
   if (t?.includes("hotel")) return <Bed className="mr-2 h-4 w-4 text-muted-foreground" />;
   if (t?.includes("rental") || t?.includes("car")) return <Car className="mr-2 h-4 w-4 text-muted-foreground" />;
+  if (t?.includes("visa")) return <Stamp className="mr-2 h-4 w-4 text-muted-foreground" />;
   return null;
 };
 
@@ -184,23 +185,28 @@ export function ClientBookings({ clientId }: { clientId: string }) {
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 rounded-md bg-muted/40 p-3 text-xs">
                               {detailEntries.map((entry) => {
                                 if (entry.isTable && Array.isArray(entry.value)) {
+                                  const cols = entry.columns ?? [
+                                    { key: 'from', label: 'From' },
+                                    { key: 'to', label: 'To' },
+                                    { key: 'date', label: 'Date' },
+                                  ];
                                   return (
                                     <div key={entry.label} className="col-span-2 sm:col-span-4">
                                       <span className="text-muted-foreground font-medium">{entry.label}: </span>
                                       <table className="mt-2 w-full text-left border-collapse">
                                         <thead>
                                           <tr className="border-b border-border">
-                                            <th className="py-1 px-2 text-muted-foreground font-medium">From</th>
-                                            <th className="py-1 px-2 text-muted-foreground font-medium">To</th>
-                                            <th className="py-1 px-2 text-muted-foreground font-medium">Date</th>
+                                            {cols.map((c) => (
+                                              <th key={c.key} className="py-1 px-2 text-muted-foreground font-medium">{c.label}</th>
+                                            ))}
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {entry.value.map((row: any, idx: number) => (
                                             <tr key={idx} className="border-b border-border/50 last:border-0">
-                                              <td className="py-1 px-2">{row.from}</td>
-                                              <td className="py-1 px-2">{row.to}</td>
-                                              <td className="py-1 px-2">{row.date}</td>
+                                              {cols.map((c) => (
+                                                <td key={c.key} className="py-1 px-2">{row[c.key]}</td>
+                                              ))}
                                             </tr>
                                           ))}
                                         </tbody>

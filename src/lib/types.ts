@@ -200,6 +200,7 @@ export type BookingType =
 | 'hotel'
 | 'car'
 | 'activity'
+| 'visa'
 | 'other';
 
 export type BookingStatus =
@@ -237,6 +238,14 @@ export type Booking = {
     cabinClass?: string;
     flightNumber?: string;
     airportCode?: string;
+  }[];
+
+  // Visa applicants (one row per person on a visa booking)
+  visaApplicants?: {
+    name?: string;
+    passportNumber?: string;
+    validFrom?: string;
+    validUntil?: string;
   }[];
 
   // Portal the booking was made through (flight/hotel/etc.)

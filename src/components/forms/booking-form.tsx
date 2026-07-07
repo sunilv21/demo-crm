@@ -22,6 +22,7 @@ import {
   Car,
   MapPinned,
   PlusCircle,
+  Stamp,
   X,
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
@@ -42,7 +43,7 @@ import {
 import type { Booking, Client } from '@/lib/types';
 import { useAppUser, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { addDoc, collection, query, serverTimestamp, where } from 'firebase/firestore';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const formSchema = z.object({
   clientId: z.string().optional(),
@@ -59,6 +60,7 @@ const formSchema = z.object({
     'hotel',
     'car',
     'activity',
+    'visa',
     'other',
   ]),
   status: z.enum([
@@ -87,10 +89,23 @@ const formSchema = z.object({
       })
     )
     .optional(),
+  visaApplicants: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        passportNumber: z.string().optional(),
+        validFrom: z.string().optional(),
+        validUntil: z.string().optional(),
+      })
+    )
+    .optional(),
   details: z.record(z.any()).optional(),
 }).refine(
   (data) => !!data.clientId || !!data.newClientName?.trim(),
   { message: 'Select an existing customer or add a new one.', path: ['clientId'] }
+).refine(
+  (data) => !data.endDate || !data.startDate || data.endDate >= data.startDate,
+  { message: 'End date must be on or after the start date.', path: ['endDate'] }
 );
 
 const emptySector = {
@@ -151,6 +166,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       bookingPortal: booking?.bookingPortal || '',
       isMultiCity: booking?.isMultiCity || false,
       sectors: booking?.sectors || [],
+      visaApplicants: booking?.visaApplicants || [],
       details: booking?.bookingDetails || {},
     },
   });
@@ -164,11 +180,31 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
     name: 'sectors',
   });
 
+  const {
+    fields: applicantFields,
+    append: appendApplicant,
+    remove: removeApplicant,
+  } = useFieldArray({
+    control: form.control,
+    name: 'visaApplicants',
+  });
+
   const selectedBookingType = form.watch('bookingType');
   const isOneWay = form.watch('isOneWay');
 
+  // When Visa is chosen, ensure at least one applicant row is present.
+  useEffect(() => {
+    if (selectedBookingType === 'visa' && applicantFields.length === 0) {
+      appendApplicant({ name: '', passportNumber: '', validFrom: '', validUntil: '' });
+    }
+  }, [selectedBookingType, applicantFields.length, appendApplicant]);
+
   // Only show endDate if NOT (flight AND one-way) and NOT activity
-  const showEndDate = !(selectedBookingType === 'flight' && isOneWay) && selectedBookingType !== 'activity';
+  // Visa validity is captured per applicant, so no booking-level end date.
+  const showEndDate =
+    !(selectedBookingType === 'flight' && isOneWay) &&
+    selectedBookingType !== 'activity' &&
+    selectedBookingType !== 'visa';
 
   // Cost breakdown: profit = what the customer pays − what the booking costs us
   const bookingPrice = Number(form.watch('supplierCost')) || 0;
@@ -332,7 +368,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                 onValueChange={field.onChange}
                 className="w-full"
               >
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
                   <TabsTrigger value="flight">
                     <Plane className="h-4 w-4 mr-2" />
                     Flight
@@ -348,6 +384,10 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                   <TabsTrigger value="activity">
                     <MapPinned className="h-4 w-4 mr-2" />
                     Activity
+                  </TabsTrigger>
+                  <TabsTrigger value="visa">
+                    <Stamp className="h-4 w-4 mr-2" />
+                    Visa
                   </TabsTrigger>
                   <TabsTrigger value="other">
                     <PlusCircle className="h-4 w-4 mr-2" />
@@ -559,6 +599,118 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
         </div>
       )}
 
+      {selectedBookingType === 'visa' && (
+        <div className="border rounded-lg p-4 space-y-4">
+          <h3 className="font-semibold text-lg">Visa Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <FormLabel>Visa Type</FormLabel>
+              <Select
+                value={form.watch('details.visaType') || ''}
+                onValueChange={(v) => form.setValue('details.visaType', v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Select visa type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tourist">Tourist</SelectItem>
+                  <SelectItem value="Business">Business</SelectItem>
+                  <SelectItem value="Student">Student</SelectItem>
+                  <SelectItem value="Work">Work</SelectItem>
+                  <SelectItem value="Transit">Transit</SelectItem>
+                  <SelectItem value="Medical">Medical</SelectItem>
+                  <SelectItem value="Family / Dependent">Family / Dependent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <FormLabel>Processing</FormLabel>
+              <Select
+                value={form.watch('details.processingType') || ''}
+                onValueChange={(v) => form.setValue('details.processingType', v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Select processing" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Normal">Normal</SelectItem>
+                  <SelectItem value="Express">Express</SelectItem>
+                  <SelectItem value="Super Express">Super Express</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <FormLabel>Entry Type</FormLabel>
+              <Select
+                value={form.watch('details.entryType') || ''}
+                onValueChange={(v) => form.setValue('details.entryType', v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Select entry type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Single">Single Entry</SelectItem>
+                  <SelectItem value="Double">Double Entry</SelectItem>
+                  <SelectItem value="Multiple">Multiple Entry</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <FormLabel>Country</FormLabel>
+              <Input placeholder="Country" {...form.register('details.country')} />
+            </div>
+            <div className="space-y-1">
+              <FormLabel>Application / Reference No.</FormLabel>
+              <Input placeholder="Application / Reference Number" {...form.register('details.applicationNumber')} />
+            </div>
+            <div className="space-y-1">
+              <FormLabel>Supplier Name</FormLabel>
+              <Input placeholder="Supplier Name" {...form.register('details.supplierName')} />
+            </div>
+          </div>
+
+          {/* Per-applicant details */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <FormLabel className="text-base">Applicants ({applicantFields.length})</FormLabel>
+            </div>
+            {applicantFields.map((f, index) => (
+              <div key={f.id} className="rounded-md border p-3 space-y-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Applicant {index + 1}</span>
+                  {applicantFields.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeApplicant(index)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <FormLabel className="text-xs">Full Name</FormLabel>
+                    <Input placeholder="As on passport" {...form.register(`visaApplicants.${index}.name`)} />
+                  </div>
+                  <div className="space-y-1">
+                    <FormLabel className="text-xs">Passport Number</FormLabel>
+                    <Input placeholder="Passport Number" {...form.register(`visaApplicants.${index}.passportNumber`)} />
+                  </div>
+                  <div className="space-y-1">
+                    <FormLabel className="text-xs">Valid From</FormLabel>
+                    <Input type="date" {...form.register(`visaApplicants.${index}.validFrom`)} />
+                  </div>
+                  <div className="space-y-1">
+                    <FormLabel className="text-xs">Valid Until</FormLabel>
+                    <Input type="date" {...form.register(`visaApplicants.${index}.validUntil`)} />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => appendApplicant({ name: '', passportNumber: '', validFrom: '', validUntil: '' })}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Applicant
+            </Button>
+          </div>
+        </div>
+      )}
+
       {selectedBookingType === 'other' && (
         <div className="border rounded-lg p-4 space-y-4">
           <h3 className="font-semibold text-lg">
@@ -588,9 +740,11 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                       ? 'Pickup Date'
                       : selectedBookingType === 'activity'
                         ? 'Activity Date'
-                        : selectedBookingType === 'other'
-                          ? 'Booking Date'
-                          : 'Departure Date'}
+                        : selectedBookingType === 'visa'
+                          ? 'Application Date'
+                          : selectedBookingType === 'other'
+                            ? 'Booking Date'
+                            : 'Departure Date'}
                 </FormLabel>
                 <Popover open={isStartDatePickerOpen} onOpenChange={setIsStartDatePickerOpen}>
                   <PopoverTrigger asChild>
@@ -617,6 +771,12 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                       selected={field.value}
                       onSelect={(date) => {
                         field.onChange(date);
+                        // Keep the range valid: if the end date now precedes the
+                        // new start date, clear it so the user re-picks.
+                        const end = form.getValues('endDate');
+                        if (date && end && end < date) {
+                          form.setValue('endDate', undefined);
+                        }
                         setIsStartDatePickerOpen(false);
                       }}
                       initialFocus
@@ -669,6 +829,12 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                           field.onChange(date);
                           setIsEndDatePickerOpen(false);
                         }}
+                        // Can't check out / return before the start date.
+                        disabled={(date) => {
+                          const start = form.getValues('startDate');
+                          return start ? date < new Date(new Date(start).setHours(0, 0, 0, 0)) : false;
+                        }}
+                        defaultMonth={form.getValues('startDate') || field.value}
                         initialFocus
                       />
                     </PopoverContent>

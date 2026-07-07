@@ -18,6 +18,7 @@ import {
   Flag,
   Bed,
   Car,
+  Stamp,
   Pencil,
   XCircle,
   Printer,
@@ -59,6 +60,7 @@ const ItineraryIcon = ({ type }: { type?: string }) => {
   if (t?.includes('tour')) return <Flag className="mr-2 h-4 w-4 text-muted-foreground" />;
   if (t?.includes('hotel')) return <Bed className="mr-2 h-4 w-4 text-muted-foreground" />;
   if (t?.includes('rental') || t?.includes('car')) return <Car className="mr-2 h-4 w-4 text-muted-foreground" />;
+  if (t?.includes('visa')) return <Stamp className="mr-2 h-4 w-4 text-muted-foreground" />;
   return null;
 };
 
@@ -125,12 +127,26 @@ export default function ClientBookingsPage() {
   };
 
   const handlePrint = () => {
+    // Open the print window synchronously within the click gesture. Deferring
+    // window.open (via setTimeout/await) makes Safari and Mac Chrome treat it
+    // as a blocked popup, so nothing prints.
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        variant: 'destructive',
+        title: 'Popup blocked',
+        description: 'Please allow popups for this site, then try printing again.',
+      });
+      return;
+    }
     setPrintSettingsOpen(false);
     setTimeout(() => {
       const printContent = document.querySelector('.print-content');
-      if (printContent) {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
+      if (!printContent) {
+        printWindow.close();
+        return;
+      }
+      {
           // Get the outer HTML to include the print-container class
           const contentHTML = printContent.innerHTML;
           
@@ -378,15 +394,29 @@ export default function ClientBookingsPage() {
           `);
           printWindow.document.close();
           printWindow.focus();
-          
-          // Wait for content to load before printing
-          printWindow.onload = function() {
-            setTimeout(() => {
-              printWindow.print();
-              printWindow.close();
-            }, 500);
+
+          // Print once content (incl. the logo image) has loaded. Don't rely on
+          // window.onload alone — after document.write it may have already fired
+          // on Mac Chrome, so also use a fallback timeout, guarded so we only
+          // print once.
+          let printed = false;
+          const doPrint = () => {
+            if (printed) return;
+            printed = true;
+            printWindow.focus();
+            printWindow.print();
+            setTimeout(() => printWindow.close(), 400);
           };
-        }
+          const imgs = Array.from(printWindow.document.images);
+          if (imgs.length) {
+            let pending = imgs.length;
+            const settle = () => { if (--pending <= 0) doPrint(); };
+            imgs.forEach((img) => {
+              if (img.complete) settle();
+              else { img.onload = settle; img.onerror = settle; }
+            });
+          }
+          setTimeout(doPrint, 1200);
       }
     }, 100);
   };
@@ -534,23 +564,28 @@ export default function ClientBookingsPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 rounded-md bg-muted/40 p-3 text-xs">
                           {detailEntries.map((entry) => {
                             if (entry.isTable && Array.isArray(entry.value)) {
+                              const cols = entry.columns ?? [
+                                { key: 'from', label: 'From' },
+                                { key: 'to', label: 'To' },
+                                { key: 'date', label: 'Date' },
+                              ];
                               return (
                                 <div key={entry.label} className="col-span-2 sm:col-span-4">
                                   <span className="text-muted-foreground font-medium">{entry.label}: </span>
                                   <table className="mt-2 w-full text-left border-collapse">
                                     <thead>
                                       <tr className="border-b border-border">
-                                        <th className="py-1 px-2 text-muted-foreground font-medium">From</th>
-                                        <th className="py-1 px-2 text-muted-foreground font-medium">To</th>
-                                        <th className="py-1 px-2 text-muted-foreground font-medium">Date</th>
+                                        {cols.map((c) => (
+                                          <th key={c.key} className="py-1 px-2 text-muted-foreground font-medium">{c.label}</th>
+                                        ))}
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {entry.value.map((row: any, idx: number) => (
                                         <tr key={idx} className="border-b border-border/50 last:border-0">
-                                          <td className="py-1 px-2">{row.from}</td>
-                                          <td className="py-1 px-2">{row.to}</td>
-                                          <td className="py-1 px-2">{row.date}</td>
+                                          {cols.map((c) => (
+                                            <td key={c.key} className="py-1 px-2">{row[c.key]}</td>
+                                          ))}
                                         </tr>
                                       ))}
                                     </tbody>
