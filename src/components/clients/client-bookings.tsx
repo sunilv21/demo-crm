@@ -161,21 +161,21 @@ export function ClientBookings({ clientId }: { clientId: string }) {
                             variant={
                               booking.status === "confirmed"
                                 ? "default"
-                                : booking.status === "pending"
+                                : booking.status === "pending" || booking.status === "hold"
                                 ? "secondary"
                                 : "destructive"
                             }
                             className={
                               booking.status === "confirmed"
                                 ? "bg-green-100 text-green-800 border-green-200"
-                                : booking.status === "pending"
+                                : booking.status === "pending" || booking.status === "hold"
                                 ? "bg-yellow-100 text-yellow-800 border-yellow-200"
                                 : booking.status === "cancelled"
                                 ? "bg-red-100 text-red-800 border-red-200"
                                 : ""
                             }
                           >
-                            {booking.status}
+                            {booking.status === "hold" || booking.status === "pending" ? "Hold" : booking.status}
                           </Badge>
                         </TableCell>
                       </TableRow>

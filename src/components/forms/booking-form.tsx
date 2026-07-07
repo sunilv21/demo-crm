@@ -66,6 +66,7 @@ const formSchema = z.object({
   status: z.enum([
     'draft',
     'pending',
+    'hold',
     'confirmed',
     'cancelled',
   ]),
@@ -155,7 +156,8 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       endDate: booking?.endDate ? new Date(booking.endDate) : undefined,
       total: booking?.total || undefined,
       supplierCost: booking?.supplierCost || undefined,
-      status: booking?.status || 'draft',
+      // 'pending' is the legacy name for 'hold' — normalise so the dropdown shows it.
+      status: (booking?.status === 'pending' ? 'hold' : booking?.status) || 'draft',
       bookingType: booking?.bookingType || 'flight',
       amountPaid: booking?.amountPaid || 0,
       supplierName: booking?.supplierName || '',
@@ -216,6 +218,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
     const progressMap = {
       draft: 10,
       pending: 50,
+      hold: 50,
       confirmed: 100,
       cancelled: 0,
     };
@@ -551,6 +554,24 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
               <Input type="number" placeholder="Number Of Rooms" {...form.register('details.rooms')} />
               <Input type="number" placeholder="Number Of Guests" {...form.register('details.guests')} />
               <Input placeholder="Booking Portal" {...form.register('bookingPortal')} />
+            </div>
+            <div className="pt-1">
+              <FormLabel className="text-sm">Meals Included</FormLabel>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
+                {([
+                  { key: 'breakfast', label: 'Breakfast' },
+                  { key: 'lunch', label: 'Lunch' },
+                  { key: 'dinner', label: 'Dinner' },
+                ] as const).map((meal) => (
+                  <div key={meal.key} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={!!form.watch(`details.${meal.key}`)}
+                      onCheckedChange={(checked) => form.setValue(`details.${meal.key}`, checked as boolean)}
+                    />
+                    <label className="text-sm font-medium leading-none">{meal.label}</label>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -903,7 +924,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
           render={({ field }) => (
             <FormItem>
               <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a status" />
@@ -911,7 +932,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="pending">Hold</SelectItem>
+                  <SelectItem value="hold">Hold</SelectItem>
                   <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>

@@ -62,9 +62,10 @@ const TypeIcon = ({ type, size = 18 }: { type?: string; size?: number }) => {
 };
 
 export function PrintableBookings({ client, bookings, settings }: PrintableBookingsProps) {
-  const sortedBookings = [...bookings].sort(
-    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-  );
+  // Cancelled bookings are excluded from the printed summary.
+  const sortedBookings = [...bookings]
+    .filter((b) => b.status !== 'cancelled')
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   const totalPrice = sortedBookings.reduce((s, b) => s + (b.total || 0), 0);
   const totalCost = sortedBookings.reduce((s, b) => s + (b.supplierCost || 0), 0);
@@ -176,7 +177,7 @@ export function PrintableBookings({ client, bookings, settings }: PrintableBooki
                   {settings.showProfit && (
                     <div className="metric"><div className="m-l">PROFIT (₹)</div><div className={`m-v ${profit >= 0 ? 'pos' : 'neg'}`}>{money(profit)}</div></div>
                   )}
-                  <div className="metric"><div className="m-l">STATUS</div><div className={`badge ${statusClass}`}>{cap(booking.status)}</div></div>
+                  <div className="metric"><div className="m-l">STATUS</div><div className={`badge ${statusClass}`}>{booking.status === 'pending' ? 'Hold' : cap(booking.status)}</div></div>
                 </div>
               </div>
 

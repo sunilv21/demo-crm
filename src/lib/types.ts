@@ -206,6 +206,7 @@ export type BookingType =
 export type BookingStatus =
   | 'draft'
   | 'pending'
+  | 'hold'
   | 'confirmed'
   | 'cancelled';
 

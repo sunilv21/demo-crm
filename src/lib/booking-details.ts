@@ -82,13 +82,21 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
   const entries: DetailEntry[] = [];
   const d = (booking.bookingDetails || {}) as Record<string, any>;
 
+  const MEAL_KEYS = ['breakfast', 'lunch', 'dinner'];
+
   Object.keys(d).forEach((key) => {
     const v = d[key];
     if (v === undefined || v === null || v === "") return;
     // Skip individual departure/arrival airports for multicity bookings since they're shown in the sectors table
     if (booking.isMultiCity && (key === 'departureAirport' || key === 'arrivalAirport')) return;
+    // Meals are combined into a single "Meals" entry below.
+    if (MEAL_KEYS.includes(key)) return;
     entries.push({ label: DETAIL_LABELS[key] || key, value: String(v) });
   });
+
+  // Hotel meal plan: combine the selected meal checkboxes into one line.
+  const meals = MEAL_KEYS.filter((k) => d[k]).map((k) => k.charAt(0).toUpperCase() + k.slice(1));
+  if (meals.length) entries.push({ label: "Meals", value: meals.join(", ") });
 
   if (booking.bookingPortal) entries.push({ label: "Portal", value: booking.bookingPortal });
   if (booking.isOneWay) entries.push({ label: "Trip", value: "One Way" });
@@ -117,6 +125,7 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
   if (booking.bookingType === 'visa' && booking.visaApplicants?.length) {
     entries.push({
       label: "Applicants",
+      isTable: true,
       columns: [
         { key: 'name', label: 'Name' },
         { key: 'passportNumber', label: 'Passport' },

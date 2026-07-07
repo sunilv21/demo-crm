@@ -62,7 +62,7 @@ export function RecentBookings() {
                     {booking.clientName || 'Unknown Client'}
                   </Link>
                   <p className="text-sm text-muted-foreground capitalize">
-                    {booking.status}
+                    {booking.status === 'hold' || booking.status === 'pending' ? 'Hold' : booking.status}
                   </p>
                 </div>
                 {canViewRevenue && (

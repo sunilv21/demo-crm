@@ -132,7 +132,11 @@ export default function BookingsPage() {
       );
     }
     if (statusFilter !== 'All') {
-      results = results.filter(booking => booking.status === statusFilter.toLowerCase());
+      const want = statusFilter.toLowerCase();
+      // 'Hold' also matches legacy 'pending' bookings.
+      results = results.filter(booking =>
+        booking.status === want || (want === 'hold' && booking.status === 'pending')
+      );
     }
     setFilteredBookings(results);
   }, [searchTerm, statusFilter, bookings, canViewRevenue, user?.uid]);
@@ -224,7 +228,7 @@ export default function BookingsPage() {
           <StatCard title="Profit" value={isLoading ? "..." : `₹${totalProfit.toLocaleString()}`} variant="success" />
         )}
         {canViewRevenue && (
-          <StatCard title="Pending Payments" value={isLoading ? "..." : `₹${(scopedBookings.filter(b=>b.status === 'pending').reduce((acc, b) => acc + (b.total || 0), 0) || 0).toLocaleString()}`} />
+          <StatCard title="Pending Payments" value={isLoading ? "..." : `₹${(scopedBookings.filter(b=>b.status === 'pending' || b.status === 'hold').reduce((acc, b) => acc + (b.total || 0), 0) || 0).toLocaleString()}`} />
         )}
       </div>
       <div className="bg-card border rounded-lg p-4 mb-6">
@@ -246,7 +250,7 @@ export default function BookingsPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                {['All', 'Confirmed', 'Pending', 'Cancelled'].map(status => (
+                {['All', 'Confirmed', 'Hold', 'Draft', 'Cancelled'].map(status => (
                     <DropdownMenuItem key={status} onSelect={() => setStatusFilter(status)}>{status}</DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -345,21 +349,21 @@ export default function BookingsPage() {
                     variant={
                       booking.status === 'confirmed'
                         ? 'default'
-                        : booking.status === 'pending'
+                        : booking.status === 'pending' || booking.status === 'hold'
                         ? 'secondary'
                         : 'destructive'
                     }
                     className={
                       booking.status === 'confirmed'
                         ? 'bg-green-100 text-green-800 border-green-200'
-                        : booking.status === 'pending'
+                        : booking.status === 'pending' || booking.status === 'hold'
                         ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
                         : booking.status === 'cancelled'
                         ? 'bg-red-100 text-red-800 border-red-200'
                         : ''
                     }
                   >
-                    {booking.status}
+                    {booking.status === 'hold' || booking.status === 'pending' ? 'Hold' : booking.status}
                   </Badge>
                 </TableCell>
                 <TableCell>

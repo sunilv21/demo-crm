@@ -211,10 +211,11 @@ export default function RevenuePage() {
   const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
 
   const stats = useMemo(() => {
-    const confirmed = (bookings ?? []).filter((b) => b.status === 'confirmed');
+    // Count every booking (hold, confirmed, draft, pending...) except cancelled.
+    const countable = (bookings ?? []).filter((b) => b.status !== 'cancelled');
 
     // Attach the creation date (revenue is attributed to the created month).
-    const withDate = confirmed.map((b) => ({ b, date: toDateSafe(b.createdAt) }));
+    const withDate = countable.map((b) => ({ b, date: toDateSafe(b.createdAt) }));
 
     // Comparison period: the selected month (within the selected year) vs the
     // month immediately before it (wrapping into the prior year for January).
@@ -292,7 +293,7 @@ export default function RevenuePage() {
         .sort((a, b) => b.value - a.value)
         .slice(0, limit);
 
-    // Recent confirmed bookings by creation date.
+    // Recent bookings by creation date.
     const recent = [...forYear]
       .sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0))
       .slice(0, 8);
@@ -379,7 +380,7 @@ export default function RevenuePage() {
           icon={IndianRupee}
           isLoading={isLoading}
           variant="warning"
-          description={`${stats.yearCount} confirmed booking${stats.yearCount === 1 ? '' : 's'}`}
+          description={`${stats.yearCount} booking${stats.yearCount === 1 ? '' : 's'}`}
         />
         <StatCard
           title={`Profit in ${year}`}
@@ -462,7 +463,7 @@ export default function RevenuePage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Pending Collections</CardTitle>
-            <CardDescription>Confirmed bookings with an outstanding customer balance in {year}</CardDescription>
+            <CardDescription>Bookings with an outstanding customer balance in {year}</CardDescription>
           </div>
           <Badge variant="outline" className="text-sm">
             {stats.pendingClients.length} client{stats.pendingClients.length === 1 ? '' : 's'}
@@ -532,7 +533,7 @@ export default function RevenuePage() {
           title="Revenue by Booking Type"
           description={`Top categories in ${year}`}
           rows={stats.typeRows}
-          emptyLabel="No confirmed bookings yet."
+          emptyLabel="No bookings yet."
         />
         <BreakdownList
           title="Top Destinations"
@@ -544,7 +545,7 @@ export default function RevenuePage() {
 
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Recent Confirmed Bookings</CardTitle>
+          <CardTitle>Recent Bookings</CardTitle>
           <CardDescription>Latest revenue booked in {year}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -563,7 +564,7 @@ export default function RevenuePage() {
                 {stats.recent.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No confirmed bookings in {year}.
+                      No bookings in {year}.
                     </TableCell>
                   </TableRow>
                 )}
