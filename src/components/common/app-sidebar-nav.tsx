@@ -17,6 +17,7 @@ import {
   Wallet,
   UserCog,
   ChevronRight,
+  IndianRupee,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -52,6 +53,8 @@ import { signOut } from 'firebase/auth';
 const ALL_ROLES: Role[] = ['admin', 'manager', 'employee', 'agent'];
 const ADMIN_MANAGER: Role[] = ['admin', 'manager'];
 const ADMIN_ONLY: Role[] = ['admin'];
+// Revenue/pricing-margin details are private to agents only (see canViewRevenue).
+const AGENT_ONLY: Role[] = ['agent'];
 
 type NavItem = { href: string; icon: any; label: string; allow: Role[] };
 
@@ -60,6 +63,7 @@ const topNavItems: NavItem[] = [
   { href: '/clients', icon: Users, label: 'Clients', allow: ALL_ROLES },
   { href: '/leads', icon: Lightbulb, label: 'Leads', allow: ALL_ROLES },
   { href: '/bookings', icon: Book, label: 'Bookings', allow: ALL_ROLES },
+  { href: '/revenue', icon: IndianRupee, label: 'Revenue', allow: AGENT_ONLY },
   { href: '/invoices', icon: FileText, label: 'Invoices', allow: ADMIN_MANAGER },
   { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder', allow: ALL_ROLES },
   { href: '/activity', icon: Activity, label: 'Activity', allow: ALL_ROLES },

@@ -4,3 +4,30 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+/** Full Indian-format rupee value, e.g. ₹1,23,456. */
+export function formatINR(value: number): string {
+  return `₹${Math.round(value || 0).toLocaleString("en-IN")}`;
+}
+
+/** Compact rupee value for axes/badges: ₹1.2Cr, ₹3.4L, ₹5.6k. */
+export function formatINRCompact(value: number): string {
+  const n = value || 0;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e7) return `${sign}₹${(abs / 1e7).toFixed(abs >= 1e8 ? 0 : 1)}Cr`;
+  if (abs >= 1e5) return `${sign}₹${(abs / 1e5).toFixed(abs >= 1e6 ? 0 : 1)}L`;
+  if (abs >= 1e3) return `${sign}₹${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1)}k`;
+  return `${sign}₹${Math.round(abs)}`;
+}
+
+/**
+ * Resolve a Firestore Timestamp | ISO string | Date into a JS Date.
+ * Revenue is attributed by booking creation date, so callers should pass createdAt.
+ */
+export function toDateSafe(value: any): Date | null {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") return value.toDate();
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}

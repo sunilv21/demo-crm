@@ -74,10 +74,17 @@ export default function DashboardPage() {
       );
       setTotalProfit(profit);
 
+      // Revenue is attributed to the month the booking was created, not the travel date.
+      const createdDate = (booking: Booking): Date | null => {
+        const c: any = booking.createdAt;
+        if (!c) return null;
+        return typeof c.toDate === 'function' ? c.toDate() : new Date(c);
+      };
+
       const lastMonthRev = confirmedBookings
         .filter(b => {
-            const bookingDate = new Date(b.startDate);
-            return bookingDate.getMonth() === lastMonth && bookingDate.getFullYear() === lastMonthYear;
+            const bookingDate = createdDate(b);
+            return bookingDate && bookingDate.getMonth() === lastMonth && bookingDate.getFullYear() === lastMonthYear;
         })
         .reduce((sum, booking) => sum + (booking.total || 0), 0);
       setLastMonthRevenue(lastMonthRev);
@@ -90,8 +97,9 @@ export default function DashboardPage() {
       });
 
       confirmedBookings.forEach(booking => {
-        const month = new Date(booking.startDate).getMonth();
-        const monthName = monthNames[month];
+        const bookingDate = createdDate(booking);
+        if (!bookingDate) return;
+        const monthName = monthNames[bookingDate.getMonth()];
         monthlyRevenue[monthName] += booking.total || 0;
       });
 
