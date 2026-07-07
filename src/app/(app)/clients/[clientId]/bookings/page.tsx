@@ -139,6 +139,7 @@ export default function ClientBookingsPage() {
             <html>
             <head>
               <title>Booking Summary</title>
+              <base href="${window.location.origin}/" />
               <style>
                 * {
                   -webkit-print-color-adjust: exact;

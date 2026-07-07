@@ -34,7 +34,12 @@
       "Bash(find . -name \"firestore.rules\" -not -path \"*/node_modules/*\")",
       "Bash(ls -la desktop)",
       "Bash(cat desktop/package.json)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(grep -nE \"^\\\\.env|\\\\.env\" .gitignore)",
+      "Bash(ls .env.example)",
+      "Bash(git ls-files *)",
+      "Bash(node -e \"console.log\\(require\\('./desktop/package.json'\\).version\\)\")",
+      "Bash(git check-ignore *)"
     ]
   }
 }

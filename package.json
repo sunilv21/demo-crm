@@ -44,6 +44,7 @@
     "dotenv": "^16.6.1",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^12.12.1",
+    "firebase-admin": "^14.1.0",
     "genkit": "^1.33.0",
     "libphonenumber-js": "^1.12.42",
     "lucide-react": "^0.577.0",

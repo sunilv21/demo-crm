@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { KeyRound, Loader2, Mail, Pencil, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,6 @@ import { PageHeader } from '@/components/common/page-header';
 import {
   useAuth,
   useCollection,
-  useFirebaseApp,
   useFirestore,
   useMemoFirebase,
   useUser,
@@ -193,7 +191,6 @@ export default function UsersPage() {
 
 function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () => void }) {
   const firestore = useFirestore();
-  const firebaseApp = useFirebaseApp();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
   const [baseSalary, setBaseSalary] = useState<string>('0');
@@ -237,7 +234,7 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
   };
 
   const handleResetPassword = async () => {
-    if (!firebaseApp || !user) return;
+    if (!user || !currentUser) return;
     if (newPassword.length < 6) {
       toast({
         variant: 'destructive',
@@ -248,27 +245,31 @@ function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () =
     }
     setResetting(true);
     try {
-      const functions = getFunctions(firebaseApp);
-      const adminResetPassword = httpsCallable<
-        { uid: string; newPassword: string },
-        { success: boolean }
-      >(functions, 'adminResetPassword');
-      await adminResetPassword({ uid: user.id, newPassword });
+      // Prove the caller is the signed-in admin; the server re-verifies the
+      // token and the admin role before setting the target user's password.
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid: user.id, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || 'Please try again.');
+      }
       toast({
         title: 'Password reset',
         description: `${user.name}'s password has been updated. Share the new password with them securely.`,
       });
       setNewPassword('');
     } catch (err: any) {
-      const code = err?.code || '';
-      const description =
-        code === 'functions/not-found' || code === 'internal' || /not-found|internal/i.test(err?.message || '')
-          ? 'The password-reset function isn’t available. Use "Send reset email" below instead, or deploy Cloud Functions.'
-          : err?.message || 'Please try again.';
       toast({
         variant: 'destructive',
         title: 'Direct reset failed',
-        description,
+        description: err?.message || 'Please try again.',
       });
     } finally {
       setResetting(false);
