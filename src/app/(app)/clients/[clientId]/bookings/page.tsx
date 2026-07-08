@@ -127,30 +127,25 @@ export default function ClientBookingsPage() {
   };
 
   const handlePrint = () => {
-    // Open the print window synchronously within the click gesture. Deferring
-    // window.open (via setTimeout/await) makes Safari and Mac Chrome treat it
-    // as a blocked popup, so nothing prints.
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({
-        variant: 'destructive',
-        title: 'Popup blocked',
-        description: 'Please allow popups for this site, then try printing again.',
-      });
+    const printContent = document.querySelector('.print-content');
+    if (!printContent) return;
+    const contentHTML = printContent.innerHTML;
+    setPrintSettingsOpen(false);
+
+    // Print via a hidden iframe instead of window.open. This works in the
+    // browser AND the Electron desktop app, where window.open is blocked as a
+    // popup and there's no browser setting the user can toggle to allow it.
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      iframe.remove();
       return;
     }
-    setPrintSettingsOpen(false);
-    setTimeout(() => {
-      const printContent = document.querySelector('.print-content');
-      if (!printContent) {
-        printWindow.close();
-        return;
-      }
-      {
-          // Get the outer HTML to include the print-container class
-          const contentHTML = printContent.innerHTML;
-          
-          printWindow.document.write(`
+
+    doc.write(`
             <!DOCTYPE html>
             <html>
             <head>
@@ -392,33 +387,33 @@ export default function ClientBookingsPage() {
             </body>
             </html>
           `);
-          printWindow.document.close();
-          printWindow.focus();
+    doc.close();
 
-          // Print once content (incl. the logo image) has loaded. Don't rely on
-          // window.onload alone — after document.write it may have already fired
-          // on Mac Chrome, so also use a fallback timeout, guarded so we only
-          // print once.
-          let printed = false;
-          const doPrint = () => {
-            if (printed) return;
-            printed = true;
-            printWindow.focus();
-            printWindow.print();
-            setTimeout(() => printWindow.close(), 400);
-          };
-          const imgs = Array.from(printWindow.document.images);
-          if (imgs.length) {
-            let pending = imgs.length;
-            const settle = () => { if (--pending <= 0) doPrint(); };
-            imgs.forEach((img) => {
-              if (img.complete) settle();
-              else { img.onload = settle; img.onerror = settle; }
-            });
-          }
-          setTimeout(doPrint, 1200);
+    // Print once content (incl. the logo image) has loaded. Guard against
+    // printing twice; fall back to a timeout if images never resolve.
+    let printed = false;
+    const cleanup = () => setTimeout(() => iframe.remove(), 1000);
+    const doPrint = () => {
+      if (printed) return;
+      printed = true;
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch {
+        /* printing not available */
       }
-    }, 100);
+      cleanup();
+    };
+    const imgs = Array.from(doc.images);
+    if (imgs.length) {
+      let pending = imgs.length;
+      const settle = () => { if (--pending <= 0) doPrint(); };
+      imgs.forEach((img) => {
+        if (img.complete) settle();
+        else { img.onload = settle; img.onerror = settle; }
+      });
+    }
+    setTimeout(doPrint, 1200);
   };
 
   const isLoading = isLoadingBookings || isLoadingClient;

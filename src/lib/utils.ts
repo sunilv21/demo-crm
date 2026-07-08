@@ -14,7 +14,7 @@ const VISA_GLOW_RGB: Record<string, string> = {
   travelling: "59,130,246",
   rejected: "239,68,68",
   applied: "249,115,22",
-  inProcess: "168,85,247",
+  inProcess: "234,179,8",
 };
 
 export function visaStatusGlow(status?: string): { boxShadow?: string; borderColor?: string } {
