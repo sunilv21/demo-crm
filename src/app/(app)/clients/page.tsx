@@ -54,6 +54,7 @@ import {
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
                                                               import { ClientForm } from '@/components/forms/client-form';
                                                               import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+                                                              import { visaStatusGlow } from '@/lib/utils';
                                                               import Link from 'next/link';
                                                               import { useToast } from '@/hooks/use-toast';
                                                               import {
@@ -575,7 +576,7 @@ export default function ClientsPage() {
                         <TableRow key={client.id}>
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10 border">
+                                <Avatar className="h-10 w-10 border" style={visaStatusGlow(client.visaStatus)}>
                                     <AvatarFallback>
                                         <User className="h-5 w-5 text-muted-foreground" />
                                     </AvatarFallback>

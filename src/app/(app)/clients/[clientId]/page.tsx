@@ -6,6 +6,7 @@ import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, setDo
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import type { Client, User as StaffUser } from '@/lib/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { visaStatusGlow } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -161,7 +162,7 @@ export default function ClientProfilePage() {
                     <Card>
                         <CardContent className="pt-6">
                             <div className="flex flex-col items-center gap-4">
-                                <Avatar className="h-24 w-24 border-2 border-primary">
+                                <Avatar className="h-24 w-24 border-2 border-primary" style={visaStatusGlow(client.visaStatus)}>
                                     <AvatarFallback>
                                         <User className="h-12 w-12 text-muted-foreground" />
                                     </AvatarFallback>
