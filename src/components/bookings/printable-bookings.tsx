@@ -4,6 +4,7 @@ import type { Booking, Client } from '@/lib/types';
 import { buildDetailEntries, bookingReference } from '@/lib/booking-details';
 import { format, isValid } from 'date-fns';
 import { PrintSettings } from './print-settings-dialog';
+import { COMPANY } from '@/lib/company';
 import {
   Plane,
   BedDouble,
@@ -26,15 +27,6 @@ interface PrintableBookingsProps {
   bookings: Booking[];
   settings: PrintSettings;
 }
-
-// Company identity — edit these to your registered details.
-const COMPANY = {
-  name: 'Sky Tours & Visa Consultant.',
-  address: '2nd Floor, Orbit Mall, 282, Near C-21 Mall, Indore, Madhya Pradesh - 452010',
-  phones: ['+91 88272 22177', '+91 85168 63796', '+91 88275 81621'],
-  email: 'info@skyvisa.in',
-  web: 'www.skyvisa.in',
-};
 
 const fmtDate = (value: any): Date | null => {
   if (!value) return null;

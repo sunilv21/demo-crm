@@ -20,8 +20,8 @@ import {
   Car,
   Stamp,
   Pencil,
-  XCircle,
   Printer,
+  Wallet,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,23 +34,14 @@ import { buildDetailEntries, bookingReference } from '@/lib/booking-details';
 import { Fragment, useState, useRef } from 'react';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
 import { PrintableBookings } from '@/components/bookings/printable-bookings';
+import { PaymentsDialog } from '@/components/bookings/payments-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
-import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
+import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 
@@ -80,13 +71,14 @@ export default function ClientBookingsPage() {
   const { canViewRevenue } = useAppUser();
   const params = useParams();
   const clientId = params.clientId as string;
-  const { user } = useUser();
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
-  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
   const [printSettings, setPrintSettings] = useState<PrintSettings>(defaultSettings);
+  // When set, only this booking prints (per-row Print); null = print all.
+  const [printTarget, setPrintTarget] = useState<Booking | null>(null);
+  const [paymentsBooking, setPaymentsBooking] = useState<Booking | null>(null);
   const printContentRef = useRef<HTMLDivElement>(null);
 
   const clientRef = useMemoFirebase(() => {
@@ -118,13 +110,6 @@ export default function ClientBookingsPage() {
     toast({ title: "Booking Updated", description: "The booking has been successfully updated." });
   };
 
-  const handleConfirmCancel = () => {
-    if (!firestore || !bookingToCancel || !user) return;
-    const bookingRef = doc(firestore, 'bookings', bookingToCancel.id);
-    setDocumentNonBlocking(bookingRef, { status: 'cancelled', updatedAt: serverTimestamp(), updatedBy: user.uid }, { merge: true });
-    toast({ variant: 'destructive', title: "Booking Cancelled", description: "The booking has been cancelled." });
-    setBookingToCancel(null);
-  };
 
   const handlePrint = () => {
     const printContent = document.querySelector('.print-content');
@@ -422,13 +407,13 @@ export default function ClientBookingsPage() {
     <>
       <PageHeader title="Client Bookings" description="Manage all bookings for this client.">
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             disabled={!client || !bookings || bookings.length === 0}
-            onClick={() => setPrintSettingsOpen(true)}
+            onClick={() => { setPrintTarget(null); setPrintSettingsOpen(true); }}
           >
             <Printer className="mr-2 h-4 w-4" />
-            Print
+            Print All
           </Button>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
@@ -545,9 +530,13 @@ export default function ClientBookingsPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => setBookingToCancel(booking)} className="text-destructive">
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Cancel
+                          <DropdownMenuItem onSelect={() => setPaymentsBooking(booking)}>
+                            <Wallet className="mr-2 h-4 w-4" />
+                            Payments
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => { setPrintTarget(booking); setPrintSettingsOpen(true); }}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -633,19 +622,6 @@ export default function ClientBookingsPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>This will cancel the booking. This action cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Back</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90">Confirm Cancellation</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <PrintSettingsDialog
         open={printSettingsOpen}
         onOpenChange={setPrintSettingsOpen}
@@ -654,12 +630,18 @@ export default function ClientBookingsPage() {
         onPrint={handlePrint}
       />
 
-      {/* Hidden printable content */}
+      <PaymentsDialog
+        booking={paymentsBooking ? (bookings?.find((b) => b.id === paymentsBooking.id) ?? paymentsBooking) : null}
+        client={client ?? null}
+        onOpenChange={(open) => { if (!open) setPaymentsBooking(null); }}
+      />
+
+      {/* Hidden printable content — a single booking when printing one row, else all */}
       <div className="print-content hidden" ref={printContentRef}>
         {client && bookings && (
           <PrintableBookings
             client={client}
-            bookings={bookings}
+            bookings={printTarget ? [printTarget] : bookings}
             settings={printSettings}
           />
         )}

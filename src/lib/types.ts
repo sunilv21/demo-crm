@@ -216,6 +216,21 @@ export type PaymentStatus =
 | 'paid'
 | 'refunded';
 
+export type PaymentMode = 'cash' | 'card' | 'upi' | 'bank' | 'cheque' | 'other';
+
+// A single installment/receipt against a booking.
+export type Payment = {
+  id: string;
+  amount: number;
+  date: string; // ISO date the payment was received
+  mode: PaymentMode;
+  reference?: string;
+  note?: string;
+  createdAt?: any;
+  createdBy?: string;
+  createdByName?: string;
+};
+
 export type Booking = {
   id: string;
 
@@ -266,6 +281,8 @@ export type Booking = {
   amountPaid?: number;
   balanceAmount?: number;
   paymentStatus?: PaymentStatus;
+  // Installment ledger. amountPaid/balanceAmount are kept in sync as a cache.
+  payments?: Payment[];
 
   // Supplier
   supplierName?: string;

@@ -23,6 +23,7 @@ import {
   Stamp,
   Eye,
   Pencil,
+  Printer,
   XCircle,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -41,11 +42,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import type { Booking } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import type { Booking, Client } from '@/lib/types';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
-import { useAppUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
+import { PrintableBookings } from '@/components/bookings/printable-bookings';
+import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
+import { printContentHtml } from '@/lib/print';
+import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
 import { query, doc, collection, serverTimestamp, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -104,6 +108,28 @@ export default function BookingsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [printBooking, setPrintBooking] = useState<Booking | null>(null);
+  const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
+  const [printSettings, setPrintSettings] = useState<PrintSettings>(defaultSettings);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Load the client of the booking being printed, for the voucher header.
+  const printClientRef = useMemoFirebase(
+    () => (firestore && printBooking?.clientId ? doc(firestore, 'clients', printBooking.clientId) : null),
+    [firestore, printBooking?.clientId]
+  );
+  const { data: printClient } = useDoc<Client>(printClientRef);
+  const printClientResolved: Client | null = printBooking
+    ? printClient ?? ({ id: printBooking.clientId, name: printBooking.clientName } as Client)
+    : null;
+
+  const handlePrint = () => {
+    setPrintSettingsOpen(false);
+    // Give the hidden content a tick to reflect the latest settings/booking.
+    setTimeout(() => {
+      if (printRef.current) printContentHtml(printRef.current.innerHTML);
+    }, 50);
+  };
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -380,6 +406,9 @@ export default function BookingsPage() {
                       <DropdownMenuItem onSelect={() => setEditingBooking(booking)}>
                         <Pencil className="mr-2 h-4 w-4" />Edit
                       </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => { setPrintBooking(booking); setPrintSettingsOpen(true); }}>
+                        <Printer className="mr-2 h-4 w-4" />Print
+                      </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setBookingToCancel(booking)} className="text-destructive">
                         <XCircle className="mr-2 h-4 w-4" />Cancel
                       </DropdownMenuItem>
@@ -469,6 +498,21 @@ export default function BookingsPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintSettingsDialog
+        open={printSettingsOpen}
+        onOpenChange={setPrintSettingsOpen}
+        settings={printSettings}
+        onSettingsChange={setPrintSettings}
+        onPrint={handlePrint}
+      />
+
+      {/* Hidden printable content — the single booking chosen from the row menu */}
+      <div className="hidden" ref={printRef}>
+        {printBooking && printClientResolved && (
+          <PrintableBookings client={printClientResolved} bookings={[printBooking]} settings={printSettings} />
+        )}
+      </div>
     </>
   );
 }

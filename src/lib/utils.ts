@@ -31,6 +31,31 @@ export function formatINR(value: number): string {
   return `₹${Math.round(value || 0).toLocaleString("en-IN")}`;
 }
 
+/** Total collected on a booking — from the payments ledger, or the cached amountPaid. */
+export function bookingPaid(b: { payments?: { amount: number }[]; amountPaid?: number }): number {
+  if (b.payments && b.payments.length) {
+    return b.payments.reduce((s, p) => s + (p.amount || 0), 0);
+  }
+  return b.amountPaid || 0;
+}
+
+/** Outstanding balance on a booking. */
+export function bookingBalance(b: { total?: number; balanceAmount?: number; payments?: { amount: number }[]; amountPaid?: number }): number {
+  if (b.payments && b.payments.length) {
+    return Math.max(0, (b.total || 0) - bookingPaid(b));
+  }
+  return b.balanceAmount ?? Math.max(0, (b.total || 0) - (b.amountPaid || 0));
+}
+
+export const PAYMENT_MODE_LABELS: Record<string, string> = {
+  cash: "Cash",
+  card: "Card",
+  upi: "UPI",
+  bank: "Bank Transfer",
+  cheque: "Cheque",
+  other: "Other",
+};
+
 /** Compact rupee value for axes/badges: ₹1.2Cr, ₹3.4L, ₹5.6k. */
 export function formatINRCompact(value: number): string {
   const n = value || 0;

@@ -35,13 +35,13 @@ import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/fire
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, query, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import type { Booking } from '@/lib/types';
-import { cn, formatINR, formatINRCompact, toDateSafe } from '@/lib/utils';
+import type { Booking, Payment } from '@/lib/types';
+import { cn, formatINR, toDateSafe, bookingPaid, PAYMENT_MODE_LABELS } from '@/lib/utils';
+import { ledgerFor, newPaymentId, withAddedPayment } from '@/lib/payments';
 import {
   IndianRupee,
   TrendingUp,
   Percent,
-  Receipt,
   CalendarClock,
   Wallet,
   ArrowUpRight,
@@ -177,19 +177,26 @@ export default function RevenuePage() {
     );
 
     let applied = 0;
+    const todayISO = new Date().toISOString().slice(0, 10);
     for (const b of ordered) {
       if (remaining <= 0) break;
       const balance = bookingBalance(b);
       if (balance <= 0) continue;
       const received = Math.min(remaining, balance);
-      const newPaid = (b.amountPaid || 0) + received;
-      const newBalance = Math.max(0, (b.total || 0) - newPaid);
       remaining -= received;
       applied += received;
+      // Record as a ledger entry so it shows up in the booking's Payments view.
+      const payment: Payment = {
+        id: newPaymentId(),
+        amount: received,
+        date: todayISO,
+        mode: 'cash',
+        reference: 'Collection',
+        createdAt: new Date().toISOString(),
+        createdBy: authUser.uid,
+      };
       updateDocumentNonBlocking(doc(firestore, 'bookings', b.id), {
-        amountPaid: newPaid,
-        balanceAmount: newBalance,
-        paymentStatus: newBalance <= 0 ? 'paid' : 'partial',
+        ...withAddedPayment(b, payment),
         updatedAt: serverTimestamp(),
         updatedBy: authUser.uid,
       });
@@ -233,7 +240,6 @@ export default function RevenuePage() {
     const yearProfit = forYear.reduce((s, { b }) => s + bookingProfit(b), 0);
     const yearCount = forYear.length;
     const margin = yearRevenue ? Math.round((yearProfit / yearRevenue) * 100) : 0;
-    const avgValue = yearCount ? yearRevenue / yearCount : 0;
 
     const selMonthBookings = withDate.filter(({ date }) => inMonth(date, selMonth, selYear));
     const prevMonthBookings = withDate.filter(({ date }) => inMonth(date, prevMonth, prevYear));
@@ -250,6 +256,22 @@ export default function RevenuePage() {
       .map(({ b, date }) => ({ b, date, balance: bookingBalance(b) }))
       .filter(({ balance }) => balance > 0);
     const pendingCollections = pendingBookings.reduce((s, r) => s + r.balance, 0);
+
+    // Money actually received this year, plus a recent-collections feed.
+    const totalCollected = forYear.reduce((s, { b }) => s + bookingPaid(b), 0);
+    const recentPayments = forYear
+      .flatMap(({ b }) =>
+        ledgerFor(b).map((p) => ({
+          id: `${b.id}:${p.id}`,
+          clientName: b.clientName || '—',
+          date: p.date,
+          mode: p.mode,
+          amount: p.amount,
+        }))
+      )
+      .filter((r) => r.amount > 0)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 8);
 
     const clientMap = new Map<
       string,
@@ -314,7 +336,6 @@ export default function RevenuePage() {
       yearProfit,
       yearCount,
       margin,
-      avgValue,
       thisMonthRevenue,
       lastMonthRevenue,
       thisMonthProfit,
@@ -323,6 +344,8 @@ export default function RevenuePage() {
       lastMonthLabel,
       pendingCollections,
       pendingClients,
+      totalCollected,
+      recentPayments,
       monthly,
       typeRows: toRows(byType, 5),
       destRows: toRows(byDestination, 5),
@@ -391,11 +414,12 @@ export default function RevenuePage() {
           description={`${stats.margin}% average margin`}
         />
         <StatCard
-          title="Avg. Booking Value"
-          value={formatINRCompact(stats.avgValue)}
-          icon={Receipt}
+          title="Collected"
+          value={formatINR(stats.totalCollected)}
+          icon={CheckCircle2}
           isLoading={isLoading}
-          description={`Across ${year}`}
+          variant="success"
+          description={`Received in ${year}`}
         />
         <StatCard
           title="Pending Collections"
@@ -542,6 +566,48 @@ export default function RevenuePage() {
           emptyLabel="No destinations recorded yet."
         />
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Recent Collections</CardTitle>
+          <CardDescription>Latest payments received in {year}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Mode</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.recentPayments.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      No collections recorded in {year}.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {stats.recentPayments.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">{p.clientName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {p.date
+                        ? new Date(p.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </TableCell>
+                    <TableCell>{PAYMENT_MODE_LABELS[p.mode] || p.mode}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-green-600">{formatINR(p.amount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="mt-4">
         <CardHeader>
