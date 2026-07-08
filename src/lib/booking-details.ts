@@ -121,6 +121,22 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
     });
   }
 
+  // Hotel: guest names for the voucher.
+  if (booking.bookingType === 'hotel' && booking.hotelGuests?.length) {
+    const named = booking.hotelGuests.filter((g) => g.name && g.name.trim());
+    if (named.length) {
+      entries.push({
+        label: "Guests",
+        isTable: true,
+        columns: [
+          { key: 'no', label: '#' },
+          { key: 'name', label: 'Guest Name' },
+        ],
+        value: named.map((g, i) => ({ no: String(i + 1), name: g.name })),
+      });
+    }
+  }
+
   // Visa: one row per applicant with passport + validity.
   if (booking.bookingType === 'visa' && booking.visaApplicants?.length) {
     entries.push({

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Activity, ChevronRight } from 'lucide-react';
 import {
   Card,
@@ -18,7 +18,7 @@ import {
   useFirestore,
   useMemoFirebase,
 } from '@/firebase';
-import type { CustomerLog } from '@/lib/types';
+import type { CustomerLog, Client } from '@/lib/types';
 import { toDate } from '@/lib/attendance';
 
 function formatLogStamp(date: Date): string {
@@ -34,7 +34,7 @@ function formatLogStamp(date: Date): string {
 
 export function RecentActivity() {
   const firestore = useFirestore();
-  const { authUser, isLoading: appUserLoading } = useAppUser();
+  const { authUser, isAdminOrManager, isLoading: appUserLoading } = useAppUser();
 
   const ready = !!firestore && !!authUser && !appUserLoading;
 
@@ -45,14 +45,27 @@ export function RecentActivity() {
 
   const { data: logs, isLoading } = useCollection<CustomerLog>(logsQuery);
 
+  // Non-admins only see activity for clients assigned to them (plus their own).
+  const myClientsQuery = useMemoFirebase(() => {
+    if (!ready || isAdminOrManager || !authUser) return null;
+    return query(collection(firestore!, 'clients'), where('assignedEmployees', 'array-contains', authUser.uid));
+  }, [ready, isAdminOrManager, authUser, firestore]);
+  const { data: myClients } = useCollection<Client>(myClientsQuery);
+  const myClientIds = useMemo(() => new Set((myClients ?? []).map((c) => c.id)), [myClients]);
+
   const recent = useMemo(() => {
-    const list = [...(logs ?? [])].sort((a, b) => {
+    const visible = isAdminOrManager
+      ? (logs ?? [])
+      : (logs ?? []).filter(
+          (l) => myClientIds.has(l.clientId) || l.userId === authUser?.uid || l.createdBy === authUser?.uid
+        );
+    const list = [...visible].sort((a, b) => {
       const aTime = toDate(a.createdAt).getTime();
       const bTime = toDate(b.createdAt).getTime();
       return bTime - aTime;
     });
     return list.slice(0, 8);
-  }, [logs]);
+  }, [logs, isAdminOrManager, myClientIds, authUser?.uid]);
 
   return (
     <Card className="h-full">

@@ -100,6 +100,9 @@ const formSchema = z.object({
       })
     )
     .optional(),
+  hotelGuests: z
+    .array(z.object({ name: z.string().optional() }))
+    .optional(),
   details: z.record(z.any()).optional(),
 }).refine(
   (data) => !!data.clientId || !!data.newClientName?.trim(),
@@ -169,6 +172,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       isMultiCity: booking?.isMultiCity || false,
       sectors: booking?.sectors || [],
       visaApplicants: booking?.visaApplicants || [],
+      hotelGuests: booking?.hotelGuests || [],
       details: booking?.bookingDetails || {},
     },
   });
@@ -189,6 +193,15 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
   } = useFieldArray({
     control: form.control,
     name: 'visaApplicants',
+  });
+
+  const {
+    fields: guestFields,
+    append: appendGuest,
+    remove: removeGuest,
+  } = useFieldArray({
+    control: form.control,
+    name: 'hotelGuests',
   });
 
   const selectedBookingType = form.watch('bookingType');
@@ -572,6 +585,26 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Guest names — printed on the voucher */}
+            <div className="pt-1 space-y-2">
+              <FormLabel className="text-sm">Guest Names ({guestFields.length})</FormLabel>
+              {guestFields.map((f, index) => (
+                <div key={f.id} className="flex items-center gap-2">
+                  <Input
+                    placeholder={`Guest ${index + 1} full name`}
+                    {...form.register(`hotelGuests.${index}.name`)}
+                  />
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removeGuest(index)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => appendGuest({ name: '' })}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Guest
+              </Button>
             </div>
           </div>
         )}

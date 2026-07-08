@@ -249,6 +249,9 @@ export type Booking = {
     validUntil?: string;
   }[];
 
+  // Hotel guest names (printed on the voucher)
+  hotelGuests?: { name?: string }[];
+
   // Portal the booking was made through (flight/hotel/etc.)
   bookingPortal?: string;
 

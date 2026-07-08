@@ -2,7 +2,7 @@
 
 import { collection, query, where, orderBy } from "firebase/firestore";
 import { useAppUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import type { CustomerLog } from "@/lib/types";
+import type { CustomerLog, Client } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -24,7 +24,7 @@ const LogItemSkeleton = () => (
 
 export function CustomerLogs({ clientId }: { clientId?: string }) {
   const firestore = useFirestore();
-  const { authUser, isLoading: appUserLoading } = useAppUser();
+  const { authUser, isAdminOrManager, isLoading: appUserLoading } = useAppUser();
   const [searchTerm, setSearchTerm] = useState('');
 
   const ready = !!firestore && !!authUser && !appUserLoading;
@@ -41,13 +41,29 @@ export function CustomerLogs({ clientId }: { clientId?: string }) {
 
   const { data: logs, isLoading, error } = useCollection<CustomerLog>(logsQuery);
 
+  // On the global feed, non-admins may only see activity for clients assigned
+  // to them (plus their own actions). Fetch their clients to scope by.
+  const myClientsQuery = useMemoFirebase(() => {
+    if (!ready || clientId || isAdminOrManager || !authUser) return null;
+    return query(collection(firestore!, "clients"), where("assignedEmployees", "array-contains", authUser.uid));
+  }, [ready, clientId, isAdminOrManager, authUser, firestore]);
+  const { data: myClients } = useCollection<Client>(myClientsQuery);
+  const myClientIds = useMemo(() => new Set((myClients ?? []).map((c) => c.id)), [myClients]);
+
+  const scopedLogs = useMemo(() => {
+    if (clientId || isAdminOrManager) return logs ?? [];
+    return (logs ?? []).filter(
+      (l) => myClientIds.has(l.clientId) || l.userId === authUser?.uid || l.createdBy === authUser?.uid
+    );
+  }, [logs, clientId, isAdminOrManager, myClientIds, authUser?.uid]);
+
   const sortedLogs = useMemo(() => {
-    return [...(logs ?? [])].sort((a, b) => {
+    return [...scopedLogs].sort((a, b) => {
       const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
       const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
       return bTime - aTime;
     });
-  }, [logs]);
+  }, [scopedLogs]);
 
   const filteredLogs = useMemo(() => {
     if (!searchTerm) return sortedLogs;
