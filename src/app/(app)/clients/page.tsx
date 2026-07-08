@@ -30,8 +30,10 @@ import {
                                         Book,
                                           ChevronDown,
                                           User,
+                                          X,
                                           } from 'lucide-react';
                                           import { Input } from '@/components/ui/input';
+                                          import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
                                           import {
                                             DropdownMenu,
                                               DropdownMenuContent,
@@ -123,6 +125,8 @@ export default function ClientsPage() {
     const [visaStatusFilter, setVisaStatusFilter] = useState('All');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [bookingClient, setBookingClient] = useState<Client | null>(null);
+    const [shareClient, setShareClient] = useState<Client | null>(null);
+    const [teammateToAdd, setTeammateToAdd] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState('createdAt-desc');
     const CLIENTS_PER_PAGE = 50;
@@ -141,10 +145,12 @@ export default function ClientsPage() {
 
     const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
 
-    // Staff list for the "Assigned Employee" dropdown (admins/managers only).
+    // Staff list for the "Assigned Employee" dropdown and the Share-with-teammate
+    // action. Readable by any signed-in user (see firestore.rules), so employees
+    // can also add a colleague to their own clients.
     const usersQuery = useMemoFirebase(
-        () => (firestore && isAdminOrManager ? collection(firestore, 'users') : null),
-        [firestore, isAdminOrManager]
+        () => (firestore ? collection(firestore, 'users') : null),
+        [firestore]
     );
     const { data: staffUsers } = useCollection<StaffUser>(usersQuery);
     const staffOptions = (staffUsers || []).map(u => ({ id: u.id, name: u.name }));
@@ -268,6 +274,37 @@ export default function ClientsPage() {
         });
     };
     
+    const handleAddTeammate = (client: Client, uid: string) => {
+        if (!firestore || !user || !uid) return;
+        const current = client.assignedEmployees || [];
+        if (current.includes(uid)) return;
+        const clientDocRef = doc(firestore, 'clients', client.id);
+        setDocumentNonBlocking(
+            clientDocRef,
+            { assignedEmployees: [...current, uid], updatedAt: serverTimestamp(), updatedBy: user.uid },
+            { merge: true }
+        );
+        toast({
+            title: 'Teammate added',
+            description: `${staffUserNames.get(uid) || 'The employee'} can now work on ${client.name}.`,
+        });
+    };
+
+    const handleRemoveTeammate = (client: Client, uid: string) => {
+        if (!firestore || !user) return;
+        const clientDocRef = doc(firestore, 'clients', client.id);
+        setDocumentNonBlocking(
+            clientDocRef,
+            {
+                assignedEmployees: (client.assignedEmployees || []).filter((id) => id !== uid),
+                updatedAt: serverTimestamp(),
+                updatedBy: user.uid,
+            },
+            { merge: true }
+        );
+        toast({ title: 'Teammate removed', description: `${staffUserNames.get(uid) || 'The employee'} no longer has access.` });
+    };
+
     const handleAddLog = (newLogData: Omit<CustomerLog, 'id' | 'timestamp' | 'clientId' | 'clientName' | 'userName'>) => {
         if (!firestore || !logClient || !user) return;
         
@@ -521,6 +558,71 @@ export default function ClientsPage() {
                 </DialogContent>
             </Dialog>
             
+            <Dialog open={!!shareClient} onOpenChange={(open) => { if (!open) { setShareClient(null); setTeammateToAdd(''); } }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Share {shareClient?.name}</DialogTitle>
+                    </DialogHeader>
+                    {(() => {
+                        const live = clients?.find((c) => c.id === shareClient?.id) ?? shareClient;
+                        if (!live) return null;
+                        const assigned = live.assignedEmployees ?? [];
+                        const available = staffOptions.filter((o) => !assigned.includes(o.id));
+                        return (
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Add a colleague so they can work on this client alongside you.
+                                </p>
+                                <div>
+                                    <p className="text-sm font-medium mb-2">Current team ({assigned.length})</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {assigned.length === 0 && (
+                                            <span className="text-sm text-muted-foreground">No one assigned yet.</span>
+                                        )}
+                                        {assigned.map((uid) => (
+                                            <Badge key={uid} variant="secondary" className="pl-2.5 pr-1 py-1 gap-1">
+                                                {staffUserNames.get(uid) || 'Employee'}
+                                                {uid !== live.createdBy && (
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Remove"
+                                                        className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+                                                        onClick={() => handleRemoveTeammate(live, uid)}
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                )}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium mb-2">Add teammate</p>
+                                        <Select value={teammateToAdd} onValueChange={setTeammateToAdd}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={available.length ? 'Select an employee' : 'Everyone is already added'} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {available.map((o) => (
+                                                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button
+                                        disabled={!teammateToAdd}
+                                        onClick={() => { handleAddTeammate(live, teammateToAdd); setTeammateToAdd(''); }}
+                                    >
+                                        <UserPlus className="mr-2 h-4 w-4" /> Add
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={!!bookingClient} onOpenChange={(open) => !open && setBookingClient(null)}>
                 <DialogContent>
                     <DialogHeader>
@@ -658,6 +760,7 @@ export default function ClientsPage() {
                                     <DropdownMenuItem onSelect={() => setLogClient(client)}><FilePlus2 className="mr-2 h-4 w-4"/>Add Log</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setFollowUpClient(client)}><Bell className="mr-2 h-4 w-4"/>Add Follow-up</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setBookingClient(client)}><Book className="mr-2 h-4 w-4"/>Create Booking</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => setShareClient(client)}><UserPlus className="mr-2 h-4 w-4"/>Share with teammate</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handleArchiveClient(client)}><Archive className="mr-2 h-4 w-4"/>Archive</DropdownMenuItem>
                                     {canDelete && (
                                         <DropdownMenuItem
