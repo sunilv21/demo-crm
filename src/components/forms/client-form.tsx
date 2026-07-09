@@ -35,6 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import parsePhoneNumber, { AsYouType, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 import { useUser } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 import { serverTimestamp } from 'firebase/firestore';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useFormPersistence } from '@/hooks/use-form-persistence';
@@ -256,7 +257,23 @@ const Combobox = ({
 export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false, canAssign = false, staffUsers = [], organizations = [], defaultOrganizationId }, ref) => {
   const { countryNames, countryOptions, nationalities } = useCountries();
   const { user } = useUser();
+  const { toast } = useToast();
   const FORM_KEY = client ? `client-form-${client.id}` : 'new-client-form';
+
+  // When submit is blocked by validation, react-hook-form silently does nothing —
+  // surface the first problem so the user (esp. on the public intake) knows why.
+  function handleInvalid(errors: Record<string, any>) {
+    const firstKey = Object.keys(errors)[0];
+    const firstMsg =
+      (errors[firstKey]?.message as string) ||
+      (errors[firstKey]?.root?.message as string) ||
+      'Please fill in all required fields correctly.';
+    toast({
+      variant: 'destructive',
+      title: 'Please check the form',
+      description: String(firstMsg),
+    });
+  }
   
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(formSchema),
@@ -510,7 +527,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
 
   return (
     <Form {...form}>
-      <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+      <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit, handleInvalid)} className="space-y-8">
         {canAssign && (
         <FormCard isPublicForm={isPublicForm}>
             <CardHeader>

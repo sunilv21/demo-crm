@@ -3,6 +3,7 @@
 import { AppHeader } from '@/components/common/app-header';
 import { AppSidebarNav } from '@/components/common/app-sidebar-nav';
 import { AutoLogoutWatcher } from '@/components/attendance/auto-logout-watcher';
+import { NetworkStatusListener } from '@/components/common/network-status';
 import {
   SidebarProvider,
   Sidebar,
@@ -76,13 +77,14 @@ export default function AppLayout({
   return (
     <AppUserProvider>
       <AutoLogoutWatcher />
+      <NetworkStatusListener />
       <SidebarProvider>
         <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
             <AppSidebarNav />
         </Sidebar>
         <SidebarInset className="flex flex-col min-w-0">
           <AppHeader />
-          <main className="flex-1 overflow-auto min-w-0 p-4 lg:p-6">
+          <main id="main-content" className="flex-1 overflow-auto min-w-0 p-4 lg:p-6">
             {children}
           </main>
         </SidebarInset>

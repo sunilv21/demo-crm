@@ -19,7 +19,11 @@ import {
   ChevronRight,
   IndianRupee,
   Building2,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -86,6 +90,7 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   const { user } = useUser();
   const { role, isLoading: isRoleLoading } = useAppUser();
   const auth = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const visibleTop = isRoleLoading ? [] : topNavItems.filter((i) => i.allow.includes(role));
   const visibleEmpMgmt = isRoleLoading
@@ -207,6 +212,23 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Theme</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setTheme('light')}>
+              <Sun className="mr-2 h-4 w-4" />
+              <span>Light</span>
+              {theme === 'light' && <span className="ml-auto text-xs">✓</span>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme('dark')}>
+              <Moon className="mr-2 h-4 w-4" />
+              <span>Dark</span>
+              {theme === 'dark' && <span className="ml-auto text-xs">✓</span>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme('system')}>
+              <Monitor className="mr-2 h-4 w-4" />
+              <span>System</span>
+              {theme === 'system' && <span className="ml-auto text-xs">✓</span>}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>

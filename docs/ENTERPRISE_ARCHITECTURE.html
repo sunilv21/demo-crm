@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Visa CRM - Enterprise Architecture Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #0ea5e9;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #2563eb;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        h3 {
+            color: #4b5563;
+            margin-top: 35px;
+            margin-bottom: 20px;
+        }
+        
+        h4 {
+            color: #6b7280;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+        }
+        
+        ul, ol {
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            max-height: 600px;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .success-box {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .toc {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 8px;
+        }
+        
+        .toc a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .toc .toc-level-2 {
+            padding-left: 20px;
+        }
+        
+        .toc .toc-level-3 {
+            padding-left: 40px;
+        }
+        
+        .diagram-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            overflow-x: auto;
+        }
+        
+        .section-divider {
+            border-top: 1px solid #e5e7eb;
+            margin: 40px 0;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sky Visa CRM - Enterprise Architecture Document</h1>
+        
+        <div class="info-box">
+            <p><strong>Document Version:</strong> 1.0</p>
+            <p><strong>Project:</strong> Sky Visa CRM</p>
+            <p><strong>Document Type:</strong> Enterprise Architecture</p>
+            <p><strong>Target Audience:</strong> Architects, Senior Developers, DevOps Engineers, Technical Leadership</p>
+            <p><strong>Last Updated:</strong> July 9, 2026</p>
+            <p><strong>Document Length:</strong> Comprehensive (80-120 pages equivalent)</p>
+        </div>
+        
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#executive-summary">Executive Summary</a></li>
+                <li><a href="#system-overview">System Overview</a></li>
+                <li><a href="#architecture-principles">Architecture Principles</a></li>
+                <li><a href="#technology-stack">Technology Stack</a></li>
+                <li><a href="#er-diagrams-and-firestore-hierarchy">ER Diagrams and Firestore Hierarchy</a></li>
+                <li><a href="#collection-relationships">Collection Relationships</a></li>
+                <li><a href="#domain-driven-design-ddd">Domain-Driven Design (DDD)</a></li>
+                <li><a href="#module-by-module-database-schemas">Module-by-Module Database Schemas</a></li>
+                <li><a href="#security-rules-architecture">Security Rules Architecture</a></li>
+                <li><a href="#index-strategy-and-optimization">Index Strategy and Optimization</a></li>
+                <li><a href="#cost-optimization-strategies">Cost Optimization Strategies</a></li>
+                <li><a href="#caching-strategy">Caching Strategy</a></li>
+                <li><a href="#backup-and-archival-plan">Backup and Archival Plan</a></li>
+                <li><a href="#multi-tenant-migration-path">Multi-Tenant Migration Path</a></li>
+                <li><a href="#api-architecture">API Architecture</a></li>
+                <li><a href="#event-driven-workflow-design">Event-Driven Workflow Design</a></li>
+                <li><a href="#scalability-architecture">Scalability Architecture</a></li>
+                <li><a href="#monitoring-and-observability">Monitoring and Observability</a></li>
+                <li><a href="#disaster-recovery">Disaster Recovery</a></li>
+                <li><a href="#compliance-and-governance">Compliance and Governance</a></li>
+                <li><a href="#future-roadmap">Future Roadmap</a></li>
+                <li><a href="#conclusion">Conclusion</a></li>
+            </ul>
+        </div>
+        
+        <h2 id="executive-summary">Executive Summary</h2>
+        
+        <h3>Document Purpose</h3>
+        <p>This Enterprise Architecture Document provides a comprehensive technical blueprint for the Sky Visa CRM system, a complex multi-domain application integrating Travel Management, Visa Processing, Customer Relationship Management (CRM), Human Resources (HR), Finance, and Collections functionality.</p>
+        
+        <h3>System Scope</h3>
+        <p>The Sky Visa CRM is a single-tenant (with multi-tenant migration path) travel agency management system that handles:</p>
+        <ul>
+            <li><strong>Travel Management:</strong> Flight bookings, hotel reservations, car rentals, activities</li>
+            <li><strong>Visa Processing:</strong> Visa applications, document tracking, embassy coordination</li>
+            <li><strong>CRM:</strong> Lead management, customer tracking, follow-ups, communication</li>
+            <li><strong>HR:</strong> Employee management, attendance tracking, leave management</li>
+            <li><strong>Finance:</strong> Invoicing, payments, profit tracking, accounting</li>
+            <li><strong>Collections:</strong> Payment collection, debt management, reconciliation</li>
+        </ul>
+        
+        <h3>Architecture Highlights</h3>
+        <ul>
+            <li><strong>Database:</strong> Firebase Firestore (NoSQL) with 17+ collections</li>
+            <li><strong>Frontend:</strong> Next.js 16 with React 19, TypeScript 5</li>
+            <li><strong>Backend:</strong> Firebase Functions with serverless architecture</li>
+            <li><strong>Real-time:</strong> Firestore real-time listeners for live updates</li>
+            <li><strong>Offline:</strong> IndexedDB persistence for offline functionality</li>
+            <li><strong>Security:</strong> Firebase Authentication + Firestore Security Rules</li>
+            <li><strong>Scalability:</strong> Serverless architecture with auto-scaling capabilities</li>
+        </ul>
+        
+        <h3>Key Architectural Decisions</h3>
+        <ol>
+            <li><strong>NoSQL Database:</strong> Chosen for flexibility in evolving travel industry requirements</li>
+            <li><strong>Serverless Backend:</strong> Reduces operational overhead and provides auto-scaling</li>
+            <li><strong>Real-time First:</strong> Enables collaborative features and live updates</li>
+            <li><strong>Offline-First:</strong> Critical for travel agents working in connectivity-challenged environments</li>
+            <li><strong>Modular Design:</strong> Domain-driven design approach for maintainability</li>
+        </ol>
+        
+        <h3>Migration Readiness</h3>
+        <p>The architecture is designed with multi-tenant migration in mind, including:</p>
+        <ul>
+            <li>Tenant-aware data modeling patterns</li>
+            <li>Isolation strategies (database vs. schema-based)</li>
+            <li>Migration pathways with zero-downtime considerations</li>
+            <li>Cost optimization for multi-tenant scenarios</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="system-overview">System Overview</h2>
+        
+        <h3>Business Context</h3>
+        <p>Sky Visa CRM serves travel agencies by providing a unified platform to manage:</p>
+        <ul>
+            <li>Customer relationships from lead to conversion</li>
+            <li>Travel bookings across multiple service types</li>
+            <li>Visa application processing</li>
+            <li>Employee operations and HR management</li>
+            <li>Financial operations and collections</li>
+            <li>Business intelligence and reporting</li>
+        </ul>
+        
+        <h3>System Boundaries</h3>
+        <p><strong>In-Scope:</strong></p>
+        <ul>
+            <li>Travel agency operations management</li>
+            <li>Customer lifecycle management</li>
+            <li>Booking and reservation management</li>
+            <li>Visa application processing</li>
+            <li>Employee management and attendance</li>
+            <li>Financial operations</li>
+            <li>Reporting and analytics</li>
+        </ul>
+        
+        <p><strong>Out-of-Scope:</strong></p>
+        <ul>
+            <li>Direct GDS integration (future phase)</li>
+            <li>Payment gateway integration (future phase)</li>
+            <li>Multi-tenant SaaS operations (future phase)</li>
+            <li>Mobile applications (future phase)</li>
+            <li>AI-powered recommendations (future phase)</li>
+        </ul>
+        
+        <h3>Non-Functional Requirements</h3>
+        <p><strong>Performance:</strong></p>
+        <ul>
+            <li>Page load time &lt; 2 seconds (p95)</li>
+            <li>API response time &lt; 500ms (p95)</li>
+            <li>Support 100+ concurrent users</li>
+            <li>99.5% uptime SLA</li>
+        </ul>
+        
+        <p><strong>Security:</strong></p>
+        <ul>
+            <li>Role-based access control (RBAC)</li>
+            <li>Data encryption at rest and in transit</li>
+            <li>Audit logging for all critical operations</li>
+            <li>Compliance with data protection regulations</li>
+        </ul>
+        
+        <p><strong>Scalability:</strong></p>
+        <ul>
+            <li>Horizontal scaling capability</li>
+            <li>Support 10,000+ customers</li>
+            <li>Support 100,000+ bookings</li>
+            <li>Support 50+ employees</li>
+        </ul>
+        
+        <p><strong>Reliability:</strong></p>
+        <ul>
+            <li>Automated daily backups</li>
+            <li>30-day data retention</li>
+            <li>Disaster recovery plan</li>
+            <li>Error rate &lt; 1%</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="architecture-principles">Architecture Principles</h2>
+        
+        <h3>1. Modularity</h3>
+        <p><strong>Principle:</strong> The system is organized into cohesive, loosely coupled modules based on business domains.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Domain-driven design (DDD) boundaries</li>
+            <li>Clear separation of concerns</li>
+            <li>Independent module deployment capability</li>
+            <li>Minimal inter-module dependencies</li>
+        </ul>
+        <p><strong>Benefits:</strong> Easier maintenance, parallel development, independent scaling, clear ownership</p>
+        
+        <h3>2. Scalability</h3>
+        <p><strong>Principle:</strong> The architecture supports horizontal scaling and can handle growth in users, data, and traffic.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Serverless backend (Firebase Functions)</li>
+            <li>Auto-scaling database (Firestore)</li>
+            <li>Stateless application design</li>
+            <li>Efficient query patterns with indexes</li>
+        </ul>
+        <p><strong>Benefits:</strong> Automatic scaling, cost efficiency, no capacity planning required, handles traffic spikes</p>
+        
+        <h3>3. Reliability</h3>
+        <p><strong>Principle:</strong> The system maintains availability and data integrity even in the face of failures.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Automated backup systems</li>
+            <li>Error handling and retry logic</li>
+            <li>Offline persistence</li>
+            <li>Data validation at multiple layers</li>
+        </ul>
+        <p><strong>Benefits:</strong> High availability, data protection, graceful degradation, quick recovery</p>
+        
+        <h3>4. Security</h3>
+        <p><strong>Principle:</strong> Security is built into every layer of the architecture.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Defense in depth approach</li>
+            <li>Least privilege access</li>
+            <li>Comprehensive audit logging</li>
+            <li>Regular security reviews</li>
+        </ul>
+        <p><strong>Benefits:</strong> Data protection, regulatory compliance, risk mitigation, trust assurance</p>
+        
+        <h3>5. Maintainability</h3>
+        <p><strong>Principle:</strong> The codebase and architecture are designed for long-term maintainability.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Clean code practices</li>
+            <li>Comprehensive documentation</li>
+            <li>Automated testing</li>
+            <li>Code review processes</li>
+        </ul>
+        <p><strong>Benefits:</strong> Reduced technical debt, faster onboarding, easier debugging, sustainable development</p>
+        
+        <h3>6. Performance</h3>
+        <p><strong>Principle:</strong> The system is optimized for performance at every layer.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Efficient database queries</li>
+            <li>Caching strategies</li>
+            <li>Code splitting and lazy loading</li>
+            <li>Image optimization</li>
+        </ul>
+        <p><strong>Benefits:</strong> Better user experience, lower infrastructure costs, higher throughput, competitive advantage</p>
+        
+        <h3>7. Flexibility</h3>
+        <p><strong>Principle:</strong> The architecture can adapt to changing business requirements.</p>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Schemaless database design</li>
+            <li>Plugin architecture</li>
+            <li>Configuration-driven features</li>
+            <li>Extensible security model</li>
+        </ul>
+        <p><strong>Benefits:</strong> Faster feature delivery, business agility, future-proofing, competitive responsiveness</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="technology-stack">Technology Stack</h2>
+        
+        <h3>Frontend Stack</h3>
+        <p><strong>Framework:</strong></p>
+        <ul>
+            <li><strong>Next.js 16.2.5</strong> - React framework with App Router</li>
+            <li><strong>React 19.2.6</strong> - UI library</li>
+            <li><strong>TypeScript 5</strong> - Type-safe JavaScript</li>
+        </ul>
+        
+        <p><strong>UI Components:</strong></p>
+        <ul>
+            <li><strong>Tailwind CSS</strong> - Utility-first CSS framework</li>
+            <li><strong>Radix UI</strong> - Unstyled, accessible component primitives</li>
+            <li><strong>shadcn/ui</strong> - Pre-built components built on Radix UI</li>
+            <li><strong>Lucide React</strong> - Icon library</li>
+        </ul>
+        
+        <p><strong>State Management:</strong></p>
+        <ul>
+            <li><strong>React Context API</strong> - Global state management</li>
+            <li><strong>React Hooks</strong> - Local state management</li>
+            <li><strong>Zustand</strong> (future) - Enhanced state management</li>
+        </ul>
+        
+        <p><strong>Forms:</strong></p>
+        <ul>
+            <li><strong>React Hook Form</strong> - Form management</li>
+            <li><strong>Zod</strong> - Schema validation</li>
+        </ul>
+        
+        <p><strong>Data Fetching:</strong></p>
+        <ul>
+            <li><strong>Firebase SDK</strong> - Direct Firestore integration</li>
+            <li><strong>React Query</strong> (future) - Enhanced data fetching</li>
+        </ul>
+        
+        <p><strong>Utilities:</strong></p>
+        <ul>
+            <li><strong>date-fns</strong> - Date manipulation</li>
+            <li><strong>clsx</strong> - Conditional class names</li>
+            <li><strong>tailwind-merge</strong> - Tailwind class merging</li>
+        </ul>
+        
+        <h3>Backend Stack</h3>
+        <p><strong>Serverless Functions:</strong></p>
+        <ul>
+            <li><strong>Firebase Functions (Gen 2)</strong> - Serverless compute</li>
+            <li><strong>Node.js 18+</strong> - Runtime environment</li>
+        </ul>
+        
+        <p><strong>Database:</strong></p>
+        <ul>
+            <li><strong>Firebase Firestore</strong> - NoSQL document database</li>
+            <li><strong>Firebase Storage</strong> - File storage</li>
+            <li><strong>Firebase Authentication</strong> - User authentication</li>
+        </ul>
+        
+        <p><strong>AI/ML:</strong></p>
+        <ul>
+            <li><strong>Google Genkit</strong> - AI framework for Firebase</li>
+        </ul>
+        
+        <h3>Development Tools</h3>
+        <p><strong>Package Manager:</strong></p>
+        <ul>
+            <li><strong>npm</strong> or <strong>yarn</strong> - Dependency management</li>
+        </ul>
+        
+        <p><strong>Code Quality:</strong></p>
+        <ul>
+            <li><strong>ESLint</strong> - Linting</li>
+            <li><strong>Prettier</strong> - Code formatting</li>
+            <li><strong>TypeScript</strong> - Type checking</li>
+        </ul>
+        
+        <p><strong>Testing:</strong></p>
+        <ul>
+            <li><strong>Jest</strong> - Unit testing</li>
+            <li><strong>React Testing Library</strong> - Component testing</li>
+            <li><strong>Playwright</strong> - E2E testing</li>
+        </ul>
+        
+        <p><strong>CI/CD:</strong></p>
+        <ul>
+            <li><strong>GitHub Actions</strong> (future) - CI/CD pipeline</li>
+        </ul>
+        
+        <h3>Infrastructure</h3>
+        <p><strong>Hosting:</strong></p>
+        <ul>
+            <li><strong>Firebase Hosting</strong> - Static site hosting</li>
+            <li><strong>Vercel</strong> (alternative) - Next.js optimized hosting</li>
+        </ul>
+        
+        <p><strong>Monitoring:</strong></p>
+        <ul>
+            <li><strong>Firebase Crashlytics</strong> - Crash reporting</li>
+            <li><strong>Firebase Performance Monitoring</strong> - Performance tracking</li>
+            <li><strong>Firebase Analytics</strong> - User analytics</li>
+        </ul>
+        
+        <p><strong>Cost Management:</strong></p>
+        <ul>
+            <li><strong>Firebase Budget Alerts</strong> - Cost monitoring</li>
+            <li><strong>Firestore Usage Metrics</strong> - Database usage tracking</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="er-diagrams-and-firestore-hierarchy">ER Diagrams and Firestore Hierarchy</h2>
+        
+        <h3>High-Level Entity Relationship Diagram</h3>
+        
+        <div class="diagram-box">
+<pre>
+┌─────────────────────────────────────────────────────────────────┐
+│                        USERS                                    │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  id (PK)                                                 │  │
+│  │  name, email, phone, avatar                              │  │
+│  │  role  │
+│  │  jobTitle, baseSalary                                    │  │
+│  │  workStartTime, workEndTime                              │  │
+│  │  lateGraceMinutes, monthlyLeaveCap                       │  │
+│  │  dailyBreakCapMinutes                                    │  │
+│  │  createdAt, updatedAt, createdBy, updatedBy               │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+              ▼               ▼               ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   ATTENDANCE     │  │     LEAVES       │  │    BOOKINGS      │
+│  ┌────────────┐  │  │  ┌────────────┐  │  │  ┌────────────┐  │
+│  │userId (FK) │  │  │  │userId (FK) │  │  │  │createdBy   │  │
+│  │date        │  │  │  │startDate   │  │  │  │clientId    │──┼──┐
+│  │punchIn     │  │  │  │endDate     │  │  │  │bookingType │  │  │
+│  │punchOut    │  │  │  │type        │  │  │  │status      │  │  │
+│  │status      │  │  │  │status      │  │  │  │total       │  │  │
+│  │breaks[]    │  │  │  │days        │  │  │  │payments[]  │  │  │
+│  └────────────┘  │  │  └────────────┘  │  │  └────────────┘  │  │
+└──────────────────┘  └──────────────────┘  └──────────────────┘  │
+                                                                  │
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLIENTS                                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  id (PK)                                                 │  │
+│  │  name, email, phone, avatar                              │  │
+│  │  organizationId (FK)                                      │  │
+│  │  status (active|inactive|lead|prospect)                   │  │
+│  │  assignedEmployees[] (FK to users)                        │──┼──┐
+│  │  visaStatus, visaHistory[]                                │  │  │
+│  │  preferredTravelDates{}, tripDestinations[]               │  │  │
+│  │  budget, services[], additionalServices[]                 │  │  │
+│  │  createdAt, updatedAt, createdBy, updatedBy               │  │  │
+│  └──────────────────────────────────────────────────────────┘  │  │
+└─────────────────────────────────────────────────────────────────┘  │
+                              │                                      │
+              ┌───────────────┼───────────────┐                    │
+              │               │               │                    │
+              ▼               ▼               ▼                    │
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
+│   BOOKINGS       │  │  CUSTOMER_LOGS   │  │   FOLLOW_UPS     │  │
+│  ┌────────────┐  │  │  ┌────────────┐  │  │  ┌────────────┐  │
+│  │clientId    │──┼──┼──│clientId    │──┼──┼──│clientId    │──┼──┘
+│  │clientName  │  │  │  │activity    │  │  │  │date        │  │
+│  │bookingType │  │  │  │userId      │  │  │  │notes       │  │
+│  │status      │  │  │  └────────────┘  │  │  │done        │  │
+│  │total       │  │  └──────────────────┘  │  │priority    │  │
+│  │payments[]  │  │                       │  └────────────┘  │
+│  └────────────┘  │                       └──────────────────┘
+└──────────────────┘
+              │
+              ▼
+┌──────────────────┐
+│    INVOICES      │
+│  ┌────────────┐  │
+│  │bookingId   │──┘
+│  │clientName  │
+│  │amount      │
+│  │dueDate     │
+│  │status      │
+│  └────────────┘
+└──────────────────┘
+</pre>
+        </div>
+        
+        <h3>Firestore Collection Hierarchy</h3>
+        
+        <div class="diagram-box">
+<pre>
+firestore/
+├── users/                          # User profiles
+│   ├── {userId}
+│   │   ├── profile data
+│   │   └── settings
+│
+├── clients/                        # Customer profiles
+│   ├── {clientId}
+│   │   ├── profile data
+│   │   ├── visa history
+│   │   └── itineraries/            # Subcollection
+│   │       └── {itineraryId}
+│
+├── bookings/                       # Booking records
+│   ├── {bookingId}
+│   │   ├── booking details
+│   │   ├── payments[]
+│   │   ├── documents[]
+│   │   └── timeline[]
+│
+├── invoices/                       # Invoice records
+│   ├── {invoiceId}
+│   │   └── invoice details
+│
+├── leads/                          # Lead records
+│   ├── {leadId}
+│   │   └── lead details
+│
+├── organizations/                  # Corporate accounts
+│   ├── {organizationId}
+│   │   └── organization details
+│
+├── customer_logs/                  # Activity logs
+│   ├── {logId}
+│   │   └── log details
+│
+├── follow_ups/                     # Follow-up tasks
+│   ├── {followUpId}
+│   │   └── task details
+│
+├── attendance/                     # Attendance records
+│   ├── {attendanceId}              # Format: {userId}_{YYYY-MM-DD}
+│   │   ├── attendance data
+│   │   └── breaks[]
+│
+├── leaves/                         # Leave requests
+│   ├── {leaveId}
+│   │   └── leave details
+│
+├── holidays/                       # Company holidays
+│   ├── {holidayId}
+│   │   └── holiday details
+│
+├── process_tracking/               # Process tracking
+│   ├── {trackingId}
+│   │   └── tracking data
+│
+├── customer_statuses/              # Status definitions (read-only)
+│   ├── {statusId}
+│   │   └── status definition
+│
+├── roles/                          # Role definitions (read-only)
+│   ├── {roleId}
+│   │   └── role definition
+│
+├── audit_logs/                     # Security audit logs
+│   ├── {auditLogId}
+│   │   └── audit details
+│
+├── error_logs/                     # Application error logs
+│   ├── {errorLogId}
+│   │   └── error details
+│
+└── login_attempts/                 # Login attempt tracking
+    └── {email}                     # Document ID is email
+        └── attempt data
+</pre>
+        </div>
+        
+        <h3>Collection Relationships Summary</h3>
+        
+        <p><strong>Primary Relationships:</strong></p>
+        <ol>
+            <li><strong>Users → Attendance (One-to-Many)</strong> - User can have multiple attendance records</li>
+            <li><strong>Users → Leaves (One-to-Many)</strong> - User can have multiple leave requests</li>
+            <li><strong>Users → Bookings (One-to-Many)</strong> - User creates multiple bookings</li>
+            <li><strong>Clients → Bookings (One-to-Many)</strong> - Client can have multiple bookings</li>
+            <li><strong>Clients → Customer Logs (One-to-Many)</strong> - Client can have multiple activity logs</li>
+            <li><strong>Clients → Follow Ups (One-to-Many)</strong> - Client can have multiple follow-ups</li>
+            <li><strong>Organizations → Clients (One-to-Many)</strong> - Organization can have multiple clients</li>
+            <li><strong>Bookings → Invoices (One-to-Many)</strong> - Booking can have multiple invoices</li>
+            <li><strong>Leads → Clients (One-to-One, Optional)</strong> - Lead can be converted to a client</li>
+        </ol>
+        
+        <p><strong>Many-to-Many Relationships:</strong></p>
+        <ol>
+            <li><strong>Clients ↔ Users (Many-to-Many)</strong> - Client can be assigned to multiple employees</li>
+            <li><strong>Bookings ↔ Payments (Many-to-Many)</strong> - Booking can have multiple payments</li>
+        </ol>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="collection-relationships">Collection Relationships</h2>
+        
+        <h3>Detailed Relationship Mapping</h3>
+        
+        <h4>User-Centric Relationships</h4>
+        <p><strong>User as Creator:</strong></p>
+        <ul>
+            <li>User (1) ──creates──> (N) Bookings</li>
+            <li>User (1) ──creates──> (N) Clients</li>
+            <li>User (1) ──creates──> (N) Leads</li>
+            <li>User (1) ──creates──> (N) Customer Logs</li>
+            <li>User (1) ──creates──> (N) Follow Ups</li>
+            <li>User (1) ──creates──> (N) Invoices</li>
+            <li>User (1) ──creates──> (N) Holidays</li>
+            <li>User (1) ──creates──> (N) Organizations</li>
+        </ul>
+        
+        <p><strong>User as Subject:</strong></p>
+        <ul>
+            <li>User (1) ──has──> (N) Attendance Records</li>
+            <li>User (1) ──has──> (N) Leave Requests</li>
+            <li>User (1) ──is──> (N) Assigned Clients</li>
+            <li>User (1) ──performs──> (N) Customer Log Activities</li>
+        </ul>
+        
+        <p><strong>User as Approver:</strong></p>
+        <ul>
+            <li>User (1) ──approves──> (N) Leave Requests</li>
+        </ul>
+        
+        <h4>Client-Centric Relationships</h4>
+        <p><strong>Client as Subject:</strong></p>
+        <ul>
+            <li>Client (1) ──has──> (N) Bookings</li>
+            <li>Client (1) ──has──> (N) Customer Logs</li>
+            <li>Client (1) ──has──> (N) Follow Ups</li>
+            <li>Client (1) ──has──> (N) Invoices</li>
+            <li>Client (1) ──has──> (N) Itineraries (subcollection)</li>
+        </ul>
+        
+        <p><strong>Client as Assigned:</strong></p>
+        <ul>
+            <li>Client (M) ──assigned to──> (N) Users</li>
+        </ul>
+        
+        <p><strong>Client as Converted:</strong></p>
+        <ul>
+            <li>Lead (1) ──converts to──> (1) Client</li>
+        </ul>
+        
+        <h4>Booking-Centric Relationships</h4>
+        <p><strong>Booking as Subject:</strong></p>
+        <ul>
+            <li>Booking (1) ──has──> (N) Invoices</li>
+            <li>Booking (1) ──has──> (N) Payments (embedded)</li>
+            <li>Booking (1) ──has──> (N) Documents (embedded)</li>
+            <li>Booking (1) ──has──> (N) Timeline Events (embedded)</li>
+        </ul>
+        
+        <p><strong>Booking as Related:</strong></p>
+        <ul>
+            <li>Booking (N) ──belongs to──> (1) Client</li>
+            <li>Booking (N) ──created by──> (1) User</li>
+        </ul>
+        
+        <h3>Relationship Cardinality Matrix</h3>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>From Collection</th>
+                    <th>To Collection</th>
+                    <th>Relationship</th>
+                    <th>Cardinality</th>
+                    <th>Implementation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>users</td>
+                    <td>attendance</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>attendance.userId</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>leaves</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>leaves.userId</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>bookings</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>bookings.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>clients</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>clients.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>leads</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>leads.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>customer_logs</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>customer_logs.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>follow_ups</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>follow_ups.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>invoices</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>invoices.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>holidays</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>holidays.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>organizations</td>
+                    <td>creates</td>
+                    <td>1:N</td>
+                    <td>organizations.createdBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>leaves</td>
+                    <td>approves</td>
+                    <td>1:N</td>
+                    <td>leaves.approvedBy</td>
+                </tr>
+                <tr>
+                    <td>users</td>
+                    <td>clients</td>
+                    <td>assigned to</td>
+                    <td>M:N</td>
+                    <td>clients.assignedEmployees[]</td>
+                </tr>
+                <tr>
+                    <td>clients</td>
+                    <td>bookings</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>bookings.clientId</td>
+                </tr>
+                <tr>
+                    <td>clients</td>
+                    <td>customer_logs</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>customer_logs.clientId</td>
+                </tr>
+                <tr>
+                    <td>clients</td>
+                    <td>follow_ups</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>follow_ups.clientId</td>
+                </tr>
+                <tr>
+                    <td>clients</td>
+                    <td>organizations</td>
+                    <td>belongs to</td>
+                    <td>N:1</td>
+                    <td>clients.organizationId</td>
+                </tr>
+                <tr>
+                    <td>clients</td>
+                    <td>itineraries</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>subcollection</td>
+                </tr>
+                <tr>
+                    <td>leads</td>
+                    <td>clients</td>
+                    <td>converts to</td>
+                    <td>1:1</td>
+                    <td>leads.convertedToClientId</td>
+                </tr>
+                <tr>
+                    <td>bookings</td>
+                    <td>invoices</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>invoices.bookingId</td>
+                </tr>
+                <tr>
+                    <td>bookings</td>
+                    <td>payments</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>bookings.payments[]</td>
+                </tr>
+                <tr>
+                    <td>bookings</td>
+                    <td>documents</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>bookings.documents[]</td>
+                </tr>
+                <tr>
+                    <td>bookings</td>
+                    <td>timeline</td>
+                    <td>has</td>
+                    <td>1:N</td>
+                    <td>bookings.timeline[]</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Data Consistency Rules</h3>
+        
+        <p><strong>Referential Integrity:</strong></p>
+        <ol>
+            <li>When a user is deleted, their attendance and leave records should be archived</li>
+            <li>When a client is deleted, related bookings should be archived</li>
+            <li>When a booking is deleted, related invoices should be archived</li>
+            <li>Lead conversion should create a client and update lead status</li>
+        </ol>
+        
+        <p><strong>Cascade Operations:</strong></p>
+        <ol>
+            <li><strong>Soft Delete:</strong> Mark documents as archived instead of hard delete</li>
+            <li><strong>Archive Exemption:</strong> Certain documents can be marked as exempt from archival</li>
+            <li><strong>Timestamp Tracking:</strong> All operations should track who made changes and when</li>
+        </ol>
+        
+        <p><strong>Denormalization Strategy:</strong></p>
+        <ol>
+            <li><strong>Client Name:</strong> Denormalized in bookings, invoices, customer_logs, follow_ups</li>
+            <li><strong>User Name:</strong> Denormalized in attendance, leaves, customer_logs</li>
+            <li><strong>Booking ID:</strong> Referenced in invoices</li>
+            <li><strong>Rationale:</strong> Reduce read operations and improve query performance</li>
+        </ol>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="domain-driven-design-ddd">Domain-Driven Design (DDD)</h2>
+        
+        <h3>Bounded Contexts</h3>
+        
+        <p>The Sky Visa CRM is organized into the following bounded contexts:</p>
+        
+        <h4>1. User Management Context</h4>
+        <p><strong>Purpose:</strong> Manage user accounts, authentication, and authorization</p>
+        <p><strong>Core Entities:</strong> User, Role, Permission</p>
+        <p><strong>Key Operations:</strong> User registration, Authentication, Role assignment, Permission management</p>
+        <p><strong>Ubiquitous Language:</strong></p>
+        <ul>
+            <li>User: Person with system access</li>
+            <li>Role: Set of permissions (employee, manager, admin, agent)</li>
+            <li>Authentication: Process of verifying identity</li>
+            <li>Authorization: Process of granting access</li>
+        </ul>
+        <p><strong>Domain Events:</strong> UserCreated, UserUpdated, UserDeleted, RoleChanged, PermissionGranted, PermissionRevoked</p>
+        
+        <h4>2. Customer Management Context</h4>
+        <p><strong>Purpose:</strong> Manage customer lifecycle from lead to loyal customer</p>
+        <p><strong>Core Entities:</strong> Lead, Customer (Client), Organization, CustomerLog, FollowUp</p>
+        <p><strong>Key Operations:</strong> Lead creation, Lead conversion, Customer profile management, Activity logging, Follow-up scheduling</p>
+        <p><strong>Ubiquitous Language:</strong></p>
+        <ul>
+            <li>Lead: Potential customer</li>
+            <li>Customer: Active client</li>
+            <li>Conversion: Process of turning lead into customer</li>
+            <li>Activity: Interaction with customer</li>
+            <li>Follow-up: Scheduled contact with customer</li>
+        </ul>
+        <p><strong>Domain Events:</strong> LeadCreated, LeadConverted, CustomerCreated, CustomerUpdated, ActivityLogged, FollowUpScheduled, FollowUpCompleted</p>
+        
+        <h4>3. Booking Management Context</h4>
+        <p><strong>Purpose:</strong> Manage travel bookings across all service types</p>
+        <p><strong>Core Entities:</strong> Booking, FlightBooking, HotelBooking, VisaBooking, Payment, Document</p>
+        <p><strong>Key Operations:</strong> Booking creation, Booking modification, Payment processing, Document upload, Status updates</p>
+        <p><strong>Ubiquitous Language:</strong></p>
+        <ul>
+            <li>Booking: Reservation for travel service</li>
+            <li>Sector: Flight segment (for multi-city flights)</li>
+            <li>Payment: Financial transaction for booking</li>
+            <li>Document: Supporting document for booking</li>
+            <li>Status: Current state of booking</li>
+        </ul>
+        <p><strong>Domain Events:</strong> BookingCreated, BookingUpdated, BookingConfirmed, BookingCancelled, PaymentReceived, PaymentRefunded, DocumentUploaded, StatusChanged</p>
+        
+        <h4>4. Invoice Management Context</h4>
+        <p><strong>Purpose:</strong> Manage invoicing and billing</p>
+        <p><strong>Core Entities:</strong> Invoice, InvoiceItem, Payment</p>
+        <p><strong>Key Operations:</strong> Invoice generation, Invoice delivery, Payment tracking, Overdue management</p>
+        <p><strong>Ubiquitous Language:</strong></p>
+        <ul>
+            <li>Invoice: Bill for services</li>
+            <li>Due Date: Payment deadline</li>
+            <li>Overdue: Past due date</li>
+            <li>Paid: Fully settled</li>
+            <li>Partial: Partially paid</li>
+        </ul>
+        <p><strong>Domain Events:</strong> InvoiceGenerated, InvoiceSent, PaymentReceived, InvoiceOverdue, InvoicePaid</p>
+        
+        <h4>5. HR Management Context</h4>
+        <p><strong>Purpose:</strong> Manage employee operations and HR processes</p>
+        <p><strong>Core Entities:</strong> Employee (User), Attendance, Leave, Holiday, Break</p>
+        <p><strong>Key Operations:</strong> Attendance tracking, Leave request management, Holiday management, Work time calculation</p>
+        <p><strong>Ubiquitous Language:</strong></p>
+        <ul>
+            <li>Attendance: Record of employee presence</li>
+            <li>Punch In: Start of work day</li>
+            <li>Punch Out: End of work day</li>
+            <li>Leave: Requested time off</li>
+            <li>Holiday: Company-observed holiday</li>
+            <li>Break: Temporary pause in work</li>
+        </ul>
+        <p><strong>Domain Events:</strong> AttendanceRecorded, LeaveRequested, LeaveApproved, LeaveRejected, PunchIn, PunchOut, BreakStarted, BreakEnded</p>
+        
+        <h4>6. Process Tracking Context</h4>
+        <p><strong>Purpose:</strong> Track business processes and workflows</p>
+        <p><strong>Core Entities:</strong> Process, ProcessStep, ProcessInstance</p>
+        <p><strong>Key Operations:</strong> Process definition, Process execution, Step completion, Process monitoring</p>
+        <p><strong>Ubiquitous Language:</strong></p>
+        <ul>
+            <li>Process: Business workflow</li>
+            <li>Step: Individual task in process</li>
+            <li>Instance: Execution of a process</li>
+            <li>Status: Current state of process</li>
+        </ul>
+        <p><strong>Domain Events:</strong> ProcessStarted, ProcessCompleted, StepStarted, StepCompleted, ProcessFailed</p>
+        
+        <h3>Aggregates</h3>
+        
+        <h4>User Aggregate</h4>
+        <pre><code>User (Root)
+├── Profile
+├── Settings
+└── Permissions</code></pre>
+        
+        <h4>Customer Aggregate</h4>
+        <pre><code>Customer (Root)
+├── Profile
+├── Preferences
+├── VisaHistory
+├── PreviousTrips
+└── AssignedEmployees (reference to User)</code></pre>
+        
+        <h4>Booking Aggregate</h4>
+        <pre><code>Booking (Root)
+├── BookingDetails
+├── Payments (embedded)
+├── Documents (embedded)
+└── Timeline (embedded)</code></pre>
+        
+        <h4>Attendance Aggregate</h4>
+        <pre><code>Attendance (Root)
+├── AttendanceData
+└── Breaks (embedded)</code></pre>
+        
+        <h3>Value Objects</h3>
+        
+        <h4>Date Range</h4>
+        <pre><code>{
+  from: Date;
+  to: Date;
+}</code></pre>
+        
+        <h4>Money</h4>
+        <pre><code>{
+  amount: number;
+  currency: string;
+}</code></pre>
+        
+        <h4>Contact Info</h4>
+        <pre><code>{
+  phone: string;
+  email: string;
+}</code></pre>
+        
+        <h4>Address</h4>
+        <pre><code>{
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+}</code></pre>
+        
+        <h3>Domain Services</h3>
+        
+        <h4>Booking Calculation Service</h4>
+        <ul>
+            <li>Calculate booking totals</li>
+            <li>Calculate profit margins</li>
+            <li>Calculate payment schedules</li>
+        </ul>
+        
+        <h4>Attendance Calculation Service</h4>
+        <ul>
+            <li>Calculate work hours</li>
+            <li>Calculate overtime</li>
+            <li>Calculate break time</li>
+            <li>Calculate attendance status</li>
+        </ul>
+        
+        <h4>Leave Calculation Service</h4>
+        <ul>
+            <li>Calculate leave balance</li>
+            <li>Calculate leave duration</li>
+            <li>Calculate leave overlap</li>
+        </ul>
+        
+        <h4>Follow-up Scheduling Service</h4>
+        <ul>
+            <li>Schedule follow-ups</li>
+            <li>Calculate due dates</li>
+            <li>Send reminders</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="module-by-module-database-schemas">Module-by-Module Database Schemas</h2>
+        
+        <h3>Module 1: User Management</h3>
+        <p><strong>Collections:</strong> users, roles (read-only), customer_statuses (read-only)</p>
+        
+        <h4>users Collection Schema</h4>
+        <pre><code>{
+  // Identity
+  id: string                          // Primary key
+  name: string                        // Full name
+  email: string                       // Email (unique)
+  phone: string                       // Phone number
+  
+  // Profile
+  avatar: string                      // Profile picture URL
+  jobTitle: string                    // Job title
+  
+  // Role & Permissions
+  role: string                        // Role enum: employee|manager|admin|agent
+  
+  // Employment Details
+  baseSalary: number                  // Monthly base salary
+  workStartTime: string                // Work start time (HH:MM)
+  workEndTime: string                  // Work end time (HH:MM)
+  lateGraceMinutes: number             // Grace period for late arrival
+  monthlyLeaveCap: number              // Monthly leave allowance
+  dailyBreakCapMinutes: number         // Daily break allowance
+  
+  // Audit
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  createdBy: string
+  updatedBy: string
+}</code></pre>
+        
+        <h4>Indexes:</strong> Single: email (for login), Composite: role + createdAt (for user listing)
+        
+        <h4>Security Rules:</strong> Read: All signed-in users, Create: Self-create only, Update: Self-update (except role, salary, work times - admin only), Delete: Admin only
+        
+        <h3>Module 2: Customer Management</h3>
+        <p><strong>Collections:</strong> clients, leads, organizations, customer_logs, follow_ups</p>
+        
+        <h4>clients Collection Schema</h4>
+        <pre><code>{
+  // Identity
+  id: string                          // Primary key
+  name: string                        // Full name
+  email: string                       // Email
+  phone: string                       // Phone number
+  avatar: string                      // Profile picture
+  
+  // Organization
+  organizationId: string              // Reference to organizations
+  
+  // Status
+  status: string                      // active|inactive|lead|prospect
+  preferences: string                 // Customer preferences
+  
+  // Personal Details
+  dateOfBirth: string                 // ISO date
+  gender: string                      // male|female|other
+  nationality: string                 // Country code
+  
+  // Travel Preferences
+  preferredDestination: string
+  travelPurpose: string
+  preferredTravelDates: {
+    from: string                      // ISO date
+    to: string                        // ISO date
+  }
+  tripDestinations: [{
+    destination: string
+    from: string                      // ISO date
+    to: string                        // ISO date
+  }]
+  budget: number
+  hotelPreference: string
+  
+  // Services
+  services: string[]                  // flight|hotel|visa|transfers|activity|localTours
+  additionalServices: string[]        // travelInsurance|airportPickup|localTours
+  
+  // Assignment
+  assignedEmployees: string[]         // Array of user IDs
+  
+  // Visa Information
+  visaStatus: string                  // toStart|inProcess|applied|approved|rejected|completed|travelling
+  visaHistory: [{
+    country: string
+    status: string                    // approved|rejected
+    date: string                      // ISO date
+    rejectionReason: string
+  }]
+  
+  // Travel History
+  previousTrips: [{
+    country: string
+    startDate: string                 // ISO date
+    endDate: string                   // ISO date
+  }]
+  
+  // Documents
+  requiredDocuments: [{
+    name: string
+    status: string                    // pending|uploaded|verified|received
+  }]
+  
+  // Follow-up
+  followUpDate: string                // ISO date
+  
+  // Companions
+  pax: number                        // Number of passengers
+  companions: [{
+    name: string
+    type: string                      // adult|child|infant
+  }]
+  
+  // Audit
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  createdBy: string
+  updatedBy: string
+}</code></pre>
+        
+        <h4>Indexes:</strong> 
+        <ul>
+            <li>clients: assignedEmployees (array-contains) + status + createdAt</li>
+            <li>clients: createdBy + createdAt</li>
+            <li>leads: status + createdAt</li>
+            <li>leads: source + createdAt</li>
+            <li>customer_logs: clientId + createdAt</li>
+            <li>customer_logs: userId + createdAt</li>
+            <li>follow_ups: clientId + date</li>
+            <li>follow_ups: done + date</li>
+        </ul>
+        
+        <h3>Module 3: Booking Management</h3>
+        <p><strong>Collections:</strong> bookings, invoices</p>
+        
+        <h4>bookings Collection Schema</h4>
+        <pre><code>{
+  // Identity
+  id: string                          // Primary key
+  clientId: string                    // Reference to clients
+  clientName: string                  // Denormalized
+  bookingType: string                 // flight|hotel|car|activity|visa|other
+  destination: string
+  
+  // Flight-specific
+  isOneWay: boolean
+  hasLayover: boolean
+  layoverAirport: string
+  isMultiCity: boolean
+  sectors: [{
+    origin: string
+    destination: string
+    departure: string                 // ISO datetime
+    cabinClass: string
+    flightNumber: string
+    airportCode: string
+  }]
+  
+  // Visa-specific
+  visaApplicants: [{
+    name: string
+    passportNumber: string
+    validFrom: string                 // ISO date
+    validUntil: string                // ISO date
+  }]
+  
+  // Hotel-specific
+  hotelGuests: [{
+    name: string
+  }]
+  
+  // Booking Details
+  bookingPortal: string
+  startDate: string                   // ISO date
+  endDate: string                     // ISO date
+  status: string                      // draft|pending|hold|confirmed|cancelled
+  progress: number                    // 0-100
+  
+  // Financials
+  total: number
+  amountPaid: number
+  balanceAmount: number
+  paymentStatus: string               // unpaid|partial|paid|refunded
+  payments: [{
+    id: string
+    amount: number
+    date: string                      // ISO date
+    mode: string                      // cash|card|upi|bank|cheque|other
+    reference: string
+    note: string
+    createdAt: Timestamp
+    createdBy: string
+    createdByName: string
+  }]
+  
+  // Supplier
+  supplierName: string
+  supplierCost: number
+  supplierReference: string
+  profit: number                      // total - supplierCost
+  
+  // Generic Data
+  bookingDetails: object              // Flexible schema
+  
+  // Documents
+  documents: [{
+    name: string
+    url: string
+    uploadedAt: Timestamp
+  }]
+  
+  remarks: string
+  
+  // Archival
+  archived: boolean
+  archivedAt: Timestamp
+  archiveExempt: boolean
+  
+  // Timeline
+  timeline: [{
+    action: string
+    userId: string
+    userName: string
+    createdAt: Timestamp
+  }]
+  
+  // Audit
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  createdBy: string
+  updatedBy: string
+}</code></pre>
+        
+        <h4>Indexes:</strong> 
+        <ul>
+            <li>bookings: clientId + status + startDate</li>
+            <li>bookings: createdBy + createdAt</li>
+            <li>bookings: status + startDate</li>
+            <li>invoices: bookingId</li>
+            <li>invoices: status + dueDate</li>
+        </ul>
+        
+        <h3>Module 4: HR Management</h3>
+        <p><strong>Collections:</strong> attendance, leaves, holidays</p>
+        
+        <h4>attendance Collection Schema</h4>
+        <pre><code>{
+  // Identity
+  id: string                          // Format: {userId}_{YYYY-MM-DD}
+  userId: string                      // Reference to users
+  userName: string                    // Denormalized
+  date: string                        // Format: YYYY-MM-DD
+  
+  // Punch Data
+  punchIn: Timestamp
+  punchOut: Timestamp
+  workStartTime: string               // HH:MM
+  workEndTime: string                 // HH:MM
+  lateGraceMinutes: number
+  punchInLate: boolean
+  punchOutEarly: boolean
+  autoLoggedOut: boolean
+  
+  // Calculated
+  workMinutes: number
+  status: string                      // present|late|half-day|absent|leave|holiday|upcoming
+  notes: string
+  
+  // Break Tracking
+  breaks: [{
+    id: string                        // UUID
+    start: Timestamp
+    end: Timestamp
+    source: string                    // manual|screen-lock|personal
+    durationMinutes: number
+  }]
+  breakMinutes: number
+  activeMinutes: number
+  lastActiveAt: Timestamp
+  
+  // Audit
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}</code></pre>
+        
+        <h4>Indexes:</strong> 
+        <ul>
+            <li>attendance: userId + date</li>
+            <li>leaves: userId + startDate</li>
+            <li>leaves: status + createdAt</li>
+            <li>holidays: date</li>
+        </ul>
+        
+        <h3>Module 5: System & Audit</h3>
+        <p><strong>Collections:</strong> process_tracking, audit_logs, error_logs, login_attempts</p>
+        
+        <h4>audit_logs Collection Schema</h4>
+        <pre><code>{
+  // Identity
+  id: string                          // Primary key
+  action: string                      // Action performed
+  userId: string                      // Reference to users
+  userEmail: string
+  userName: string
+  resourceType: string
+  resourceId: string
+  changes: object
+  ipAddress: string
+  userAgent: string
+  success: boolean
+  errorMessage: string
+  timestamp: Timestamp
+}</code></pre>
+        
+        <h4>Indexes:</strong> 
+        <ul>
+            <li>audit_logs: userId + timestamp</li>
+            <li>audit_logs: action + timestamp</li>
+            <li>audit_logs: resourceType + resourceId + timestamp</li>
+            <li>error_logs: resolved + timestamp</li>
+            <li>error_logs: code + timestamp</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="security-rules-architecture">Security Rules Architecture</h2>
+        
+        <h3>Security Principles</h3>
+        <ol>
+            <li><strong>Least Privilege:</strong> Users only have access to data they need</li>
+            <li><strong>Defense in Depth:</strong> Multiple layers of security</li>
+            <li><strong>Audit Trail:</strong> All access is logged</li>
+            <li><strong>Data Isolation:</strong> Tenant data is isolated (future multi-tenant)</li>
+            <li><strong>Role-Based:</strong> Access based on user roles</li>
+        </ol>
+        
+        <h3>Collection-Specific Security Rules</h3>
+        
+        <h4>Users Collection</h4>
+        <pre><code>match /users/{userId} {
+  // Read: All signed-in users can read user profiles
+  allow read: if request.auth != null;
+  
+  // Create: Users can create their own account
+  allow create: if request.auth.uid == userId;
+  
+  // Update: Users can update their own profile
+  // Admins can update any user
+  allow update: if request.auth.uid == userId || 
+                   request.auth.token.role == 'admin';
+  
+  // Delete: Only admins can delete users
+  allow delete: if request.auth.token.role == 'admin';
+}</code></pre>
+        
+        <h4>Clients Collection</h4>
+        <pre><code>match /clients/{clientId} {
+  // Helper function to check if user is assigned to client
+  function isAssignedUser() {
+    return request.auth.uid in resource.data.assignedEmployees;
+  }
+  
+  // Helper function to check if user created the client
+  function isCreator() {
+    return request.auth.uid == resource.data.createdBy;
+  }
+  
+  // Helper function to check if user is admin or manager
+  function isAdminOrManager() {
+    return request.auth.token.role in ['admin', 'manager'];
+  }
+  
+  // Read: Assigned users, creator, or admin/manager
+  allow read: if isAssignedUser() || 
+               isCreator() || 
+               isAdminOrManager();
+  
+  // Create: Any signed-in user or public form (with validation)
+  allow create: if request.auth != null || 
+                  request.resource.data.source == 'public';
+  
+  // Update: Assigned users, creator, or admin/manager
+  allow update: if isAssignedUser() || 
+                isCreator() || 
+                isAdminOrManager();
+  
+  // Delete: Only admin or manager
+  allow delete: if isAdminOrManager();
+}</code></pre>
+        
+        <h4>Attendance Collection</h4>
+        <pre><code>match /attendance/{attendanceId} {
+  // Extract userId from attendanceId format: {userId}_{YYYY-MM-DD}
+  function getUserIdFromId() {
+    return attendanceId.split('_')[0];
+  }
+  
+  // Helper function to check if user owns the attendance record
+  function isOwner() {
+    return request.auth.uid == getUserIdFromId();
+  }
+  
+  // Get: Admin or owner
+  allow get: if request.auth.token.role == 'admin' || 
+              isOwner();
+  
+  // List: Admin or owner (filtered by userId)
+  allow list: if request.auth.token.role == 'admin' ||
+                request.query.limit <= 50;
+  
+  // Create: Admin or owner (deterministic ID)
+  allow create: if request.auth.token.role == 'admin' ||
+                   request.auth.uid == getUserIdFromId();
+  
+  // Update: Admin or owner (punchIn and date are locked)
+  allow update: if request.auth.token.role == 'admin' ||
+                (isOwner() && 
+                 request.resource.data.punchIn == resource.data.punchIn &&
+                 request.resource.data.date == resource.data.date);
+  
+  // Delete: Only admin
+  allow delete: if request.auth.token.role == 'admin';
+}</code></pre>
+        
+        <h4>Audit Logs Collection</h4>
+        <pre><code>match /audit_logs/{auditLogId} {
+  // Read: Only admins
+  allow read: if request.auth.token.role == 'admin';
+  
+  // Write: Only system (via backend functions)
+  // No client-side writes allowed
+  allow write: if false;
+}</code></pre>
+        
+        <h3>Security Best Practices</h3>
+        <ol>
+            <li><strong>Use Functions:</strong> Reusable functions for common checks</li>
+            <li><strong>Validate Input:</strong> Validate all incoming data</li>
+            <li><strong>Limit Results:</strong> Use query limits to prevent data exfiltration</li>
+            <li><strong>Audit Everything:</strong> Log all security-relevant events</li>
+            <li><strong>Principle of Least Privilege:</strong> Grant minimum necessary access</li>
+            <li><strong>Regular Reviews:</strong> Review and update security rules regularly</li>
+            <li><strong>Testing:</strong> Test security rules thoroughly before deployment</li>
+        </ol>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="index-strategy-and-optimization">Index Strategy and Optimization</h2>
+        
+        <h3>Indexing Principles</h3>
+        <ol>
+            <li><strong>Query-Driven:</strong> Create indexes based on actual query patterns</li>
+            <li><strong>Composite Indexes:</strong> Use composite indexes for multi-field queries</li>
+            <li><strong>Array-Contains:</strong> Special handling for array-contains queries</li>
+            <li><strong>Ordering:</strong> Include sort fields in composite indexes</li>
+            <li><strong>Cost Awareness:</strong> Each index adds storage and write cost</li>
+        </ol>
+        
+        <h3>Required Indexes</h3>
+        
+        <h4>Clients Collection</h4>
+        <p><strong>Index 1: Assigned Employees + Status + CreatedAt</strong></p>
+        <ul>
+            <li>Purpose: Query clients assigned to a user, filtered by status, sorted by creation date</li>
+        </ul>
+        
+        <p><strong>Index 2: CreatedBy + CreatedAt</strong></p>
+        <ul>
+            <li>Purpose: Query clients created by a user, sorted by creation date</li>
+        </ul>
+        
+        <h4>Bookings Collection</h4>
+        <p><strong>Index 1: ClientId + Status + StartDate</strong></p>
+        <ul>
+            <li>Purpose: Query bookings for a client, filtered by status, sorted by start date</li>
+        </ul>
+        
+        <p><strong>Index 2: CreatedBy + CreatedAt</strong></p>
+        <ul>
+            <li>Purpose: Query bookings created by a user, sorted by creation date</li>
+        </ul>
+        
+        <p><strong>Index 3: Status + StartDate</strong></p>
+        <ul>
+            <li>Purpose: Query all bookings by status, sorted by start date</li>
+        </ul>
+        
+        <h4>Invoices Collection</h4>
+        <p><strong>Index 1: BookingId</strong></p>
+        <ul>
+            <li>Purpose: Query invoices for a specific booking</li>
+        </ul>
+        
+        <p><strong>Index 2: Status + DueDate</strong></p>
+        <ul>
+            <li>Purpose: Query invoices by status, sorted by due date</li>
+        </ul>
+        
+        <h4>Follow Ups Collection</h4>
+        <p><strong>Index 1: ClientId + Date</strong></p>
+        <ul>
+            <li>Purpose: Query follow-ups for a client, sorted by date</li>
+        </ul>
+        
+        <p><strong>Index 2: Done + Date</strong></p>
+        <ul>
+            <li>Purpose: Query pending follow-ups, sorted by date</li>
+        </ul>
+        
+        <h3>Index Optimization Strategies</h3>
+        
+        <h4>1. Query Analysis</h4>
+        <p>Monitor query performance using Firebase Performance Monitoring</p>
+        
+        <h4>2. Index Usage Monitoring</h4>
+        <ul>
+            <li>Use Firebase Console to monitor index usage</li>
+            <li>Remove unused indexes to reduce costs</li>
+            <li>Optimize frequently used indexes</li>
+        </ul>
+        
+        <h4>3. Query Optimization</h4>
+        <ul>
+            <li><strong>Selective Field Retrieval:</strong> Retrieve only needed fields</li>
+            <li><strong>Pagination:</strong> Implement pagination for large result sets</li>
+        </ul>
+        
+        <h4>4. Array-Contains Optimization</h4>
+        <ul>
+            <li>Keep assignedEmployees array small (max 100 elements)</li>
+            <li>For larger arrays, consider junction collection</li>
+        </ul>
+        
+        <h3>Index Cost Management</h3>
+        <p><strong>Cost Considerations:</strong></p>
+        <ul>
+            <li>Each index adds storage cost</li>
+            <li>Each index adds write cost</li>
+            <li>Indexes are billed per 1GB storage</li>
+            <li>Monitor index size regularly</li>
+        </ul>
+        
+        <p><strong>Cost Optimization:</strong></p>
+        <ol>
+            <li>Remove unused indexes</li>
+            <li>Use single-field indexes where possible</li>
+            <li>Limit composite index fields</li>
+            <li>Monitor index size in Firebase Console</li>
+        </ol>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="cost-optimization-strategies">Cost Optimization Strategies</h2>
+        
+        <h3>Firestore Cost Structure</h3>
+        
+        <p><strong>Read Operations:</strong> Charged per document read, Real-time listeners charged per read</p>
+        <p><strong>Write Operations:</strong> Charged per document write, Array operations count as 1 write</p>
+        <p><strong>Delete Operations:</strong> Charged per document delete, Bulk delete counts as multiple deletes</p>
+        <p><strong>Storage:</strong> Charged per GB stored, Includes document data and indexes</p>
+        
+        <h3>Optimization Strategies</h3>
+        
+        <h4>1. Read Optimization</h4>
+        <ul>
+            <li><strong>Selective Field Retrieval:</strong> Retrieve only needed fields</li>
+            <li><strong>Pagination:</strong> Limit results and implement pagination</li>
+            <li><strong>Caching:</strong> Implement client-side caching</li>
+            <li><strong>Real-time Listener Optimization:</strong> Don't include metadata changes</li>
+        </ul>
+        
+        <h4>2. Write Optimization</h4>
+        <ul>
+            <li><strong>Batch Writes:</strong> Use batch writes for multiple operations</li>
+            <li><strong>Conditional Updates:</strong> Use update with field masks</li>
+            <li><strong>Array Operations:</strong> Use arrayUnion/arrayRemove for single write</li>
+        </ul>
+        
+        <h4>3. Storage Optimization</h4>
+        <ul>
+            <li><strong>Document Size Reduction:</strong> Remove unnecessary fields, use short field names</li>
+            <li><strong>Index Optimization:</strong> Remove unused indexes, limit composite index fields</li>
+            <li><strong>Data Archival:</strong> Archive old data to reduce active storage</li>
+        </ul>
+        
+        <h4>4. Query Optimization</h4>
+        <ul>
+            <li><strong>Efficient Queries:</strong> Use indexes for queries, limit query results</li>
+            <li><strong>Query Batching:</strong> Batch multiple queries</li>
+        </ul>
+        
+        <h3>Cost Monitoring</h3>
+        <ul>
+            <li>Set up Firebase Budget Alerts</li>
+            <li>Monitor daily/weekly costs</li>
+            <li>Set up cost thresholds</li>
+            <li>Track Firestore usage metrics</li>
+        </ul>
+        
+        <h3>Cost Projection</h3>
+        
+        <p><strong>Estimated Costs (Single-Tenant):</strong></p>
+        <ul>
+            <li><strong>Read Operations:</strong> ~$0.09/month</li>
+            <li><strong>Write Operations:</strong> ~$0.05/month</li>
+            <li><strong>Storage:</strong> ~$0.02/month</li>
+            <li><strong>Total Estimated Cost:</strong> ~$0.16/month (single-tenant)</li>
+        </ul>
+        
+        <p><strong>Multi-Tenant Projection (10,000 tenants):</strong></p>
+        <ul>
+            <li>Scale linearly with tenant count</li>
+            <li>Estimated: $1,600/month</li>
+            <li>Requires cost optimization at scale</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="caching-strategy">Caching Strategy</h2>
+        
+        <h3>Caching Layers</h3>
+        
+        <h4>1. Browser Cache</h4>
+        <ul>
+            <li><strong>HTTP Caching:</strong> Set cache headers for API responses</li>
+            <li><strong>Service Worker:</strong> Implement service worker for offline support</li>
+        </ul>
+        
+        <h4>2. Application Cache</h4>
+        <ul>
+            <li><strong>Memory Cache:</strong> In-memory cache with TTL</li>
+            <li><strong>LocalStorage Cache:</strong> Persistent cache for larger datasets</li>
+        </ul>
+        
+        <h4>3. Firestore Offline Persistence</h4>
+        <ul>
+            <li><strong>Enable Offline Persistence:</strong> IndexedDB persistence for offline functionality</li>
+        </ul>
+        
+        <h4>4. CDN Cache</h4>
+        <ul>
+            <li><strong>Static Asset Caching:</strong> Use CDN for static assets</li>
+        </ul>
+        
+        <h3>Cache Invalidation Strategies</h3>
+        
+        <h4>1. Time-Based Invalidation</h4>
+        <p>Invalidate cache after TTL (e.g., 5 minutes)</p>
+        
+        <h4>2. Event-Based Invalidation</h4>
+        <p>Invalidate cache on data updates</p>
+        
+        <h4>3. Manual Invalidation</h4>
+        <p>Provide manual cache refresh functionality</p>
+        
+        <h3>Cache Key Strategy</h3>
+        <p>Build cache keys from prefix and sorted parameters</p>
+        
+        <h3>Cache Performance Monitoring</h3>
+        <ul>
+            <li>Track cache hits and misses</li>
+            <li>Calculate cache hit rate</li>
+            <li>Monitor cache performance metrics</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="backup-and-archival-plan">Backup and Archival Plan</h2>
+        
+        <h3>Backup Strategy</h3>
+        
+        <h4>1. Automated Daily Backups</h4>
+        <p>Firebase Cloud Function scheduled daily to backup all collections to a separate project</p>
+        
+        <h4>2. Backup Verification</h4>
+        <p>Weekly verification to ensure backups are recent and complete</p>
+        
+        <h4>3. Manual Backup Trigger</h4>
+        <p>Admin-triggered manual backups via Firebase Cloud Function</p>
+        
+        <h3>Archival Strategy</h3>
+        
+        <h4>1. Automated Archival</h4>
+        <p><strong>Archival Criteria:</strong></p>
+        <ul>
+            <li>Bookings: 15 days after payment completion</li>
+            <li>Follow-ups: 30 days after completion</li>
+            <li>Customer logs: 90 days old</li>
+            <li>Audit logs: 180 days old</li>
+        </ul>
+        
+        <h4>2. Archive Exemption</h4>
+        <p>Mark documents as archive exempt to prevent archival</p>
+        
+        <h4>3. Archive Retrieval</h4>
+        <p>Restore from archive when needed</p>
+        
+        <h3>Retention Policy</h3>
+        <ul>
+            <li><strong>Active data:</strong> Indefinite</li>
+            <li><strong>Archived data:</strong> 7 years</li>
+            <li><strong>Audit logs:</strong> 3 years</li>
+            <li><strong>Error logs:</strong> 1 year</li>
+            <li><strong>Backup data:</strong> 30 days</li>
+        </ul>
+        
+        <h3>Disaster Recovery</h3>
+        
+        <h4>1. Recovery Procedures</h4>
+        <p>Restore from backup by selecting backup timestamp</p>
+        
+        <h4>2. Point-in-Time Recovery</h4>
+        <p>Select any backup timestamp for restoration</p>
+        
+        <h4>3. Recovery Testing</h4>
+        <ul>
+            <li>Monthly backup restoration tests</li>
+            <li>Quarterly failover drills</li>
+            <li>Annual disaster recovery simulation</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="multi-tenant-migration-path">Multi-Tenant Migration Path</h2>
+        
+        <h3>Migration Strategy Overview</h3>
+        <p><strong>Current State:</strong> Single-tenant architecture</p>
+        <p><strong>Target State:</strong> Multi-tenant SaaS platform</p>
+        <p><strong>Migration Approach:</strong> Phased migration with zero downtime</p>
+        
+        <h3>Tenant Isolation Models</h3>
+        
+        <h4>Option 1: Database-Per-Tenant (Recommended for Enterprise)</h4>
+        <p><strong>Architecture:</strong> Separate Firestore databases per tenant</p>
+        <p><strong>Pros:</strong> Complete data isolation, Independent scaling, Separate backups, Easier compliance</p>
+        <p><strong>Cons:</strong> Higher infrastructure cost, Complex management, Cross-tenant queries difficult</p>
+        
+        <h4>Option 2: Schema-Based Isolation (Recommended for MVP)</h4>
+        <p><strong>Architecture:</strong> Single database with tenant ID in all documents</p>
+        <p><strong>Pros:</strong> Lower infrastructure cost, Easier management, Simpler implementation, Faster migration</p>
+        <p><strong>Cons:</strong> Shared resources, Potential for data leakage, Complex security rules, Limited isolation</p>
+        
+        <h3>Migration Phases</h3>
+        
+        <h4>Phase 1: Preparation (2-3 months)</h4>
+        <ul>
+            <li>Add tenantId field to all collections</li>
+            <li>Create default tenant for existing data</li>
+            <li>Update security rules for tenant isolation</li>
+            <li>Implement tenant context</li>
+        </ul>
+        
+        <h4>Phase 2: Tenant Management (1-2 months)</h4>
+        <ul>
+            <li>Implement tenant management UI</li>
+            <li>Add tenant onboarding</li>
+            <li>Implement tenant billing</li>
+            <li>Add tenant-specific branding</li>
+        </ul>
+        
+        <h4>Phase 3: Feature Rollout (1-2 months)</h4>
+        <ul>
+            <li>Roll out multi-tenant features</li>
+            <li>Implement tenant isolation</li>
+            <li>Add tenant-specific features</li>
+            <li>Test multi-tenant functionality</li>
+        </ul>
+        
+        <h4>Phase 4: Optimization (1 month)</h4>
+        <ul>
+            <li>Optimize multi-tenant performance</li>
+            <li>Implement tenant-specific caching</li>
+            <li>Add tenant monitoring</li>
+            <li>Optimize costs</li>
+        </ul>
+        
+        <h3>Zero-Downtime Migration</h3>
+        
+        <h4>Strategy:</h4>
+        <ol>
+            <li>Add tenantId field without breaking existing queries</li>
+            <li>Migrate data in background</li>
+            <li>Update application to use tenant-aware queries</li>
+            <li>Enable tenant isolation</li>
+            <li>Remove old query paths</li>
+        </ol>
+        
+        <h3>Tenant Context Implementation</h3>
+        <p>Implement TenantContext provider and withTenant HOC for tenant-aware components</p>
+        
+        <h3>Cost Optimization for Multi-Tenant</h3>
+        <ul>
+            <li><strong>Database-Per-Tenant:</strong> Scale with tenant count</li>
+            <li><strong>Schema-Based:</strong> Shared resources, lower cost</li>
+            <li><strong>Tiered Pricing:</strong> Different plans for different needs</li>
+            <li><strong>Resource Limits:</strong> Enforce limits per tenant</li>
+            <li><strong>Cost Allocation:</strong> Track costs per tenant</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="api-architecture">API Architecture</h2>
+        
+        <h3>Current API State</h3>
+        <p><strong>No REST API:</strong> Currently, all data access is through direct Firestore SDK calls from the client.</p>
+        <p><strong>Issues:</strong> No API layer, No request validation, No rate limiting, No API versioning, No API documentation</p>
+        
+        <h3>Recommended API Architecture</h3>
+        
+        <h4>API Gateway Pattern</h4>
+        <p><code>Client → API Gateway → Service Layer → Repository Layer → Database</code></p>
+        
+        <h4>Components:</h4>
+        <ol>
+            <li><strong>API Gateway:</strong> Request routing, validation, rate limiting</li>
+            <li><strong>Service Layer:</strong> Business logic</li>
+            <li><strong>Repository Layer:</strong> Data access</li>
+            <li><strong>Database:</strong> Firestore</li>
+        </ol>
+        
+        <h3>API Design Principles</h3>
+        <ol>
+            <li><strong>RESTful Design:</strong> Use standard HTTP methods and status codes</li>
+            <li><strong>Resource-Based:</strong> URLs represent resources</li>
+            <li><strong>Stateless:</strong> Each request contains all necessary information</li>
+            <li><strong>Versioned:</strong> API versioning for backward compatibility</li>
+            <li><strong>Secure:</strong> Authentication and authorization at API level</li>
+        </ol>
+        
+        <h3>API Endpoints</h3>
+        
+        <h4>Authentication:</h4>
+        <ul>
+            <li>POST /api/v1/auth/login</li>
+            <li>POST /api/v1/auth/logout</li>
+            <li>POST /api/v1/auth/register</li>
+            <li>POST /api/v1/auth/refresh</li>
+            <li>POST /api/v1/auth/forgot-password</li>
+            <li>POST /api/v1/auth/reset-password</li>
+        </ul>
+        
+        <h4>Users:</h4>
+        <ul>
+            <li>GET /api/v1/users</li>
+            <li>GET /api/v1/users/{userId}</li>
+            <li>POST /api/v1/users</li>
+            <li>PUT /api/v1/users/{userId}</li>
+            <li>DELETE /api/v1/users/{userId}</li>
+        </ul>
+        
+        <h4>Clients:</h4>
+        <ul>
+            <li>GET /api/v1/clients</li>
+            <li>GET /api/v1/clients/{clientId}</li>
+            <li>POST /api/v1/clients</li>
+            <li>PUT /api/v1/clients/{clientId}</li>
+            <li>DELETE /api/v1/clients/{clientId}</li>
+            <li>GET /api/v1/clients/{clientId}/bookings</li>
+            <li>GET /api/v1/clients/{clientId}/logs</li>
+            <li>GET /api/v1/clients/{clientId}/follow-ups</li>
+        </ul>
+        
+        <h4>Bookings:</h4>
+        <ul>
+            <li>GET /api/v1/bookings</li>
+            <li>GET /api/v1/bookings/{bookingId}</li>
+            <li>POST /api/v1/bookings</li>
+            <li>PUT /api/v1/bookings/{bookingId}</li>
+            <li>DELETE /api/v1/bookings/{bookingId}</li>
+            <li>POST /api/v1/bookings/{bookingId}/payments</li>
+            <li>GET /api/v1/bookings/{bookingId}/invoices</li>
+        </ul>
+        
+        <h4>Invoices:</h4>
+        <ul>
+            <li>GET /api/v1/invoices</li>
+            <li>GET /api/v1/invoices/{invoiceId}</li>
+            <li>POST /api/v1/invoices</li>
+            <li>PUT /api/v1/invoices/{invoiceId}</li>
+            <li>DELETE /api/v1/invoices/{invoiceId}</li>
+        </ul>
+        
+        <h4>Leaves:</h4>
+        <ul>
+            <li>GET /api/v1/leaves</li>
+            <li>GET /api/v1/leaves/{leaveId}</li>
+            <li>POST /api/v1/leaves</li>
+            <li>PUT /api/v1/leaves/{leaveId}</li>
+            <li>DELETE /api/v1/leaves/{leaveId}</li>
+            <li>POST /api/v1/leaves/{leaveId}/approve</li>
+            <li>POST /api/v1/leaves/{leaveId}/reject</li>
+        </ul>
+        
+        <h3>API Implementation (Firebase Functions)</h3>
+        
+        <p>Implement callable functions for each endpoint with authentication, authorization, validation, and error handling</p>
+        
+        <h3>API Documentation</h3>
+        
+        <p>OpenAPI/Swagger specification for API documentation</p>
+        
+        <h3>API Versioning</h3>
+        
+        <p><strong>Versioning Strategy:</strong> URL-based versioning (/api/v1/, /api/v2/), Backward compatibility for at least 2 versions, Deprecation notice before removing versions, Migration guides for version changes</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="event-driven-workflow-design">Event-Driven Workflow Design</h2>
+        
+        <h3>Event Architecture</h3>
+        
+        <p><strong>Event Types:</strong></p>
+        <ul>
+            <li><strong>Domain Events:</strong> Business events within the system</li>
+            <li><strong>Integration Events:</strong> Events for external systems</li>
+            <li><strong>System Events:</strong> Technical events (errors, performance)</li>
+        </ul>
+        
+        <h3>Domain Events</h3>
+        
+        <h4>Client Events</h4>
+        <ul>
+            <li>ClientCreated</li>
+            <li>ClientUpdated</li>
+            <li>ClientStatusChanged</li>
+        </ul>
+        
+        <h4>Booking Events</h4>
+        <ul>
+            <li>BookingCreated</li>
+            <li>BookingConfirmed</li>
+            <li>PaymentReceived</li>
+        </ul>
+        
+        <h4>HR Events</h4>
+        <ul>
+            <li>AttendanceRecorded</li>
+            <li>LeaveRequested</li>
+            <li>LeaveApproved</li>
+        </ul>
+        
+        <h3>Event Implementation</h3>
+        
+        <h4>Event Publisher</h4>
+        <p>Publish events to event queue, persist to Firestore, trigger event handlers</p>
+        
+        <h4>Event Handlers</h4>
+        <ul>
+            <li><strong>Client Created Handler:</strong> Send welcome email, create initial follow-up, update analytics</li>
+            <li><strong>Booking Confirmed Handler:</strong> Generate invoice, send confirmation email, update supplier, update analytics</li>
+        </ul>
+        
+        <h3>Event Storage</h3>
+        
+        <p>Events collection with eventType, eventData, publishedAt, processedAt, status, error</p>
+        
+        <h3>Event Processing</h3>
+        
+        <p>Scheduled function to process events every 5 minutes</p>
+        
+        <h3>Event Sourcing (Future)</h3>
+        
+        <p>Event store with aggregateId, aggregateType, eventType, eventData, version, timestamp</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="scalability-architecture">Scalability Architecture</h2>
+        
+        <h3>Current Scalability</h3>
+        
+        <p><strong>Single-Tenant Capacity:</strong></p>
+        <ul>
+            <li>Users: ~100-200</li>
+            <li>Clients: ~1,000-5,000</li>
+            <li>Bookings: ~5,000-10,000</li>
+            <li>Daily Operations: ~1,000-5,000</li>
+        </ul>
+        
+        <p><strong>Limitations:</strong> No horizontal scaling, Shared resources, Limited isolation, Manual scaling</p>
+        
+        <h3>Scalability Strategies</h3>
+        
+        <h4>1. Vertical Scaling</h4>
+        <p>Increase instance size, add more memory, improve CPU performance</p>
+        <p><strong>Limitations:</strong> Upper bound on resources, Cost increases linearly, Single point of failure</p>
+        
+        <h4>2. Horizontal Scaling</h4>
+        <p>Load balancing, Multiple instances, Auto-scaling</p>
+        <p><strong>Implementation:</strong> Use Firebase Functions auto-scaling (no manual scaling required)</p>
+        
+        <h4>3. Database Scaling</h4>
+        <p>Firestore automatic scaling, No manual intervention, Scales with traffic</p>
+        <p><strong>Optimizations:</strong> Efficient queries, Proper indexing, Data sharding (future)</p>
+        
+        <h4>4. Caching Layer</h4>
+        <p>Multi-level caching: Browser cache, CDN cache, Application cache, Database cache</p>
+        
+        <h4>5. Microservices Architecture (Future)</h4>
+        <p>Service boundaries: User Service, Client Service, Booking Service, Invoice Service, HR Service, Notification Service</p>
+        
+        <h3>Performance Optimization</h3>
+        
+        <h4>1. Query Optimization</h4>
+        <p>Use indexes, Limit results, Select only needed fields, Avoid array-contains with large arrays</p>
+        
+        <h4>2. Code Optimization</h4>
+        <p>Code splitting, Lazy loading, Tree shaking, Bundle optimization</p>
+        
+        <h4>3. Network Optimization</h4>
+        <p>CDN usage, Image optimization, Compression, HTTP/2</p>
+        
+        <h3>Load Testing</h3>
+        
+        <p><strong>Test Scenarios:</strong> 100 concurrent users, 1,000 concurrent users, 10,000 concurrent users</p>
+        <p><strong>Tools:</strong> k6, Locust, Apache JMeter</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="monitoring-and-observability">Monitoring and Observability</h2>
+        
+        <h3>Monitoring Strategy</h3>
+        
+        <h4>1. Application Monitoring</h4>
+        <p>Firebase Performance Monitoring for custom traces</p>
+        
+        <h4>2. Error Monitoring</h4>
+        <p>Firebase Crashlytics for error tracking</p>
+        
+        <h4>3. Custom Metrics</h4>
+        <p><strong>Business Metrics:</strong> Daily active users, New clients, Bookings created, Revenue generated</p>
+        <p><strong>Technical Metrics:</strong> API response times, Database query times, Error rates, Cache hit rates</p>
+        
+        <h3>Logging Strategy</h3>
+        
+        <h4>1. Structured Logging</h4>
+        <p>Log entries with level, message, context, timestamp, userId, requestId</p>
+        
+        <h4>2. Log Levels</h4>
+        <p>Info (Normal operations), Warn (Potential issues), Error (Errors requiring attention), Debug (Detailed debugging information)</p>
+        
+        <h4>3. Log Aggregation</h4>
+        <p>Tools: Firebase Crashlytics, Cloud Logging (future), ELK Stack (future)</p>
+        
+        <h3>Alerting Strategy</h3>
+        
+        <h4>1. Alert Types</h4>
+        <p><strong>Critical Alerts:</strong> System down, Database errors, Security breaches, Data loss</p>
+        <p><strong>Warning Alerts:</strong> High error rate, Slow response times, High resource usage</p>
+        <p><strong>Info Alerts:</strong> Deployment notifications, Scheduled maintenance, Performance reports</p>
+        
+        <h4>2. Alert Channels</h4>
+        <p>Email, Slack, SMS, PagerDuty (critical)</p>
+        
+        <h4>3. Alert Thresholds</h4>
+        <p><strong>Error Rate:</strong> Warning: > 1%, Critical: > 5%</p>
+        <p><strong>Response Time:</strong> Warning: > 1s, Critical: > 5s</p>
+        <p><strong>Resource Usage:</strong> Warning: > 70%, Critical: > 90%</p>
+        
+        <h3>Dashboard</h3>
+        
+        <p><strong>Key Metrics:</strong> Active users, System health, Error rates, Response times, Resource usage</p>
+        <p><strong>Tools:</strong> Firebase Console, Grafana (future), Custom dashboard</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="disaster-recovery">Disaster Recovery</h2>
+        
+        <h3>Recovery Objectives</h3>
+        <p><strong>RPO (Recovery Point Objective):</strong> 1 hour</p>
+        <p><strong>RTO (Recovery Time Objective):</strong> 4 hours</p>
+        
+        <h3>Recovery Strategies</h3>
+        
+        <h4>1. Backup Strategy</h4>
+        <p><ul>
+            <li>Daily Backups: Automated daily backups, 30-day retention, Backup verification</li>
+            <li>Point-in-Time Recovery: Select any backup timestamp, Restore to specific point in time, Test recovery regularly</li>
+        </ul></p>
+        
+        <h4>2. Failover Strategy</h4>
+        <p><strong>Primary Region:</strong> us-central1</p>
+        <p><strong>Secondary Region:</strong> us-east1 (future)</p>
+        <p><strong>Failover Process:</strong> Detect failure, Switch to secondary region, Update DNS, Verify services, Monitor performance</p>
+        
+        <h4>3. Data Recovery</h4>
+        <p><strong>Recovery Procedures:</strong> Identify failure scope, Select appropriate backup, Restore data, Verify integrity, Update applications</p>
+        
+        <h3>Testing</h3>
+        <p><strong>Regular Testing:</strong> Monthly backup restoration tests, Quarterly failover drills, Annual disaster recovery simulation</p>
+        <p><strong>Documentation:</strong> Recovery procedures, Contact information, Escalation procedures, Communication plan</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="compliance-and-governance">Compliance and Governance</h2>
+        
+        <h3>Data Protection</h3>
+        
+        <p><strong>GDPR Compliance:</strong></p>
+        <ul>
+            <li>Data minimization</li>
+            <li>Right to access</li>
+            <li>Right to erasure</li>
+            <li>Data portability</li>
+        </ul>
+        
+        <h3>Audit Trail</h3>
+        <p><strong>Audit Logging:</strong> All data access logged, All modifications logged, User actions logged, System events logged</p>
+        
+        <h3>Access Control</h3>
+        <p><strong>RBAC:</strong> Role-based access control, Principle of least privilege, Regular access reviews, Access revocation on exit</p>
+        
+        <h3>Data Retention</h3>
+        <p><strong>Retention Policies:</strong> Active data: Indefinite, Archived data: 7 years, Audit logs: 3 years, Error logs: 1 year</p>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="future-roadmap">Future Roadmap</h2>
+        
+        <h3>Phase 1: Foundation (Current)</h3>
+        <p><strong>Status:</strong> In Progress</p>
+        <p><strong>Timeline:</strong> Q3 2026</p>
+        <p><strong>Deliverables:</strong></p>
+        <ul>
+            <li>Complete single-tenant strengthening</li>
+            <li>Implement security improvements</li>
+            <li>Add monitoring and logging</li>
+            <li>Optimize performance</li>
+        </ul>
+        
+        <h3>Phase 2: Multi-Tenant Foundation</h3>
+        <p><strong>Status:</strong> Planned</p>
+        <p><strong>Timeline:</strong> Q4 2026 - Q1 2027</p>
+        <p><strong>Deliverables:</strong></p>
+        <ul>
+            <li>Implement tenant isolation</li>
+            <li>Add tenant management</li>
+            <li>Implement tenant billing</li>
+            <li>Add tenant-specific features</li>
+        </ul>
+        
+        <h3>Phase 3: Advanced Features</h3>
+        <p><strong>Status:</strong> Planned</p>
+        <p><strong>Timeline:</strong> Q2 2027 - Q3 2027</p>
+        <p><strong>Deliverables:</strong></p>
+        <ul>
+            <li>GDS integration</li>
+            <li>Payment gateway integration</li>
+            <li>Mobile applications</li>
+            <li>AI-powered features</li>
+        </ul>
+        
+        <h3>Phase 4: Enterprise Features</h3>
+        <p><strong>Status:</strong> Planned</p>
+        <p><strong>Timeline:</strong> Q4 2027 - Q1 2028</p>
+        <p><strong>Deliverables:</strong></p>
+        <ul>
+            <li>API marketplace</li>
+            <li>Webhook system</li>
+            <li>Advanced analytics</li>
+            <li>Multi-region deployment</li>
+        </ul>
+        
+        <div class="section-divider"></div>
+        
+        <h2 id="conclusion">Conclusion</h2>
+        
+        <h3>Summary</h3>
+        <p>This Enterprise Architecture Document provides a comprehensive blueprint for the Sky Visa CRM system. The architecture is designed to support the current single-tenant operation while providing a clear path to multi-tenant SaaS transformation.</p>
+        
+        <h3>Key Takeaways</h3>
+        <ol>
+            <li><strong>Solid Foundation:</strong> The current architecture provides a solid foundation for growth</li>
+            <li><strong>Scalability:</strong> The system is designed to scale with business needs</li>
+            <li><strong>Security:</strong> Comprehensive security measures protect data and users</li>
+            <li><strong>Flexibility:</strong> The architecture can adapt to changing requirements</li>
+            <li><strong>Migration Path:</strong> Clear path to multi-tenant transformation</li>
+        </ol>
+        
+        <h3>Next Steps</h3>
+        <ol>
+            <li><strong>Immediate:</strong> Implement security and performance improvements</li>
+            <li><strong>Short-term:</strong> Begin multi-tenant foundation work</li>
+            <li><strong>Medium-term:</strong> Roll out multi-tenant features</li>
+            <li><strong>Long-term:</strong> Implement advanced enterprise features</li>
+        </ol>
+        
+        <h3>Success Criteria</h3>
+        <ul>
+            <li>System reliability > 99.5%</li>
+            <li>Performance targets met</li>
+            <li>Security compliance achieved</li>
+            <li>Multi-tenant migration successful</li>
+            <li>User satisfaction > 90%</li>
+        </ul>
+        
+        <hr>
+        
+        <p style="text-align: center; color: #6b7280; margin-top: 40px;">
+            <strong>Document Version:</strong> 1.0<br>
+            <strong>Last Updated:</strong> July 9, 2026<br>
+            <strong>Next Review:</strong> October 9, 2026<br>
+            <strong>Maintained By:</strong> Architecture Team
+        </p>
+    </div>
+</body>
+</html>

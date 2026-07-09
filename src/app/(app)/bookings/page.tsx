@@ -34,14 +34,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
 import type { Booking, Client } from '@/lib/types';
 import { formatBookingDates } from '@/lib/booking-details';
 import { useState, useEffect, useRef } from 'react';
@@ -51,7 +43,7 @@ import { PrintableBookings } from '@/components/bookings/printable-bookings';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
 import { printContentHtml } from '@/lib/print';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { query, doc, collection, serverTimestamp, where } from 'firebase/firestore';
+import { query, doc, collection, serverTimestamp, where, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -132,17 +124,29 @@ export default function BookingsPage() {
     }, 50);
   };
 
+  // Server-side bounded loading: fetch the newest N bookings, "Load more" raises
+  // the cap. Search/status filters run over the loaded set.
+  const LOAD_STEP = 100;
+  const [loadLimit, setLoadLimit] = useState(LOAD_STEP);
+
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     // Non-admins may only list bookings they created (server-enforced).
+    // Composite index: createdBy(ASC) + createdAt(DESC).
     if (!isAdminOrManager) {
       if (!user) return null;
-      return query(collection(firestore, 'bookings'), where('createdBy', '==', user.uid));
+      return query(
+        collection(firestore, 'bookings'),
+        where('createdBy', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(loadLimit)
+      );
     }
-    return collection(firestore, 'bookings');
-  }, [firestore, isAdminOrManager, user]);
+    return query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'), limit(loadLimit));
+  }, [firestore, isAdminOrManager, user, loadLimit]);
 
   const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
+  const mayHaveMore = (bookings?.length ?? 0) >= loadLimit;
 
   useEffect(() => {
     if (!bookings) return;
@@ -393,7 +397,7 @@ export default function BookingsPage() {
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" aria-label="Open booking actions">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -423,29 +427,18 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
-       <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
-        <div>Showing {displayBookings.length} of {scopedBookings.length}</div>
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious href="#" />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#" isActive>
-                1
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#">2</PaginationLink>
-            </PaginationItem>
-             <PaginationItem>
-              <PaginationLink href="#">3</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext href="#" />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+       <div className="flex flex-col items-center gap-2 mt-4 text-sm text-muted-foreground">
+        <div>Showing {displayBookings.length} of {scopedBookings.length} loaded</div>
+        {mayHaveMore && (
+          <div className="flex flex-col items-center gap-1">
+            <Button variant="outline" onClick={() => setLoadLimit((l) => l + LOAD_STEP)} disabled={isLoading}>
+              {isLoading ? 'Loading…' : `Load more (${bookings?.length ?? 0} loaded)`}
+            </Button>
+            {(searchTerm || statusFilter !== 'All') && (
+              <p className="text-xs">Search &amp; filters apply to loaded bookings — load more to widen the search.</p>
+            )}
+          </div>
+        )}
       </div>
 
       <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>

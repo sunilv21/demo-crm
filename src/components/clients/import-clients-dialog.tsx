@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
 import {
   Dialog,
   DialogContent,
@@ -105,6 +104,8 @@ export function ImportClientsDialog({ open, onOpenChange, organizations = [], de
   const parseFile = async (file: File) => {
     setParsing(true);
     try {
+      // Lazy-load the ~400KB SheetJS lib only when a file is actually imported.
+      const XLSX = await import('xlsx');
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];

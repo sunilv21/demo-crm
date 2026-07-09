@@ -53,7 +53,7 @@ import {
                                                               } from '@/components/ui/pagination';
                                                               import type { Client, CustomerLog, FollowUp, Booking, User as StaffUser, Organization } from '@/lib/types';
                                                               import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser, useAppUser } from '@/firebase';
-                                                              import { collection, doc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+                                                              import { collection, doc, serverTimestamp, query, orderBy, where, limit } from 'firebase/firestore';
                                                               import { Skeleton } from '@/components/ui/skeleton';
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
                                                               import { ClientForm } from '@/components/forms/client-form';
@@ -140,20 +140,37 @@ export default function ClientsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState('createdAt-desc');
     const CLIENTS_PER_PAGE = 50;
+    // Server-side bounded loading: only the newest N clients are fetched, with a
+    // "Load more" button raising the cap. Filters/search run over what's loaded.
+    const LOAD_STEP = 100;
+    const [loadLimit, setLoadLimit] = useState(LOAD_STEP);
 
     const clientsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        // Non-admins may only list their own clients (server-enforced). Constrain
-        // the query by assignedEmployees and sort client-side (avoids a composite index).
+        // Non-admins may only list their own clients (server-enforced). Ordered by
+        // recency + capped; the sort dropdown re-sorts the loaded set client-side.
+        // Composite index: assignedEmployees(CONTAINS) + createdAt(DESC).
         if (!isAdminOrManager) {
             if (!user) return null;
-            return query(collection(firestore, 'clients'), where('assignedEmployees', 'array-contains', user.uid));
+            return query(
+                collection(firestore, 'clients'),
+                where('assignedEmployees', 'array-contains', user.uid),
+                orderBy('createdAt', 'desc'),
+                limit(loadLimit)
+            );
         }
+        // Admins sort server-side (single-field index) and cap the result set.
         const [field, direction] = sortOrder.split('-');
-        return query(collection(firestore, 'clients'), orderBy(field, direction as 'asc' | 'desc'));
-    }, [firestore, sortOrder, isAdminOrManager, user]);
+        return query(
+            collection(firestore, 'clients'),
+            orderBy(field, direction as 'asc' | 'desc'),
+            limit(loadLimit)
+        );
+    }, [firestore, sortOrder, isAdminOrManager, user, loadLimit]);
 
     const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
+    // The server returned a full page → there may be more to load.
+    const mayHaveMore = (clients?.length ?? 0) >= loadLimit;
 
     // Staff list for the "Assigned Employee" dropdown and the Share-with-teammate
     // action. Readable by any signed-in user (see firestore.rules), so employees
@@ -869,7 +886,7 @@ export default function ClientsPage() {
                             <TableCell className="text-right sticky right-0 bg-card z-10">
                                 <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
+                                    <Button variant="ghost" size="icon" aria-label="Open client actions">
                                     <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -902,6 +919,17 @@ export default function ClientsPage() {
                     </div>
                 )}
             </div>
+
+            {mayHaveMore && (
+                <div className="flex flex-col items-center gap-1 mt-4">
+                    <Button variant="outline" onClick={() => setLoadLimit((l) => l + LOAD_STEP)} disabled={isLoading}>
+                        {isLoading ? 'Loading…' : `Load more (${clients?.length ?? 0} loaded)`}
+                    </Button>
+                    {(searchTerm || statusFilter !== 'All' || typeFilter !== 'All' || visaStatusFilter !== 'All' || orgFilter !== 'All' || dateRange) && (
+                        <p className="text-xs text-muted-foreground">Search &amp; filters apply to loaded clients — load more to widen the search.</p>
+                    )}
+                </div>
+            )}
 
             <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
                 <div>Showing {startClientNum} to {endClientNum} of {filteredClients.length} clients</div>

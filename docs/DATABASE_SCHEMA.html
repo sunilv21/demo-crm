@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Visa CRM - Database Schema Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #0ea5e9;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #2563eb;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        h3 {
+            color: #4b5563;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h4 {
+            color: #6b7280;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+        }
+        
+        ul, ol {
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            max-height: 500px;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .collection-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .collection-card h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .field-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .type-string { background: #dbeafe; color: #1e40af; }
+        .type-number { background: #dcfce7; color: #166534; }
+        .type-boolean { background: #fef9c3; color: #854d0e; }
+        .type-timestamp { background: #fce7f3; color: #9d174d; }
+        .type-array { background: #e0e7ff; color: #3730a3; }
+        .type-object { background: #f3e8ff; color: #6b21a8; }
+        .type-enum { background: #ffedd5; color: #9a3412; }
+        
+        .required {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .optional {
+            color: #6b7280;
+        }
+        
+        .toc {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 8px;
+        }
+        
+        .toc a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .toc .toc-level-2 {
+            padding-left: 20px;
+        }
+        
+        .toc .toc-level-3 {
+            padding-left: 40px;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sky Visa CRM - Database Schema Documentation</h1>
+        
+        <div class="info-box">
+            <p><strong>Database:</strong> Firebase Firestore (NoSQL Document Database)</p>
+            <p><strong>Project:</strong> Sky Visa CRM</p>
+            <p><strong>Schema Version:</strong> 1.0</p>
+            <p><strong>Last Updated:</strong> July 9, 2026</p>
+        </div>
+        
+        <h2>Database Overview</h2>
+        
+        <p><strong>Technology:</strong> Firebase Firestore (NoSQL Document Database)</p>
+        <p><strong>Data Model:</strong> Document-based with subcollections</p>
+        <p><strong>Real-time:</strong> Yes (real-time listeners supported)</p>
+        <p><strong>Offline Support:</strong> Yes (with IndexedDB persistence)</p>
+        
+        <div class="info-box">
+            <h4>Database Characteristics:</h4>
+            <ul>
+                <li>Schemaless (flexible document structure)</li>
+                <li>Scalable (automatic scaling)</li>
+                <li>Real-time synchronization</li>
+                <li>Offline-first capabilities</li>
+                <li>Strong consistency within documents</li>
+                <li>Eventual consistency across collections</li>
+            </ul>
+        </div>
+        
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#collection-structure">Collection Structure</a>
+                    <ul class="toc-level-2">
+                        <li><a href="#1-users-collection">1. Users Collection</a></li>
+                        <li><a href="#2-clients-collection">2. Clients Collection</a></li>
+                        <li><a href="#3-bookings-collection">3. Bookings Collection</a></li>
+                        <li><a href="#4-invoices-collection">4. Invoices Collection</a></li>
+                        <li><a href="#5-leads-collection">5. Leads Collection</a></li>
+                        <li><a href="#6-organizations-collection">6. Organizations Collection</a></li>
+                        <li><a href="#7-customer-logs-collection">7. Customer Logs Collection</a></li>
+                        <li><a href="#8-follow-ups-collection">8. Follow Ups Collection</a></li>
+                        <li><a href="#9-attendance-collection">9. Attendance Collection</a></li>
+                        <li><a href="#10-leaves-collection">10. Leaves Collection</a></li>
+                        <li><a href="#11-holidays-collection">11. Holidays Collection</a></li>
+                        <li><a href="#12-process-tracking-collection">12. Process Tracking Collection</a></li>
+                        <li><a href="#13-customer-statuses-collection">13. Customer Statuses Collection</a></li>
+                        <li><a href="#14-roles-collection">14. Roles Collection</a></li>
+                        <li><a href="#15-audit-logs-collection">15. Audit Logs Collection</a></li>
+                        <li><a href="#16-error-logs-collection">16. Error Logs Collection</a></li>
+                        <li><a href="#17-login-attempts-collection">17. Login Attempts Collection</a></li>
+                    </ul>
+                </li>
+                <li><a href="#data-type-reference">Data Type Reference</a></li>
+                <li><a href="#relationships">Relationships</a></li>
+                <li><a href="#index-strategy">Index Strategy</a></li>
+                <li><a href="#security-rules-summary">Security Rules Summary</a></li>
+                <li><a href="#data-validation-rules">Data Validation Rules</a></li>
+                <li><a href="#best-practices">Best Practices</a></li>
+            </ul>
+        </div>
+        
+        <h2 id="collection-structure">Collection Structure</h2>
+        
+        <div class="collection-card">
+            <h3 id="1-users-collection">1. Users Collection</h3>
+            <p><strong>Collection Path:</strong> <code>users/{userId}</code></p>
+            <p><strong>Purpose:</strong> Store user profiles and authentication data</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                    // User ID (string, matches document ID)
+  name: string                  // Full name (string, required, max 200 chars)
+  email: string                 // Email address (string, required, valid email format)
+  phone?: string                // Phone number (string, optional, E.164 format)
+  jobTitle?: string             // Job title (string, optional)
+  avatar?: string               // Avatar URL (string, optional, URL)
+  role: string                  // User role (string, enum: 'employee' | 'manager' | 'admin' | 'agent')
+  baseSalary?: number           // Base salary (number, optional, decimal)
+  workStartTime?: string       // Work start time (string, optional, format: "HH:MM")
+  workEndTime?: string         // Work end time (string, optional, format: "HH:MM")
+  lateGraceMinutes?: number     // Late grace minutes (number, optional, integer)
+  monthlyLeaveCap?: number      // Monthly leave cap (number, optional, integer)
+  dailyBreakCapMinutes?: number // Daily break cap minutes (number, optional, integer)
+  createdAt: Timestamp          // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp          // Last update timestamp (Firestore Timestamp)
+  createdBy: string             // Creator user ID (string, required)
+  updatedBy: string             // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <p>None (queries by ID only)</p>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: All signed-in users</li>
+                <li>Create: Self-create only</li>
+                <li>Update: Self-update (except role, salary, work times - admin only)</li>
+                <li>Delete: Admin only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="2-clients-collection">2. Clients Collection</h3>
+            <p><strong>Collection Path:</strong> <code>clients/{clientId}</code></p>
+            <p><strong>Purpose:</strong> Store client/customer information</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Client ID (string, matches document ID)
+  name: string                            // Full name (string, required, 2-200 chars)
+  organizationId?: string                 // Organization ID (string, optional, references organizations)
+  email?: string                          // Email address (string, optional, valid email format)
+  phone: string                           // Phone number (string, required, E.164 format)
+  avatar: string                          // Avatar URL (string, required, URL or empty string)
+  preferences: string                     // Preferences (string, required)
+  status: string                          // Client status (string, enum: 'active' | 'inactive' | 'lead' | 'prospect')
+  dateOfBirth?: string                    // Date of birth (string, optional, ISO date format)
+  gender?: string                         // Gender (string, optional, enum: 'male' | 'female' | 'other')
+  nationality?: string                    // Nationality (string, optional, country code)
+  preferredDestination?: string           // Preferred destination (string, optional)
+  travelPurpose?: string                  // Travel purpose (string, optional)
+  preferredTravelDates?: {               // Preferred travel dates (object, optional)
+    from?: string                         // Start date (string, optional, ISO date format)
+    to?: string                           // End date (string, optional, ISO date format)
+  }
+  tripDestinations?: [{                   // Trip destinations (array of objects, optional)
+    destination?: string                  // Destination (string, optional)
+    from?: string                         // Start date (string, optional, ISO date format)
+    to?: string                           // End date (string, optional, ISO date format)
+  }]
+  budget?: number                         // Budget (number, optional, decimal)
+  hotelPreference?: string                // Hotel preference (string, optional)
+  services?: string[]                     // Services (array of strings, optional, enum: 'flight' | 'hotel' | 'visa' | 'transfers' | 'activity' | 'localTours')
+  additionalServices?: string[]           // Additional services (array of strings, optional, enum: 'travelInsurance' | 'airportPickup' | 'localTours')
+  assignedEmployees?: string[]            // Assigned employee IDs (array of strings, optional, user IDs)
+  visaStatus?: string                     // Visa status (string, optional, enum: 'toStart' | 'inProcess' | 'applied' | 'approved' | 'rejected' | 'completed' | 'travelling')
+  visaHistory?: [{                        // Visa history (array of objects, optional)
+    country: string                       // Country (string, required)
+    status: string                        // Status (string, enum: 'approved' | 'rejected')
+    date: string                          // Date (string, required, ISO date format)
+    rejectionReason?: string              // Rejection reason (string, optional)
+  }]
+  previousTrips?: [{                      // Previous trips (array of objects, optional)
+    country: string                       // Country (string, required)
+    startDate: string                     // Start date (string, required, ISO date format)
+    endDate: string                       // End date (string, required, ISO date format)
+  }]
+  requiredDocuments?: [{                  // Required documents (array of objects, optional)
+    name: string                          // Document name (string, required)
+    status: string                        // Status (string, enum: 'pending' | 'uploaded' | 'verified' | 'received')
+  }]
+  followUpDate?: string                   // Follow-up date (string, optional, ISO date format)
+  pax?: number                           // Number of passengers (number, optional, integer, default: 1)
+  companions?: [{                         // Companions (array of objects, optional)
+    name: string                          // Name (string, required)
+    type?: string                         // Type (string, optional, enum: 'adult' | 'child' | 'infant')
+  }]
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Subcollections</h4>
+            <p><code>clients/{clientId}/itineraries/{itineraryId}</code> - Itinerary documents for client trips</p>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>assignedEmployees</code> (array-contains) + <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
+                <li>Composite: <code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
+                <li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users (assignedEmployees or createdBy or admin/manager)</li>
+                <li>Create: Signed-in users or public form (with validation)</li>
+                <li>Update: Signed-in users (assignedEmployees or createdBy or admin/manager)</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="3-bookings-collection">3. Bookings Collection</h3>
+            <p><strong>Collection Path:</strong> <code>bookings/{bookingId}</code></p>
+            <p><strong>Purpose:</strong> Store booking information</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Booking ID (string, matches document ID)
+  clientId: string                       // Client ID (string, required, references clients)
+  clientName: string                      // Client name (string, required, denormalized)
+  bookingType: string                    // Booking type (string, enum: 'flight' | 'hotel' | 'car' | 'activity' | 'visa' | 'other')
+  destination?: string                    // Destination (string, optional)
+  
+  // Flight-specific fields
+  isOneWay?: boolean                     // One-way flight (boolean, optional)
+  hasLayover?: boolean                   // Has layover (boolean, optional)
+  layoverAirport?: string                 // Layover airport (string, optional)
+  isMultiCity?: boolean                   // Multi-city flight (boolean, optional)
+  sectors?: [{                            // Flight sectors (array of objects, optional)
+    origin?: string                       // Origin airport (string, optional)
+    destination?: string                  // Destination airport (string, optional)
+    departure?: string                    // Departure date/time (string, optional, ISO format)
+    cabinClass?: string                   // Cabin class (string, optional)
+    flightNumber?: string                 // Flight number (string, optional)
+    airportCode?: string                  // Airport code (string, optional)
+  }]
+  
+  // Visa applicants
+  visaApplicants?: [{                     // Visa applicants (array of objects, optional)
+    name?: string                         // Name (string, optional)
+    passportNumber?: string               // Passport number (string, optional)
+    validFrom?: string                    // Valid from date (string, optional, ISO date format)
+    validUntil?: string                   // Valid until date (string, optional, ISO date format)
+  }]
+  
+  // Hotel guests
+  hotelGuests?: [{                        // Hotel guests (array of objects, optional)
+    name?: string                         // Name (string, optional)
+  }]
+  
+  bookingPortal?: string                  // Booking portal (string, optional)
+  startDate: string                      // Start date (string, required, ISO date format)
+  endDate: string                        // End date (string, required, ISO date format)
+  status: string                         // Booking status (string, enum: 'draft' | 'pending' | 'hold' | 'confirmed' | 'cancelled')
+  progress: number                       // Progress (number, required, 0-100)
+  
+  // Financials
+  total: number                           // Total amount (number, required, decimal)
+  amountPaid?: number                    // Amount paid (number, optional, decimal)
+  balanceAmount?: number                 // Balance amount (number, optional, decimal)
+  paymentStatus?: string                 // Payment status (string, optional, enum: 'unpaid' | 'partial' | 'paid' | 'refunded')
+  payments?: [{                           // Payments (array of objects, optional)
+    id: string                            // Payment ID (string, required)
+    amount: number                        // Amount (number, required, decimal)
+    date: string                          // Payment date (string, required, ISO date format)
+    mode: string                          // Payment mode (string, enum: 'cash' | 'card' | 'upi' | 'bank' | 'cheque' | 'other')
+    reference?: string                    // Reference (string, optional)
+    note?: string                         // Note (string, optional)
+    createdAt?: Timestamp                // Creation timestamp (Firestore Timestamp, optional)
+    createdBy?: string                    // Creator user ID (string, optional)
+    createdByName?: string                // Creator name (string, optional)
+  }]
+  
+  // Supplier information
+  supplierName?: string                   // Supplier name (string, optional)
+  supplierCost?: number                   // Supplier cost (number, optional, decimal)
+  supplierReference?: string              // Supplier reference (string, optional)
+  profit?: number                         // Profit (number, optional, decimal, calculated: total - supplierCost)
+  
+  // Generic data
+  bookingDetails?: Record<string, any>    // Additional booking details (object, optional, flexible schema)
+  
+  // Documents
+  documents?: [{                          // Documents (array of objects, optional)
+    name: string                          // Document name (string, required)
+    url?: string                          // Document URL (string, optional)
+    uploadedAt?: Timestamp                // Upload timestamp (Firestore Timestamp, optional)
+  }]
+  
+  remarks?: string                        // Remarks (string, optional)
+  
+  // Archival
+  archived?: boolean                      // Archived flag (boolean, optional)
+  archivedAt?: Timestamp                  // Archive timestamp (Firestore Timestamp, optional)
+  archiveExempt?: boolean                 // Archive exempt flag (boolean, optional)
+  
+  // Timeline
+  timeline?: [{                           // Timeline events (array of objects, optional)
+    action: string                        // Action (string, required)
+    userId: string                        // User ID (string, required)
+    userName: string                      // User name (string, required)
+    createdAt: Timestamp                  // Timestamp (Firestore Timestamp, required)
+  }]
+  
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>clientId</code> (asc) + <code>status</code> (asc) + <code>startDate</code> (desc)</li>
+                <li>Composite: <code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
+                <li>Composite: <code>status</code> (asc) + <code>startDate</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users (createdBy or client assigned or admin/manager)</li>
+                <li>Create: Signed-in users</li>
+                <li>Update: Signed-in users (createdBy or client assigned or admin/manager)</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="4-invoices-collection">4. Invoices Collection</h3>
+            <p><strong>Collection Path:</strong> <code>invoices/{invoiceId}</code></p>
+            <p><strong>Purpose:</strong> Store invoice information</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Invoice ID (string, matches document ID)
+  bookingId: string                       // Booking ID (string, required, references bookings)
+  clientName: string                      // Client name (string, required, denormalized)
+  amount: number                          // Invoice amount (number, required, decimal)
+  dueDate: string                         // Due date (string, required, ISO date format)
+  status: string                          // Invoice status (string, enum: 'paid' | 'unpaid' | 'overdue')
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>bookingId</code> (asc)</li>
+                <li>Composite: <code>status</code> (asc) + <code>dueDate</code> (asc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Admin/Manager only</li>
+                <li>Write: Admin only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="5-leads-collection">5. Leads Collection</h3>
+            <p><strong>Collection Path:</strong> <code>leads/{leadId}</code></p>
+            <p><strong>Purpose:</strong> Store lead information</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Lead ID (string, matches document ID)
+  name: string                            // Name (string, required, 1-200 chars)
+  email?: string                          // Email address (string, optional, valid email format)
+  phone: string                           // Phone number (string, required, 0-40 chars)
+  avatar: string                          // Avatar URL (string, required)
+  status: string                          // Lead status (string, enum: 'new' | 'contacted' | 'proposal' | 'won' | 'lost')
+  source?: string                         // Lead source (string, optional)
+  
+  // Additional lead details
+  nationality?: string                    // Nationality (string, optional)
+  preferredDestination?: string           // Preferred destination (string, optional)
+  travelPurpose?: string                  // Travel purpose (string, optional)
+  preferredTravelDates?: {               // Preferred travel dates (object, optional)
+    from?: string                         // Start date (string, optional, ISO date format)
+    to?: string                           // End date (string, optional, ISO date format)
+  }
+  budget?: number                         // Budget (number, optional, decimal)
+  pax?: number                           // Number of passengers (number, optional, integer)
+  notes?: string                         // Notes (string, optional)
+  
+  // Conversion tracking
+  convertedToClientId?: string            // Converted client ID (string, optional, references clients)
+  convertedAt?: Timestamp                  // Conversion timestamp (string, optional)
+  
+  // Website lead fields
+  destination?: string                    // Destination (string, optional, from website)
+  message?: string                        // Message (string, optional, from website)
+  rawPayload?: Record<string, any>        // Raw payload (object, optional, from website)
+  localRef?: {                            // Local reference (object, optional)
+    collection: string                     // Collection name (string, required)
+    id: string                            // Document ID (string, required)
+  } | null
+  sourceWebsite?: string                  // Source website (string, optional)
+  phoneDigits?: string                    // Phone digits (string, optional)
+  phoneSuffix10?: string                  // Phone suffix (string, optional)
+  
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
+                <li>Composite: <code>source</code> (asc) + <code>createdAt</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Create: Signed-in users or public form (with validation)</li>
+                <li>Update: Signed-in users</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="6-organizations-collection">6. Organizations Collection</h3>
+            <p><strong>Collection Path:</strong> <code>organizations/{organizationId}</code></p>
+            <p><strong>Purpose:</strong> Store corporate organization information</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Organization ID (string, matches document ID)
+  name: string                            // Organization name (string, required)
+  type: string                            // Organization type (string, enum: 'corporate')
+  contactPerson?: string                  // Contact person (string, optional)
+  email?: string                          // Email address (string, optional, valid email format)
+  phone?: string                          // Phone number (string, optional)
+  gstNumber?: string                      // GST number (string, optional)
+  billingAddress?: string                 // Billing address (string, optional)
+  notes?: string                          // Notes (string, optional)
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <p>None (queries by ID only)</p>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Create: Signed-in users</li>
+                <li>Update: Signed-in users</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="7-customer-logs-collection">7. Customer Logs Collection</h3>
+            <p><strong>Collection Path:</strong> <code>customer_logs/{logId}</code></p>
+            <p><strong>Purpose:</strong> Store customer activity logs</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Log ID (string, matches document ID)
+  clientId: string                        // Client ID (string, required, references clients)
+  clientName?: string                     // Client name (string, optional, denormalized)
+  userName?: string                       // User name (string, optional, denormalized)
+  activity: string                        // Activity description (string, required)
+  userId: string                          // User ID (string, required, references users)
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>clientId</code> (asc) + <code>createdAt</code> (desc)</li>
+                <li>Composite: <code>userId</code> (asc) + <code>createdAt</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Create: Signed-in users</li>
+                <li>Update: Signed-in users</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="8-follow-ups-collection">8. Follow Ups Collection</h3>
+            <p><strong>Collection Path:</strong> <code>follow_ups/{followUpId}</code></p>
+            <p><strong>Purpose:</strong> Store follow-up tasks</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Follow-up ID (string, matches document ID)
+  clientId: string                        // Client ID (string, required, references clients)
+  clientName: string                      // Client name (string, required, denormalized)
+  clientEmail?: string                    // Client email (string, optional, denormalized)
+  clientPhone?: string                    // Client phone (string, optional, denormalized)
+  date: string                            // Follow-up date (string, required, ISO date format)
+  notes: string | null                    // Notes (string or null, required)
+  done: boolean                           // Completion status (boolean, required)
+  priority: string                        // Priority (string, enum: 'low' | 'medium' | 'high')
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+  updatedBy: string                       // Last updater user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>clientId</code> (asc) + <code>date</code> (desc)</li>
+                <li>Composite: <code>done</code> (asc) + <code>date</code> (asc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Create: Signed-in users</li>
+                <li>Update: Signed-in users</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="9-attendance-collection">9. Attendance Collection</h3>
+            <p><strong>Collection Path:</strong> <code>attendance/{attendanceId}</code></p>
+            <p><strong>Purpose:</strong> Store employee attendance records</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Attendance ID (string, format: "{userId}_{YYYY-MM-DD}")
+  userId: string                          // User ID (string, required, references users)
+  userName: string                        // User name (string, required, denormalized)
+  date: string                            // Date (string, required, format: "YYYY-MM-DD")
+  punchIn: Timestamp                      // Punch-in timestamp (Firestore Timestamp, required)
+  punchOut?: Timestamp                    // Punch-out timestamp (Firestore Timestamp, optional)
+  workStartTime: string                    // Work start time (string, required, format: "HH:MM")
+  workEndTime: string                      // Work end time (string, required, format: "HH:MM")
+  lateGraceMinutes: number                 // Late grace minutes (number, required, integer)
+  punchInLate: boolean                    // Punch-in late flag (boolean, required)
+  punchOutEarly: boolean                  // Punch-out early flag (boolean, required)
+  autoLoggedOut: boolean                  // Auto-logged out flag (boolean, required)
+  workMinutes?: number                    // Work minutes (number, optional, integer)
+  status: string                          // Attendance status (string, enum: 'present' | 'late' | 'half-day' | 'absent' | 'leave' | 'holiday' | 'upcoming')
+  notes?: string                          // Notes (string, optional)
+  
+  // Break tracking
+  breaks?: [{                             // Breaks (array of objects, optional)
+    id: string                            // Break ID (string, required, UUID)
+    start: Timestamp                      // Break start timestamp (Firestore Timestamp, required)
+    end?: Timestamp                        // Break end timestamp (Firestore Timestamp, optional)
+    source: string                         // Break source (string, enum: 'manual' | 'screen-lock' | 'personal')
+    durationMinutes?: number               // Duration minutes (number, optional, integer)
+  }]
+  breakMinutes?: number                    // Total break minutes (number, optional, integer)
+  activeMinutes?: number                   // Active work minutes (number, optional, integer)
+  lastActiveAt?: Timestamp                // Last active timestamp (Firestore Timestamp, optional)
+  
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>userId</code> (asc) + <code>date</code> (asc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Get: Admin or owner (by path or userId)</li>
+                <li>List: Admin or owner (where userId == uid)</li>
+                <li>Create: Admin or owner (deterministic ID)</li>
+                <li>Update: Admin or owner (punchIn, date locked)</li>
+                <li>Delete: Admin only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="10-leaves-collection">10. Leaves Collection</h3>
+            <p><strong>Collection Path:</strong> <code>leaves/{leaveId}</code></p>
+            <p><strong>Purpose:</strong> Store employee leave requests</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Leave ID (string, matches document ID)
+  userId: string                          // User ID (string, required, references users)
+  userName: string                        // User name (string, required, denormalized)
+  type: string                            // Leave type (string, enum: 'casual' | 'sick' | 'earned' | 'lop')
+  startDate: string                       // Start date (string, required, ISO date format)
+  endDate: string                         // End date (string, required, ISO date format)
+  days: number                            // Number of days (number, required, integer)
+  reason: string                          // Reason (string, required)
+  status: string                          // Leave status (string, enum: 'pending' | 'approved' | 'rejected')
+  approvedBy?: string                     // Approver user ID (string, optional)
+  approvedAt?: Timestamp                   // Approval timestamp (Firestore Timestamp, optional)
+  rejectedBy?: string                     // Rejecter user ID (string, optional)
+  rejectedAt?: Timestamp                   // Rejection timestamp (Firestore Timestamp, optional)
+  rejectionReason?: string                 // Rejection reason (string, optional)
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>userId</code> (asc) + <code>startDate</code> (desc)</li>
+                <li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Create: Signed-in users (self, pending status)</li>
+                <li>Update: Admin or self (pending status, cannot flip status)</li>
+                <li>Delete: Admin or self (pending status only)</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="11-holidays-collection">11. Holidays Collection</h3>
+            <p><strong>Collection Path:</strong> <code>holidays/{holidayId}</code></p>
+            <p><strong>Purpose:</strong> Store company holidays</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Holiday ID (string, matches document ID)
+  date: string                            // Holiday date (string, required, format: "YYYY-MM-DD")
+  name: string                            // Holiday name (string, required)
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  createdBy: string                       // Creator user ID (string, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>date</code> (asc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Write: Admin only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="12-process-tracking-collection">12. Process Tracking Collection</h3>
+            <p><strong>Collection Path:</strong> <code>process_tracking/{trackingId}</code></p>
+            <p><strong>Purpose:</strong> Store process tracking information</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Tracking ID (string, matches document ID)
+  // Flexible schema based on process type
+  // Fields vary by process being tracked
+  createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
+  updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <p>None (flexible schema)</p>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Create: Signed-in users</li>
+                <li>Update: Signed-in users</li>
+                <li>Delete: Admin/Manager only</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="13-customer-statuses-collection">13. Customer Statuses Collection</h3>
+            <p><strong>Collection Path:</strong> <code>customer_statuses/{statusId}</code></p>
+            <p><strong>Purpose:</strong> Store customer status definitions</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Status ID (string, matches document ID)
+  // Status definition fields
+  // Read-only collection
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <p>None (read-only)</p>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Write: False (read-only)</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="14-roles-collection">14. Roles Collection</h3>
+            <p><strong>Collection Path:</strong> <code>roles/{roleId}</code></p>
+            <p><strong>Purpose:</strong> Store role definitions</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Role ID (string, matches document ID)
+  // Role definition fields
+  // Read-only collection
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <p>None (read-only)</p>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Signed-in users</li>
+                <li>Write: False (read-only)</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="15-audit-logs-collection">15. Audit Logs Collection</h3>
+            <p><strong>Collection Path:</strong> <code>audit_logs/{auditLogId}</code></p>
+            <p><strong>Purpose:</strong> Store security audit logs</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Audit log ID (string, matches document ID)
+  action: string                          // Action performed (string, required)
+  userId: string                          // User ID (string, required)
+  userEmail?: string                      // User email (string, optional)
+  userName?: string                       // User name (string, optional)
+  resourceType?: string                   // Resource type (string, optional)
+  resourceId?: string                     // Resource ID (string, optional)
+  changes?: Record<string, any>           // Changes made (object, optional)
+  ipAddress?: string                      // IP address (string, optional)
+  userAgent?: string                      // User agent (string, optional)
+  success: boolean                        // Success flag (boolean, required)
+  errorMessage?: string                   // Error message (string, optional)
+  timestamp: Timestamp                    // Timestamp (Firestore Timestamp, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>userId</code> (asc) + <code>timestamp</code> (desc)</li>
+                <li>Composite: <code>action</code> (asc) + <code>timestamp</code> (desc)</li>
+                <li>Composite: <code>resourceType</code> (asc) + <code>resourceId</code> (asc) + <code>timestamp</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Admin only</li>
+                <li>Write: System only (via backend functions)</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="16-error-logs-collection">16. Error Logs Collection</h3>
+            <p><strong>Collection Path:</strong> <code>error_logs/{errorLogId}</code></p>
+            <p><strong>Purpose:</strong> Store application error logs</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Error log ID (string, matches document ID)
+  message: string                         // Error message (string, required)
+  code: string                            // Error code (string, required)
+  stack?: string                          // Stack trace (string, optional)
+  userId?: string                         // User ID (string, optional)
+  route?: string                          // Route (string, optional)
+  userAgent?: string                      // User agent (string, optional)
+  details?: Record<string, any>           // Additional details (object, optional)
+  timestamp: Timestamp                    // Timestamp (Firestore Timestamp, required)
+  resolved: boolean                       // Resolved flag (boolean, required)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <ul>
+                <li>Composite: <code>resolved</code> (asc) + <code>timestamp</code> (desc)</li>
+                <li>Composite: <code>code</code> (asc) + <code>timestamp</code> (desc)</li>
+            </ul>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: Admin only</li>
+                <li>Write: System only (via error handler)</li>
+            </ul>
+        </div>
+        
+        <div class="collection-card">
+            <h3 id="17-login-attempts-collection">17. Login Attempts Collection</h3>
+            <p><strong>Collection Path:</strong> <code>login_attempts/{email}</code></p>
+            <p><strong>Purpose:</strong> Track failed login attempts for account lockout</p>
+            
+            <h4>Document Schema</h4>
+            <pre><code>{
+  id: string                              // Email address (string, used as document ID)
+  count: number                           // Failed attempt count (number, required, integer)
+  lastAttempt: Timestamp                  // Last attempt timestamp (Firestore Timestamp, required)
+  lockedUntil?: Timestamp                 // Lockout expiration (Firestore Timestamp, optional)
+}</code></pre>
+            
+            <h4>Indexes Required</h4>
+            <p>None (queries by email only)</p>
+            
+            <h4>Security Rules</h4>
+            <ul>
+                <li>Read: System only</li>
+                <li>Write: System only (via auth functions)</li>
+            </ul>
+        </div>
+        
+        <h2 id="data-type-reference">Data Type Reference</h2>
+        
+        <h3>Firestore Data Types Used</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="field-type type-string">string</span></td>
+                    <td>Text data</td>
+                    <td>"John Doe"</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-number">number</span></td>
+                    <td>Numeric data (double precision)</td>
+                    <td>1234.56</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-boolean">boolean</span></td>
+                    <td>True/false values</td>
+                    <td>true</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-timestamp">Timestamp</span></td>
+                    <td>Date/time data</td>
+                    <td>Timestamp from serverTimestamp()</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-array">array</span></td>
+                    <td>List of values</td>
+                    <td>["flight", "hotel"]</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-object">object</span></td>
+                    <td>Key-value pairs</td>
+                    <td>{ from: "2026-01-01", to: "2026-01-10" }</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-string">null</span></td>
+                    <td>Null value</td>
+                    <td>null</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-string">geopoint</span></td>
+                    <td>Geographic coordinates</td>
+                    <td>GeoPoint(40.7128, -74.0060)</td>
+                </tr>
+                <tr>
+                    <td><span class="field-type type-string">reference</span></td>
+                    <td>Document reference</td>
+                    <td>doc("users/abc123")</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>Custom Type Definitions</h3>
+        
+        <h4>Enums Used</h4>
+        
+        <p><strong>User Roles:</strong></p>
+        <ul>
+            <li><code>employee</code> - Regular employee</li>
+            <li><code>manager</code> - Manager with elevated permissions</li>
+            <li><code>admin</code> - Administrator with full access</li>
+            <li><code>agent</code> - Agent with limited permissions</li>
+        </ul>
+        
+        <p><strong>Client Status:</strong></p>
+        <ul>
+            <li><code>active</code> - Active client</li>
+            <li><code>inactive</code> - Inactive client</li>
+            <li><code>lead</code> - Lead/prospect</li>
+            <li><code>prospect</code> - Potential client</li>
+        </ul>
+        
+        <p><strong>Booking Status:</strong></p>
+        <ul>
+            <li><code>draft</code> - Draft booking</li>
+            <li><code>pending</code> - Pending confirmation</li>
+            <li><code>hold</code> - On hold</li>
+            <li><code>confirmed</code> - Confirmed booking</li>
+            <li><code>cancelled</code> - Cancelled booking</li>
+        </ul>
+        
+        <p><strong>Payment Status:</strong></p>
+        <ul>
+            <li><code>unpaid</code> - Not paid</li>
+            <li><code>partial</code> - Partially paid</li>
+            <li><code>paid</code> - Fully paid</li>
+            <li><code>refunded</code> - Refunded</li>
+        </ul>
+        
+        <p><strong>Lead Status:</strong></p>
+        <ul>
+            <li><code>new</code> - New lead</li>
+            <li><code>contacted</code> - Contacted</li>
+            <li><code>proposal</code> - Proposal sent</li>
+            <li><code>won</code> - Converted to client</li>
+            <li><code>lost</code> - Lost lead</li>
+        </ul>
+        
+        <p><strong>Leave Type:</strong></p>
+        <ul>
+            <li><code>casual</code> - Casual leave</li>
+            <li><code>sick</code> - Sick leave</li>
+            <li><code>earned</code> - Earned leave</li>
+            <li><code>lop</code> - Loss of pay</li>
+        </ul>
+        
+        <p><strong>Attendance Status:</strong></p>
+        <ul>
+            <li><code>present</code> - Present</li>
+            <li><code>late</code> - Late</li>
+            <li><code>half-day</code> - Half day</li>
+            <li><code>absent</code> - Absent</li>
+            <li><code>leave</code> - On leave</li>
+            <li><code>holiday</code> - Holiday</li>
+            <li><code>upcoming</code> - Upcoming</li>
+        </ul>
+        
+        <p><strong>Visa Status:</strong></p>
+        <ul>
+            <li><code>toStart</code> - Not started</li>
+            <li><code>inProcess</code> - In process</li>
+            <li><code>applied</code> - Applied</li>
+            <li><code>approved</code> - Approved</li>
+            <li><code>rejected</code> - Rejected</li>
+            <li><code>completed</code> - Completed</li>
+            <li><code>travelling</code> - Travelling</li>
+        </ul>
+        
+        <h3>Date/Time Formats</h3>
+        
+        <p><strong>ISO 8601 Format:</strong></p>
+        <ul>
+            <li>Dates: <code>YYYY-MM-DD</code> (e.g., "2026-07-09")</li>
+            <li>DateTimes: <code>YYYY-MM-DDTHH:mm:ss.sssZ</code> (e.g., "2026-07-09T10:30:00.000Z")</li>
+        </ul>
+        
+        <p><strong>Time Format:</strong></p>
+        <ul>
+            <li>Times: <code>HH:MM</code> (e.g., "09:30", "18:30")</li>
+        </ul>
+        
+        <h3>Phone Number Format</h3>
+        
+        <p><strong>E.164 Format:</strong></p>
+        <ul>
+            <li>Format: <code>+[country code][number]</code></li>
+            <li>Example: <code>+919876543210</code></li>
+        </ul>
+        
+        <h3>Email Format</h3>
+        
+        <p><strong>Standard Email Format:</strong></p>
+        <ul>
+            <li>Format: <code>local@domain.com</code></li>
+            <li>Example: <code>user@example.com</code></li>
+        </ul>
+        
+        <h2 id="relationships">Relationships</h2>
+        
+        <h3>Document Relationships</h3>
+        
+        <p><strong>One-to-Many:</strong></p>
+        <ul>
+            <li>User → Attendance (userId)</li>
+            <li>User → Leaves (userId)</li>
+            <li>User → Bookings (createdBy)</li>
+            <li>Client → Bookings (clientId)</li>
+            <li>Client → Customer Logs (clientId)</li>
+            <li>Client → Follow Ups (clientId)</li>
+            <li>Organization → Clients (organizationId)</li>
+            <li>Booking → Invoices (bookingId)</li>
+        </ul>
+        
+        <p><strong>Many-to-Many:</strong></p>
+        <ul>
+            <li>Client ↔ User (assignedEmployees array)</li>
+            <li>Booking ↔ Payment (payments array)</li>
+        </ul>
+        
+        <p><strong>Self-Referential:</strong></p>
+        <ul>
+            <li>Lead → Client (convertedToClientId)</li>
+        </ul>
+        
+        <h2 id="index-strategy">Index Strategy</h2>
+        
+        <h3>Composite Indexes</h3>
+        
+        <p><strong>Required for efficient queries:</strong></p>
+        
+        <ol>
+            <li><strong>Clients Collection:</strong>
+                <ul>
+                    <li><code>assignedEmployees</code> (array-contains) + <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
+                    <li><code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
+                </ul>
+            </li>
+            <li><strong>Bookings Collection:</strong>
+                <ul>
+                    <li><code>clientId</code> (asc) + <code>status</code> (asc) + <code>startDate</code> (desc)</li>
+                    <li><code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
+                </ul>
+            </li>
+            <li><strong>Invoices Collection:</strong>
+                <ul>
+                    <li><code>bookingId</code> (asc)</li>
+                    <li><code>status</code> (asc) + <code>dueDate</code> (asc)</li>
+                </ul>
+            </li>
+            <li><strong>Follow Ups Collection:</strong>
+                <ul>
+                    <li><code>clientId</code> (asc) + <code>date</code> (desc)</li>
+                    <li><code>done</code> (asc) + <code>date</code> (asc)</li>
+                </ul>
+            </li>
+            <li><strong>Customer Logs Collection:</strong>
+                <ul>
+                    <li><code>clientId</code> (asc) + <code>createdAt</code> (desc)</li>
+                    <li><code>userId</code> (asc) + <code>createdAt</code> (desc)</li>
+                </ul>
+            </li>
+            <li><strong>Attendance Collection:</strong>
+                <ul>
+                    <li><code>userId</code> (asc) + <code>date</code> (asc)</li>
+                </ul>
+            </li>
+            <li><strong>Leaves Collection:</strong>
+                <ul>
+                    <li><code>userId</code> (asc) + <code>startDate</code> (desc)</li>
+                    <li><code>status</code> (asc) + <code>createdAt</code> (desc)</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h2 id="security-rules-summary">Security Rules Summary</h2>
+        
+        <h3>Access Control Matrix</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Collection</th>
+                    <th>Read</th>
+                    <th>Create</th>
+                    <th>Update</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>users</td>
+                    <td>Signed-in</td>
+                    <td>Self</td>
+                    <td>Self/Admin</td>
+                    <td>Admin</td>
+                </tr>
+                <tr>
+                    <td>clients</td>
+                    <td>Assigned/Created</td>
+                    <td>Signed-in/Public</td>
+                    <td>Assigned/Created/Admin</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>bookings</td>
+                    <td>Created/Assigned</td>
+                    <td>Signed-in</td>
+                    <td>Created/Assigned/Admin</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>invoices</td>
+                    <td>Admin/Manager</td>
+                    <td>Admin</td>
+                    <td>Admin</td>
+                    <td>Admin</td>
+                </tr>
+                <tr>
+                    <td>leads</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in/Public</td>
+                    <td>Signed-in</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>organizations</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>customer_logs</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>follow_ups</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>attendance</td>
+                    <td>Owner/Admin</td>
+                    <td>Owner/Admin</td>
+                    <td>Owner/Admin</td>
+                    <td>Admin</td>
+                </tr>
+                <tr>
+                    <td>leaves</td>
+                    <td>Signed-in</td>
+                    <td>Self (pending)</td>
+                    <td>Self/Admin</td>
+                    <td>Self/Admin</td>
+                </tr>
+                <tr>
+                    <td>holidays</td>
+                    <td>Signed-in</td>
+                    <td>Admin</td>
+                    <td>Admin</td>
+                    <td>Admin</td>
+                </tr>
+                <tr>
+                    <td>process_tracking</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Signed-in</td>
+                    <td>Admin/Manager</td>
+                </tr>
+                <tr>
+                    <td>audit_logs</td>
+                    <td>Admin</td>
+                    <td>System</td>
+                    <td>System</td>
+                    <td>System</td>
+                </tr>
+                <tr>
+                    <td>error_logs</td>
+                    <td>Admin</td>
+                    <td>System</td>
+                    <td>System</td>
+                    <td>System</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2 id="data-validation-rules">Data Validation Rules</h2>
+        
+        <h3>Required Fields</h3>
+        
+        <p><strong>Users:</strong></p>
+        <ul>
+            <li>id, name, email, role, createdAt, createdBy</li>
+        </ul>
+        
+        <p><strong>Clients:</strong></p>
+        <ul>
+            <li>id, name, phone, avatar, preferences, status, createdAt, createdBy</li>
+        </ul>
+        
+        <p><strong>Bookings:</strong></p>
+        <ul>
+            <li>id, clientId, clientName, bookingType, startDate, endDate, status, progress, total, createdAt, createdBy</li>
+        </ul>
+        
+        <p><strong>Invoices:</strong></p>
+        <ul>
+            <li>id, bookingId, clientName, amount, dueDate, status, createdAt, createdBy</li>
+        </ul>
+        
+        <p><strong>Leads:</strong></p>
+        <ul>
+            <li>id, name, phone, avatar, status, createdAt, createdBy</li>
+        </ul>
+        
+        <p><strong>Organizations:</strong></p>
+        <ul>
+            <li>id, name, type, createdAt, createdBy</li>
+        </ul>
+        
+        <p><strong>Attendance:</strong></p>
+        <ul>
+            <li>id, userId, userName, date, punchIn, workStartTime, workEndTime, lateGraceMinutes, punchInLate, punchOutEarly, autoLoggedOut, status, createdAt</li>
+        </ul>
+        
+        <p><strong>Leaves:</strong></p>
+        <ul>
+            <li>id, userId, userName, type, startDate, endDate, days, reason, status, createdAt</li>
+        </ul>
+        
+        <p><strong>Holidays:</strong></p>
+        <ul>
+            <li>id, date, name, createdAt, createdBy</li>
+        </ul>
+        
+        <h3>Field Constraints</h3>
+        
+        <p><strong>String Lengths:</strong></p>
+        <ul>
+            <li>User name: max 200 characters</li>
+            <li>Client name: 2-200 characters</li>
+            <li>Lead name: 1-200 characters</li>
+            <li>Lead phone: 0-40 characters</li>
+        </ul>
+        
+        <p><strong>Number Ranges:</strong></p>
+        <ul>
+            <li>Booking progress: 0-100</li>
+            <li>Attendance work minutes: non-negative integer</li>
+            <li>Leave days: positive integer</li>
+        </ul>
+        
+        <p><strong>Enum Values:</strong></p>
+        <ul>
+            <li>All enum fields must use predefined values only</li>
+        </ul>
+        
+        <h2 id="best-practices">Best Practices</h2>
+        
+        <h3>Document Size Limits</h3>
+        <ul>
+            <li><strong>Maximum document size:</strong> 1 MB</li>
+            <li><strong>Recommended document size:</strong> &lt; 100 KB</li>
+            <li><strong>Large arrays:</strong> Consider subcollections for &gt; 100 items</li>
+        </ul>
+        
+        <h3>Query Optimization</h3>
+        <ul>
+            <li>Use selective field retrieval (projection)</li>
+            <li>Limit query results with pagination</li>
+            <li>Use composite indexes for complex queries</li>
+            <li>Avoid array-contains with large arrays</li>
+        </ul>
+        
+        <h3>Data Consistency</h3>
+        <ul>
+            <li>Use transactions for multi-document operations</li>
+            <li>Implement optimistic concurrency control</li>
+            <li>Use serverTimestamp() for consistent timestamps</li>
+            <li>Denormalize frequently accessed data</li>
+        </ul>
+        
+        <h3>Performance Considerations</h3>
+        <ul>
+            <li>Batch writes for multiple documents</li>
+            <li>Use offline persistence for better UX</li>
+            <li>Implement caching for frequently accessed data</li>
+            <li>Monitor query performance with Firestore metrics</li>
+        </ul>
+        
+        <hr>
+        
+        <p style="text-align: center; color: #6b7280; margin-top: 40px;">
+            <strong>Document Version:</strong> 1.0<br>
+            <strong>Last Updated:</strong> July 9, 2026<br>
+            <strong>Maintained By:</strong> Development Team
+        </p>
+    </div>
+</body>
+</html>
