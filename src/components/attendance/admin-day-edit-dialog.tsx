@@ -91,6 +91,7 @@ export function AdminDayEditDialog({
   const [punchInTime, setPunchInTime] = useState('');
   const [punchOutTime, setPunchOutTime] = useState('');
   const [status, setStatus] = useState<AttendanceStatus>('present');
+  const [breakMins, setBreakMins] = useState('0');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -103,6 +104,7 @@ export function AdminDayEditDialog({
         ? (attendance.status as AttendanceStatus)
         : 'present',
     );
+    setBreakMins(String(attendance?.breakMinutes ?? 0));
   }, [open, attendance, workStartTime]);
 
   const handleSave = async () => {
@@ -126,7 +128,12 @@ export function AdminDayEditDialog({
     const workMinutes = punchOutDate
       ? workMinutesBetween(punchInDate, punchOutDate)
       : 0;
-    const breakMinutes = attendance?.breakMinutes ?? 0;
+    // Admin-managed break total for the day. Clamp to the worked window so a
+    // typo can't push active time negative.
+    const breakMinutes = Math.min(
+      Math.max(0, parseInt(breakMins, 10) || 0),
+      workMinutes || Number.MAX_SAFE_INTEGER,
+    );
     const activeMinutes = Math.max(0, workMinutes - breakMinutes);
 
     try {
@@ -138,6 +145,7 @@ export function AdminDayEditDialog({
           punchInLate,
           punchOutEarly,
           workMinutes,
+          breakMinutes,
           activeMinutes,
           status,
           workStartTime,
@@ -161,7 +169,7 @@ export function AdminDayEditDialog({
           autoLoggedOut: false,
           status,
           breaks: [],
-          breakMinutes: 0,
+          breakMinutes,
           workMinutes,
           activeMinutes,
           createdAt: serverTimestamp(),
@@ -224,28 +232,41 @@ export function AdminDayEditDialog({
               />
             </div>
           </div>
-          <div>
-            <Label htmlFor="adminStatus">Status</Label>
-            <Select
-              value={status}
-              onValueChange={(v) => setStatus(v as AttendanceStatus)}
-            >
-              <SelectTrigger id="adminStatus">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Admin override — replaces whatever the system inferred from the
-              punch times. Use sparingly.
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="adminStatus">Status</Label>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as AttendanceStatus)}
+              >
+                <SelectTrigger id="adminStatus">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="adminBreak">Break (minutes)</Label>
+              <Input
+                id="adminBreak"
+                type="number"
+                min={0}
+                value={breakMins}
+                onChange={(e) => setBreakMins(e.target.value)}
+              />
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Admin override — replaces whatever the system inferred from the punch
+            times. Break minutes are deducted from active hours (used for payroll).
+            Use sparingly.
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>

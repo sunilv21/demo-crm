@@ -226,8 +226,12 @@ service cloud.firestore {
                  || isAttendanceOwner();
       allow list: if isAdmin() || isAttendanceOwner();
 
-      allow create: if isNewAttendanceOwner()
-                    && id == request.auth.uid + '_' + request.resource.data.date;
+      // Admin can create a record for ANY user (e.g. "Mark Present" for an
+      // employee who never logged in). Employees may only create their own
+      // deterministic day record.
+      allow create: if isAdmin()
+                    || (isNewAttendanceOwner()
+                        && id == request.auth.uid + '_' + request.resource.data.date);
       allow update: if isAdmin()
                     || (isAttendanceOwner()
                         && request.resource.data.userId == resource.data.userId

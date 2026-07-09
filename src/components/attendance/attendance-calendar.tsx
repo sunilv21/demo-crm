@@ -265,6 +265,11 @@ export function DayDetailPanel({
               </div>
             </div>
 
+            <div className="flex items-center justify-between rounded border bg-muted/40 px-3 py-2 text-sm">
+              <span className="text-xs text-muted-foreground">Total break deducted (from active)</span>
+              <span className="font-medium">{breakMin}m</span>
+            </div>
+
             {breaks.length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-2">Break log</div>
