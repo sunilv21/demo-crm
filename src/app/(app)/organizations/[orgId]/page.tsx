@@ -27,9 +27,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ArrowLeft, Building2, Mail, Phone, User, Users, PlusCircle, UserPlus, Link2Off, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, User, Users, PlusCircle, UserPlus, Link2Off, MoreHorizontal, Upload, Share2 } from 'lucide-react';
 import type { Organization, Client, Booking, User as StaffUser } from '@/lib/types';
 import { ClientForm } from '@/components/forms/client-form';
+import { ImportClientsDialog } from '@/components/clients/import-clients-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   useCollection,
@@ -42,6 +43,7 @@ import {
 } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
+import { copyToClipboard } from '@/lib/utils';
 
 // A booking counts toward a client's financials unless it was cancelled.
 const isLive = (b: Booking) => b.status !== 'cancelled';
@@ -63,6 +65,7 @@ export default function OrganizationDetailPage() {
   const orgId = params.orgId as string;
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [isLinkOpen, setIsLinkOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const orgRef = useMemoFirebase(
     () => (firestore && orgId ? doc(firestore, 'organizations', orgId) : null),
@@ -119,6 +122,17 @@ export default function OrganizationDetailPage() {
       { merge: true }
     );
     toast({ title: 'Client Linked', description: `"${client.name}" is now part of ${org?.name ?? 'the organization'}.` });
+  };
+
+  const handleShareIntake = async () => {
+    const url = `${window.location.origin}/intake?org=${orgId}${org?.name ? `&orgName=${encodeURIComponent(org.name)}` : ''}`;
+    const copied = await copyToClipboard(url);
+    toast({
+      title: copied ? 'Intake link copied' : 'Copy the intake link',
+      description: copied
+        ? `Anyone who fills this form is added to ${org?.name ?? 'this organization'}.`
+        : url,
+    });
   };
 
   const handleUnlinkClient = (client: Client) => {
@@ -194,11 +208,24 @@ export default function OrganizationDetailPage() {
           <Button variant="outline" onClick={() => setIsLinkOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" />Link Existing Client
           </Button>
+          <Button variant="outline" onClick={handleShareIntake}>
+            <Share2 className="mr-2 h-4 w-4" />Share Intake Form
+          </Button>
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />Import Clients
+          </Button>
           <Button onClick={() => setIsAddClientOpen(true)}>
             <PlusCircle className="mr-2 h-4 w-4" />Add Client
           </Button>
         </div>
       </PageHeader>
+
+      <ImportClientsDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        defaultOrganizationId={orgId}
+        defaultOrganizationName={org?.name}
+      />
 
       {/* Create a brand-new client already linked to this organization */}
       <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>

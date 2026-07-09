@@ -58,7 +58,7 @@ import {
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
                                                               import { ClientForm } from '@/components/forms/client-form';
                                                               import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-                                                              import { visaStatusGlow } from '@/lib/utils';
+                                                              import { visaStatusGlow, copyToClipboard } from '@/lib/utils';
                                                               import Link from 'next/link';
                                                               import { useToast } from '@/hooks/use-toast';
                                                               import {
@@ -81,6 +81,8 @@ import type { DateRange } from 'react-day-picker';
                                                                                 import { BookingForm } from '@/components/forms/booking-form';
 import { LastLogActivity } from '@/components/clients/last-log-activity';
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
+import { ImportClientsDialog } from '@/components/clients/import-clients-dialog';
+import { Upload } from 'lucide-react';
 
 
                                                                                 const ClientRowSkeleton = () => (
@@ -130,6 +132,7 @@ export default function ClientsPage() {
     const [visaStatusFilter, setVisaStatusFilter] = useState('All');
     const [orgFilter, setOrgFilter] = useState('All');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [isImportOpen, setIsImportOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [bookingClient, setBookingClient] = useState<Client | null>(null);
     const [shareClient, setShareClient] = useState<Client | null>(null);
@@ -400,12 +403,14 @@ export default function ClientsPage() {
     };
 
 
-    const handleShare = () => {
+    const handleShare = async () => {
         const intakeUrl = `${window.location.origin}/intake`;
-        navigator.clipboard.writeText(intakeUrl);
+        const copied = await copyToClipboard(intakeUrl);
         toast({
-            title: "Link Copied!",
-            description: "The client intake form link has been copied to your clipboard.",
+            title: copied ? "Link Copied!" : "Copy the intake link",
+            description: copied
+                ? "The client intake form link has been copied to your clipboard."
+                : intakeUrl,
         });
     };
 
@@ -478,6 +483,10 @@ export default function ClientsPage() {
                     <Button variant="outline" onClick={handleShare}>
                         <Share2 className="mr-2 h-4 w-4" />
                         Share Intake Form
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import
                     </Button>
                     <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                         <DialogTrigger asChild>
@@ -739,6 +748,12 @@ export default function ClientsPage() {
                 </DialogContent>
             </Dialog>
             
+            <ImportClientsDialog
+                open={isImportOpen}
+                onOpenChange={setIsImportOpen}
+                organizations={orgOptions}
+            />
+
             <ConfirmDeleteDialog
                 open={!!clientToDelete}
                 onOpenChange={(open) => !open && setClientToDelete(null)}

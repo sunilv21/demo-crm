@@ -8,7 +8,7 @@ import type { Client } from '@/lib/types';
 import { Plane } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export default function IntakePage() {
@@ -16,19 +16,31 @@ export default function IntakePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Organization the link was scoped to (from ?org=<id>&orgName=<name>). The id
+  // is authoritative and saved on the client; the name is display-only. Read
+  // from the URL directly to avoid a useSearchParams() Suspense boundary.
+  const [org, setOrg] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('org');
+    if (id) setOrg({ id, name: params.get('orgName') || '' });
+  }, []);
 
   const handleIntakeSubmit = (newClientData: Partial<Client>) => {
     if (!firestore) return;
-    
+
     setIsSubmitting(true);
     const clientsCollection = collection(firestore, 'clients');
-    
+
     // Set default status for public intake
     const dataToSave = {
       ...newClientData,
-      status: 'lead', 
+      status: 'lead',
       createdBy: 'public_form',
       updatedBy: 'public_form',
+      // Scope to the organization when the link carried one.
+      ...(org?.id ? { organizationId: org.id } : {}),
     };
 
     addDocumentNonBlocking(clientsCollection, dataToSave)
@@ -75,6 +87,11 @@ export default function IntakePage() {
               <div className="flex flex-col items-center text-center mb-8">
                   <Image src="/favicon.ico" alt="Sky Visa Logo" width={100} height={48} className="h-12 w-auto mb-4" />
                   <h1 className="text-4xl font-bold tracking-tight text-white">Travel Inquiry</h1>
+                  {org?.name && (
+                      <span className="mt-3 inline-block rounded-full bg-white/15 px-4 py-1 text-sm font-medium text-white">
+                          {org.name}
+                      </span>
+                  )}
                   <p className="text-lg text-white/80 mt-2">
                       Please provide your details and travel preferences so we can craft your perfect journey.
                   </p>

@@ -5,6 +5,35 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Copy text to the clipboard, resilient to environments where the async
+// Clipboard API is unavailable — the Electron desktop build and any non-secure
+// (non-HTTPS/LAN) context, where `navigator.clipboard` is undefined and calling
+// it throws. Falls back to a hidden textarea + execCommand('copy'). Returns
+// true on success so callers can offer a manual-copy fallback otherwise.
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to legacy path */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 // Colored glow (ring + soft halo) around a client avatar, keyed to visa status.
 // approved → green, rejected → red, travelling → blue, completed → sky,
 // applied → orange, inProcess → purple. Unknown/none → no glow.
