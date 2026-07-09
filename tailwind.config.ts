@@ -10,8 +10,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['"Open Sans"', 'sans-serif'],
-        headline: ['"Open Sans"', 'sans-serif'],
+        body: ['var(--font-open-sans)', '"Open Sans"', 'sans-serif'],
+        headline: ['var(--font-open-sans)', '"Open Sans"', 'sans-serif'],
+        sans: ['var(--font-open-sans)', '"Open Sans"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

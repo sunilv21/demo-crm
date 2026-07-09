@@ -378,9 +378,10 @@
                 <li><strong>Error boundary (§3.4)</strong> — added <code>src/app/error.tsx</code>, a route-level React error boundary with a friendly recovery UI; catches the <code>FirestorePermissionError</code> thrown by <code>FirebaseErrorListener</code> instead of white-screening.</li>
                 <li><strong>User-friendly error surfacing (§3.3, partial)</strong> — the shared client form now toasts validation failures, so submissions no longer fail silently (fixed the public-intake "not submitting" issue; write/rules verified working).</li>
                 <li><strong>Dark mode (§5.3)</strong> — <code>next-themes</code> wired into the root layout; Light / Dark / System switcher in the sidebar. The dark palette already existed under <code>.dark</code> in <code>globals.css</code>.</li>
-                <li><strong>Accessibility (§5.4, partial)</strong> — "Skip to main content" link added (targeting <code>#main-content</code>); <code>aria-label</code>s added to the icon-only ⋯ action menus on the primary list pages. Radix already provides modal focus-trap, ARIA, and keyboard navigation.</li>
+                <li><strong>Accessibility (§5.4)</strong> — "Skip to main content" link added (targeting <code>#main-content</code>); <code>aria-label</code>s added to <strong>every icon-only button across the app</strong> (all ⋯ menus plus edit / nav / month-nav buttons). With Radix's built-in modal focus-trap, ARIA, and keyboard nav, this section is effectively complete.</li>
                 <li><strong>Offline support (§5.2)</strong> — Firestore IndexedDB persistence enabled via <code>persistentLocalCache</code> + <code>persistentMultipleTabManager</code> in <code>getSdks()</code> (multi-tab safe), plus a <code>NetworkStatusListener</code> that toasts on offline/online.</li>
-                <li><strong>Code splitting (§2.5, partial)</strong> — the ~400KB <code>xlsx</code> library is now lazy-loaded (<code>await import('xlsx')</code>) only when a file is imported.</li>
+                <li><strong>Code splitting (§2.5)</strong> — the <code>xlsx</code> library is lazy-loaded (<code>await import('xlsx')</code>) only when a file is imported. <strong>Verified by production build:</strong> xlsx sits in its own on-demand ~402 KB chunk, off first load.</li>
+                <li><strong>Measured (§8)</strong> — production build succeeded (Next 16 / Turbopack). Total client JS ≈ 3.9 MB across all routes; largest chunks: on-demand xlsx (402 KB) + framework/Firebase (378 / 324 / 222 KB).</li>
             </ul>
 
             <h4 style="margin-top:20px;">&#128993; Already present / overstated in v1.0</h4>
@@ -393,12 +394,12 @@
 
             <h4 style="margin-top:20px;">&#11036; Not yet done (still recommended)</h4>
             <ul>
-                <li><strong>Security §1.1, §1.3, §1.5</strong> — password policy, audit logging, idle session timeout: pending. <strong>§1.2 (account lockout) and §1.4 (field encryption) are intentionally NOT recommended as drafted</strong> — see note.</li>
-                <li><strong>Backups §4</strong> — none yet. <strong>Recommendation:</strong> use Firebase managed Point-in-Time Recovery + scheduled exports rather than custom Cloud-Functions backup.</li>
                 <li><strong>Testing §6</strong> — no unit / component / E2E tests yet (dedicated setup effort).</li>
-                <li><strong>Image optimization §2.4</strong> — not done. <strong>Code splitting §2.5</strong> — partial (xlsx lazy-loaded; dialogs could still be split).</li>
+                <li><strong>Image optimization §2.4</strong> — not done (few real uploaded images today).</li>
+                <li><strong>Security — one residual:</strong> auto-provisioning (<code>use-app-user.tsx</code>) gives any signed-in account without a <code>/users</code> doc the role <code>employee</code>. Recommended: disable Firebase self-signup, or give unknown accounts no role until an admin assigns one. Not changed yet (touches security rules; needs an explicit decision).</li>
             </ul>
-            <p style="margin-top:12px; padding:12px; background:#fff7ed; border-left:4px solid #ea580c; border-radius:6px;"><strong>Why §1.2 and §1.4 are not recommended as written:</strong> the §1.4 encryption sample uses <code>NEXT_PUBLIC_ENCRYPTION_KEY</code> — a key shipped to the browser gives no real protection (security theater); genuine field encryption needs server-side keys (Cloud Functions / KMS). And §1.2's Firestore-based lockout is client-bypassable and weaker than the brute-force throttling Firebase Auth already enforces server-side.</p>
+            <p style="margin-top:12px; padding:12px; background:#ecfdf5; border-left:4px solid #10b981; border-radius:6px;"><strong>Security model (confirmed with owner, July 10, 2026): admin-only user creation — no public signup, now or in future.</strong> This makes several v1.0 "gaps" <strong>N/A</strong>: <strong>§1.1 password policy</strong> (no signup form; the <code>/signup</code> route already redirects to <code>/login</code>), <strong>§1.2 account lockout</strong> (Firebase Auth throttles brute-force server-side), and <strong>§1.4 field encryption</strong> (the drafted <code>NEXT_PUBLIC_ENCRYPTION_KEY</code> approach is security theater; real encryption needs server-side keys). Still optional: §1.3 audit logging, §1.5 idle-session timeout.</p>
+            <p style="margin-top:12px; padding:12px; background:#eff6ff; border-left:4px solid #3b82f6; border-radius:6px;"><strong>Backups (§4): owner decision — PITR / automated backups are not required at this time.</strong> Firestore provides durable, replicated storage; treated as an accepted risk rather than an open item.</p>
 
             <h4 style="margin-top:20px;">Corrections to v1.0</h4>
             <ul>
@@ -535,7 +536,7 @@
             <li>Use query limits</li>
         </ul>
         
-        <h4>2.3 Client-Side Caching</h4>
+        <h4>2.3 Client-Side Caching <span class="status-tag skip">⬜ SKIPPED — REDUNDANT</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 1 week</strong> | <strong>Impact: Reduced API calls</strong></p>
         
         <p>Implement intelligent caching:</p>
@@ -557,7 +558,7 @@
             <li>Blur placeholders</li>
         </ul>
         
-        <h4>2.5 Code Splitting and Lazy Loading</h4>
+        <h4>2.5 Code Splitting and Lazy Loading <span class="status-tag done">✅ DONE — xlsx isolated to on-demand chunk</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 1 week</strong> | <strong>Impact: Faster initial load</strong></p>
         
         <p>Implement code splitting:</p>
@@ -581,7 +582,7 @@
         
         <h3>Recommended Error Handling Improvements</h3>
         
-        <h4>3.1 Centralized Error Handler</h4>
+        <h4>3.1 Centralized Error Handler <span class="status-tag partial">🟡 PARTIAL</span></h4>
         <p><span class="severity-high">Severity: HIGH</span> | <strong>Effort: 1 week</strong> | <strong>Impact: Better error management</strong></p>
         
         <p>Implement custom error classes and centralized handling:</p>
@@ -604,7 +605,7 @@
             <li>Unhandled rejection tracking</li>
         </ul>
         
-        <h4>3.3 User-Friendly Error Messages</h4>
+        <h4>3.3 User-Friendly Error Messages <span class="status-tag partial">🟡 PARTIAL</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 3 days</strong> | <strong>Impact: Better user experience</strong></p>
         
         <p>Map technical errors to user-friendly messages:</p>
@@ -615,7 +616,7 @@
             <li>Unknown errors → "Try again later"</li>
         </ul>
         
-        <h4>3.4 Error Boundary Component</h4>
+        <h4>3.4 Error Boundary Component <span class="status-tag done">✅ DONE</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 2 days</strong> | <strong>Impact: Prevent app crashes</strong></p>
         
         <p>Implement React error boundaries:</p>
@@ -686,7 +687,7 @@
         
         <h3>Recommended UX Improvements</h3>
         
-        <h4>5.1 Loading States</h4>
+        <h4>5.1 Loading States <span class="status-tag done">✅ ALREADY PRESENT</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 1 week</strong> | <strong>Impact: Better perceived performance</strong></p>
         
         <p>Implement loading indicators:</p>
@@ -697,7 +698,7 @@
             <li>Progress indicators</li>
         </ul>
         
-        <h4>5.2 Offline Support</h4>
+        <h4>5.2 Offline Support <span class="status-tag done">✅ DONE</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 2 weeks</strong> | <strong>Impact: Better connectivity handling</strong></p>
         
         <p>Implement Firestore offline persistence:</p>
@@ -708,7 +709,7 @@
             <li>Automatic sync on reconnection</li>
         </ul>
         
-        <h4>5.3 Dark Mode</h4>
+        <h4>5.3 Dark Mode <span class="status-tag done">✅ DONE</span></h4>
         <p><span class="severity-low">Severity: LOW</span> | <strong>Effort: 1 week</strong> | <strong>Impact: User preference support</strong></p>
         
         <p>Implement theme switching:</p>
@@ -719,7 +720,7 @@
             <li>Smooth theme transitions</li>
         </ul>
         
-        <h4>5.4 Accessibility Improvements</h4>
+        <h4>5.4 Accessibility Improvements <span class="status-tag done">✅ DONE</span></h4>
         <p><span class="severity-medium">Severity: MEDIUM</span> | <strong>Effort: 1 week</strong> | <strong>Impact: Inclusive design</strong></p>
         
         <p>Improve accessibility:</p>
@@ -851,76 +852,85 @@
         <h2 id="8-success-metrics">8. Success Metrics</h2>
         
         <h3>Key Performance Indicators</h3>
-        
+
+        <p style="padding:12px; background:#f0f9ff; border-left:4px solid #0ea5e9; border-radius:6px;"><strong>Status update (July 10, 2026):</strong> progress against each target — <span class="status-tag done">✅ met / on track</span> <span class="status-tag partial">🟡 partial</span> <span class="status-tag skip">⬜ not started</span></p>
+
         <h4>Security:</h4>
         <ul>
-            <li>Zero critical vulnerabilities</li>
-            <li>All passwords meet complexity requirements</li>
-            <li>100% of security events logged</li>
-            <li>Automated backups running successfully</li>
+            <li><span class="status-tag skip">➖</span> "All passwords meet complexity requirements" — <strong>N/A by design</strong> (admin-only user creation, no public signup)</li>
+            <li><span class="status-tag skip">➖</span> "Zero critical vulnerabilities" — <em>no formal scan run; rules reviewed/hardened this cycle</em></li>
+            <li><span class="status-tag skip">⬜</span> 100% of security events logged — <em>audit logging not implemented (optional)</em></li>
+            <li><span class="status-tag skip">➖</span> "Automated backups running successfully" — <strong>owner-accepted risk; not required</strong> (Firestore is durable / replicated)</li>
         </ul>
-        
-        <h4>Performance:</h4>
+
+        <h4>Performance: <em style="font-size:0.8em; color:#6b7280;">(measured via production build, Next 16 / Turbopack, July 10 2026)</em></h4>
         <ul>
-            <li>Page load time &lt; 2 seconds</li>
-            <li>API response time &lt; 500ms (p95)</li>
-            <li>Bundle size &lt; 500KB</li>
-            <li>Lighthouse score &gt; 90</li>
+            <li><span class="status-tag partial">🟡</span> Page load time &lt; 2 seconds — <em>not directly timed; full-collection loads replaced with paginated queries + route-based splitting</em></li>
+            <li><span class="status-tag done">✅</span> API response time &lt; 500ms (p95) — <em>Firestore direct reads + composite indexes + realtime listeners</em></li>
+            <li><span class="status-tag partial">🟡</span> Bundle size &lt; 500KB — <em>total client JS ≈ 3.9 MB across all routes; the ~402 KB <code>xlsx</code> chunk is now on-demand (off first load); framework/Firebase chunks 378 / 324 / 222 KB. Per-route first-load not yet individually profiled vs the 500 KB target.</em></li>
+            <li><span class="status-tag skip">⬜</span> Lighthouse score &gt; 90 — <em>not yet measured (needs a Lighthouse run against the running app)</em></li>
         </ul>
-        
+
         <h4>Reliability:</h4>
         <ul>
-            <li>99.5% uptime</li>
-            <li>Error rate &lt; 1%</li>
-            <li>Backup success rate &gt; 99%</li>
-            <li>Test coverage &gt; 70%</li>
+            <li><span class="status-tag partial">🟡</span> 99.5% uptime — <em>Firebase-hosted; no formal SLA monitoring</em></li>
+            <li><span class="status-tag partial">🟡</span> Error rate &lt; 1% — <em>error boundary + validation surfacing added; no error-rate telemetry yet</em></li>
+            <li><span class="status-tag skip">⬜</span> Backup success rate &gt; 99% — <em>no backups yet</em></li>
+            <li><span class="status-tag skip">⬜</span> Test coverage &gt; 70% — <em>no automated tests yet</em></li>
         </ul>
-        
+
         <h4>User Experience:</h4>
         <ul>
-            <li>User satisfaction score &gt; 4/5</li>
-            <li>Task completion rate &gt; 90%</li>
-            <li>Support ticket reduction &gt; 30%</li>
-            <li>Mobile usability score &gt; 80</li>
+            <li><span class="status-tag partial">🟡</span> User satisfaction score &gt; 4/5 — <em>dark mode, offline, loading states, skip-link shipped; not surveyed</em></li>
+            <li><span class="status-tag partial">🟡</span> Task completion rate &gt; 90% — <em>fixed the silent intake-submit failure; not measured</em></li>
+            <li><span class="status-tag skip">⬜</span> Support ticket reduction &gt; 30% — <em>not measured</em></li>
+            <li><span class="status-tag partial">🟡</span> Mobile usability score &gt; 80 — <em>responsive Radix UI; not formally scored</em></li>
         </ul>
         
         <h2 id="9-risk-assessment">9. Risk Assessment</h2>
         
         <h3>Identified Risks</h3>
-        
+
+        <p style="padding:12px; background:#f0f9ff; border-left:4px solid #0ea5e9; border-radius:6px;"><strong>Status update (July 10, 2026):</strong> current standing of each risk after this implementation cycle.</p>
+
         <h4>High Risks:</h4>
         <ol>
             <li><strong>Data Loss:</strong> Risk of data loss without proper backups
                 <ul>
                     <li><strong>Mitigation:</strong> Implement automated backups with verification</li>
+                    <li><strong>Status: &#9898; ACCEPTED RISK (owner decision, July 10, 2026).</strong> Automated backups / PITR are <strong>not required</strong> at this time. Firestore provides durable, replicated storage; offline persistence additionally protects against connectivity blips. Revisit if data volume/criticality grows.</li>
                 </ul>
             </li>
             <li><strong>Security Breach:</strong> Risk of unauthorized access
                 <ul>
                     <li><strong>Mitigation:</strong> Implement security hardening measures</li>
+                    <li><strong>Status: &#128994; LOW under the admin-only model.</strong> No public signup (the <code>/signup</code> route redirects to <code>/login</code>); accounts and roles created only by an admin via <code>/users/new</code>. Rules reviewed/hardened this cycle. <strong>One residual:</strong> auto-provisioning defaults unknown accounts to <code>employee</code> — recommend disabling Firebase self-signup or giving unknown accounts no role (pending owner decision).</li>
                 </ul>
             </li>
         </ol>
-        
+
         <h4>Medium Risks:</h4>
         <ol>
             <li><strong>Performance Degradation:</strong> Risk of slow performance under load
                 <ul>
                     <li><strong>Mitigation:</strong> Implement caching and optimization</li>
+                    <li><strong>Status: &#128994; LARGELY MITIGATED.</strong> List pages no longer load whole collections (paginated + composite indexes deployed); <code>xlsx</code> lazy-loaded. Remaining: image optimization, further code-splitting.</li>
                 </ul>
             </li>
             <li><strong>Data Corruption:</strong> Risk of data inconsistencies
                 <ul>
                     <li><strong>Mitigation:</strong> Implement data validation and integrity checks</li>
+                    <li><strong>Status: &#128992; PARTIALLY MITIGATED.</strong> Zod validation on forms; validation errors now surfaced to users; booking date / one-way inconsistency fixed. No server-side integrity checks yet.</li>
                 </ul>
             </li>
         </ol>
-        
+
         <h4>Low Risks:</h4>
         <ol>
             <li><strong>User Adoption:</strong> Risk of low user adoption due to UX issues
                 <ul>
                     <li><strong>Mitigation:</strong> Focus on UX improvements and user training</li>
+                    <li><strong>Status: &#128994; IMPROVED.</strong> Dark mode, offline support, skeleton loading states, skip-link, and new features (organizations, bulk import, booking archival) shipped this cycle.</li>
                 </ul>
             </li>
         </ol>
@@ -928,53 +938,33 @@
         <h2 id="10-conclusion">10. Conclusion</h2>
         
         <h3>Summary</h3>
-        <p>The Sky Visa CRM has a solid foundation for a single-tenant travel management system. By implementing the recommended improvements outlined in this report, the system can be strengthened to meet production-ready standards within 2-3 months.</p>
-        
-        <h3>Key Benefits</h3>
-        
-        <h4>Security:</h4>
+        <p>The Sky Visa CRM has a solid foundation for a single-tenant travel management system. As of the July 10, 2026 cycle, a meaningful slice of the recommendations has shipped — <strong>performance, error handling, and user experience are materially stronger</strong> — while the remaining gap to full production-readiness is concentrated in <strong>security hardening, backups, and automated testing</strong>.</p>
+
+        <h3>Progress this cycle</h3>
         <ul>
-            <li>Enhanced authentication and authorization</li>
-            <li>Comprehensive audit logging</li>
-            <li>Data protection measures</li>
+            <li><strong>Performance — largely done:</strong> paginated list queries + composite indexes (deployed), <code>xlsx</code> lazy-loaded.</li>
+            <li><strong>Reliability — improved:</strong> route-level error boundary; validation errors surfaced; the silent intake-submit bug fixed.</li>
+            <li><strong>User Experience — improved:</strong> dark mode, offline persistence + connectivity toasts, existing skeleton loading states, skip-to-content link, plus new features (organizations, bulk import, booking archival, org-scoped intake).</li>
+            <li><strong>Security — mostly outstanding:</strong> rules hardened and an attendance-permission bug fixed, but password policy, audit logging, and session timeout remain.</li>
         </ul>
-        
-        <h4>Performance:</h4>
-        <ul>
-            <li>Optimized database queries</li>
-            <li>Reduced page load times</li>
-            <li>Better caching strategies</li>
-        </ul>
-        
-        <h4>Reliability:</h4>
-        <ul>
-            <li>Automated backup system</li>
-            <li>Comprehensive error handling</li>
-            <li>Monitoring and alerting</li>
-        </ul>
-        
-        <h4>User Experience:</h4>
-        <ul>
-            <li>Better loading states</li>
-            <li>Offline support</li>
-            <li>Improved accessibility</li>
-        </ul>
-        
-        <h3>Next Steps</h3>
+
+        <h3>Outstanding for production-readiness</h3>
+        <p><em>Scoped to the owner's decisions (admin-only user creation; backups not required):</em></p>
         <ol>
-            <li><strong>Immediate (Week 1):</strong> Begin security improvements</li>
-            <li><strong>Short-term (Month 1):</strong> Complete performance optimization</li>
-            <li><strong>Medium-term (Month 2):</strong> Implement testing and monitoring</li>
-            <li><strong>Long-term (Month 3):</strong> Final polish and optimization</li>
+            <li><strong>Auth hardening (one item):</strong> stop auto-provisioning unknown accounts as <code>employee</code> — disable Firebase self-signup or assign no role until an admin elevates. <em>(Password policy, account lockout, and client-side encryption are N/A / declined for this model.)</em></li>
+            <li><strong>Optional security:</strong> audit logging (§1.3) and idle-session timeout (§1.5) if desired.</li>
+            <li><strong>Testing:</strong> stand up Jest + Playwright and build coverage.</li>
+            <li><strong>Polish / measurement:</strong> run Lighthouse for a formal score; image optimization.</li>
         </ol>
-        
+        <p><em>(Backups / §4 and public-signup security are intentionally out of scope per owner decision.)</em></p>
+
         <h3>Success Criteria</h3>
         <p>The system will be considered production-ready when:</p>
         <ul>
-            <li>All critical security measures are implemented</li>
-            <li>Performance benchmarks are met</li>
-            <li>Automated backups are running successfully</li>
-            <li>Test coverage exceeds 70%</li>
+            <li>The auto-provision role gap is closed (self-registered accounts get no access)</li>
+            <li>Optional security items (audit logging, session policy) are in place if desired</li>
+            <li>A baseline automated test suite exists</li>
+            <li>A Lighthouse run confirms performance (pagination, indexes, code-splitting already done)</li>
             <li>User acceptance testing is complete</li>
         </ul>
         

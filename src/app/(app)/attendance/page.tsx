@@ -125,13 +125,13 @@ function MonthSwitcher({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="icon" onClick={goPrev}>
+      <Button variant="outline" size="icon" onClick={goPrev} aria-label="Previous month">
         <ChevronLeft className="h-4 w-4" />
       </Button>
       <div className="min-w-[140px] text-center text-sm font-medium">
         {monthLabel(year, month)}
       </div>
-      <Button variant="outline" size="icon" onClick={goNext}>
+      <Button variant="outline" size="icon" onClick={goNext} aria-label="Next month">
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>

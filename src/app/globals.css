@@ -15,7 +15,9 @@
     --secondary: 195 53% 90%;
     --secondary-foreground: 222 84% 5%;
     --muted: 240 4.8% 95.9%;
-    --muted-foreground: 215 28% 47%;
+    /* Darkened 47% -> 40% L so small secondary text clears WCAG AA (4.5:1) on
+       the light page background (Lighthouse contrast fix). */
+    --muted-foreground: 215 28% 40%;
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 222 84% 5%;
     --destructive: 0 84.2% 60.2%;

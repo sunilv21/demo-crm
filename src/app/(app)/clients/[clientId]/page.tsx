@@ -233,7 +233,7 @@ export default function ClientProfilePage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Details &amp; Preferences</CardTitle>
                             {!isEditingDetails && (
-                                <Button variant="ghost" size="icon" onClick={() => setIsEditingDetails(true)}>
+                                <Button variant="ghost" size="icon" onClick={() => setIsEditingDetails(true)} aria-label="Edit client details">
                                     <Pencil className="h-4 w-4" />
                                 </Button>
                             )}

@@ -214,7 +214,7 @@ export default function ClientHistoryPage() {
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" aria-label="Open previous trip actions"><MoreHorizontal className="h-4 w-4" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={() => handleUnarchive(booking)}>
@@ -361,7 +361,7 @@ export default function ClientHistoryPage() {
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
+                                            <Button variant="ghost" size="icon" aria-label="Open visa record actions">
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                             </DropdownMenuTrigger>

@@ -168,7 +168,7 @@ export default function UsersPage() {
                         : 'default'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => setEditing(u)}>
+                      <Button variant="ghost" size="icon" onClick={() => setEditing(u)} aria-label="Edit user">
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>

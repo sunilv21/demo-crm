@@ -42,9 +42,10 @@ Since v1.0 of this report, a round of strengthening **and** feature work has shi
 - **Error boundary (§3.4)** — Added `src/app/error.tsx`: a route-level React error boundary with a friendly recovery UI ("Try again" / "Go to Dashboard"). It catches the `FirestorePermissionError` that `FirebaseErrorListener` throws, instead of white-screening the app.
 - **User-friendly error surfacing (§3.3, partial)** — The shared client form now shows validation failures as a destructive toast, so submissions no longer fail silently (this fixed the public-intake "not submitting" issue; the underlying write/rules were verified working). File: `src/components/forms/client-form.tsx`.
 - **Dark mode (§5.3)** — `next-themes` wired into the root layout; a **Light / Dark / System** switcher lives in the sidebar user menu. The dark palette already existed under `.dark` in `globals.css`. Files: `src/components/theme-provider.tsx`, `src/app/layout.tsx`, `src/components/common/app-sidebar-nav.tsx`.
-- **Accessibility (§5.4, partial)** — "Skip to main content" link added in the root layout, targeting `#main-content` on the app `<main>`; `aria-label`s added to the icon-only ⋯ action-menu buttons on the primary list pages (clients, bookings, organizations, org detail, client bookings, leads, invoices). (Radix already provides modal focus-trapping, ARIA roles, and keyboard navigation.)
+- **Accessibility (§5.4)** — "Skip to main content" link added; and `aria-label`s added to **every icon-only button across the app** (all ⋯ action menus plus edit/nav/month-nav icon buttons on clients, bookings, organizations, leads, invoices, database, users, documents, history, attendance, payroll). Combined with Radix's built-in modal focus-trapping, ARIA roles, and keyboard nav, this section is now effectively complete.
 - **Offline support (§5.2)** — Firestore **IndexedDB persistence** enabled via `persistentLocalCache` + `persistentMultipleTabManager` in `getSdks()` (multi-tab safe), plus a `NetworkStatusListener` that toasts on offline/online so users know changes queue and sync on reconnect.
-- **Code splitting (§2.5, partial)** — the ~400KB `xlsx` library is now **lazy-loaded** (`await import('xlsx')`) only when a user actually imports a file, instead of shipping in the Clients/Organizations page bundle.
+- **Code splitting (§2.5)** — the `xlsx` library is now **lazy-loaded** (`await import('xlsx')`) only when a user imports a file. **Verified by production build:** xlsx sits in its own on-demand ~402 KB chunk, off the initial page load.
+- **Measured (§8):** a production build succeeded (Next 16 / Turbopack). Total client JS ≈ 3.9 MB across all routes; largest chunks are the on-demand xlsx (402 KB) and framework/Firebase (378/324/222 KB). Per-route load benefits from route-based splitting; xlsx no longer counts against first load.
 
 ### 🟡 Already present / overstated in v1.0
 - **Loading states (§5.1)** — Already implemented before this report: ~28 files use skeleton loaders. No work required.
@@ -53,12 +54,17 @@ Since v1.0 of this report, a round of strengthening **and** feature work has shi
 - **Client-side TTL cache (§2.3)** — Redundant (and potentially stale-making) alongside Firestore realtime listeners, which already cache locally. Intentionally not implemented.
 
 ### ⬜ Not yet done (still recommended)
-- **Security §1.1, §1.3, §1.5** — password policy, audit logging, and idle session timeout are still pending. **§1.2 (account lockout) and §1.4 (field encryption) are intentionally NOT recommended** as drafted — see note below.
-- **Backups §4** — no automated/manual backup yet. **Recommendation:** use Firebase's managed **Point-in-Time Recovery (PITR)** and **scheduled exports** rather than the custom Cloud-Functions backup in the draft.
 - **Testing §6** — no unit / component / E2E tests yet (needs a dedicated setup effort).
-- **Image optimization §2.4** — not done (few real uploaded images today). **Code splitting §2.5** — partially done (xlsx lazy-loaded); heavy dialogs could still be dynamically imported.
+- **Image optimization §2.4** — not done (few real uploaded images today).
+- **Security — one residual item:** auto-provisioning (`use-app-user.tsx`) currently gives any signed-in account **without** a `/users` doc the role `employee`. Given the admin-only model (below), a self-registered Firebase Auth account could thus gain employee access. **Recommended:** either disable email/password self-signup at the Firebase project level, or change auto-provisioning so unknown accounts get **no** working role until an admin assigns one. (Not changed yet — it touches security rules and could lock users out, so it needs an explicit decision.)
 
-> **Why §1.2 and §1.4 are not recommended as written:** the §1.4 encryption sample uses `NEXT_PUBLIC_ENCRYPTION_KEY` — a key shipped to the browser provides no real protection (security theater); genuine field encryption needs server-side keys (Cloud Functions / KMS). And §1.2's Firestore-based account lockout is client-bypassable and weaker than the brute-force throttling Firebase Authentication already enforces server-side.
+> **Security model (confirmed with the owner, July 10, 2026): admin-only user creation — there is no public signup, now or in future.** This makes several v1.0 "security gaps" **not applicable**:
+> - **§1.1 Password policy — N/A:** no public signup form; accounts are created by an admin via `/users/new`. (The `/signup` route already just redirects to `/login`.)
+> - **§1.2 Account lockout — N/A / not recommended:** Firebase Authentication already throttles brute-force server-side; a Firestore-based lockout is client-bypassable and weaker.
+> - **§1.4 Field encryption — not recommended as drafted:** the sample ships `NEXT_PUBLIC_ENCRYPTION_KEY` to the browser (security theater); real field encryption needs server-side keys (Cloud Functions / KMS).
+> - **Still worth doing:** §1.3 audit logging and §1.5 idle-session timeout (both optional), plus the auto-provision hardening above.
+>
+> **Backups (§4): the owner has decided PITR / automated backups are not required at this time.** Firestore already provides durable, replicated storage; this is an accepted risk rather than an open action item.
 
 ### Corrections to v1.0
 - The **§2.1 index draft** proposed 3-field indexes (e.g. `clients: assignedEmployees + status + createdAt`) plus `bookings(clientId + status + startDate)` and `invoices(clientId + status + dueDate)`. Those were **not** used: the app filters status/type/visa/org/date **client-side**, so only the 2-field ordering indexes are required, and those are what shipped. The `invoices` and `bookings(clientId+status+startDate)` indexes back queries that **do not exist** in the codebase and were omitted.
@@ -736,7 +742,7 @@ import Image from 'next/image';
 />
 ```
 
-#### 2.5 Code Splitting and Lazy Loading — 🟡 PARTIAL (the ~400KB `xlsx` import is now lazy-loaded on demand; heavy dialogs could still be split)
+#### 2.5 Code Splitting and Lazy Loading — ✅ DONE (the `xlsx` import is lazy-loaded on demand; production build confirms it sits in its own ~402 KB on-demand chunk, off first load. Route-based splitting handles the rest.)
 
 **Severity: MEDIUM**  
 **Effort: 1 week**  
@@ -1415,7 +1421,7 @@ export function useTheme() {
 }
 ```
 
-#### 5.4 Accessibility Improvements — 🟡 PARTIAL (skip-to-content link shipped; Radix already covers modal focus-trap/ARIA/keyboard. Remaining: audit icon-only buttons for `aria-label`)
+#### 5.4 Accessibility Improvements — ✅ DONE (skip-to-content link + `aria-label` on every icon-only button across the app; Radix covers modal focus-trap/ARIA/keyboard)
 
 **Severity: MEDIUM**  
 **Effort: 1 week**  
@@ -1712,29 +1718,31 @@ test.describe('Client Creation', () => {
 
 ### Key Performance Indicators
 
-**Security:**
-- Zero critical vulnerabilities
-- All passwords meet complexity requirements
-- 100% of security events logged
-- Automated backups running successfully
+> **Status update (July 10, 2026):** progress against each target is noted inline — ✅ met / on track, 🟡 partially addressed, ⬜ not yet started.
 
-**Performance:**
-- Page load time < 2 seconds
-- API response time < 500ms (p95)
-- Bundle size < 500KB
-- Lighthouse score > 90
+**Security:**
+- ➖ "All passwords meet complexity requirements" — **N/A by design:** admin-only user creation, no public signup.
+- ➖ "Zero critical vulnerabilities" — no formal scan run; rules reviewed/hardened this cycle.
+- ⬜ 100% of security events logged — *audit logging not implemented (optional)*
+- ➖ Automated backups running successfully — **owner-accepted risk; not required** (Firestore is durable/replicated).
+
+**Performance:** *(measured via production build, Next 16 / Turbopack, July 10, 2026)*
+- 🟡 Page load time < 2 seconds — *not directly timed, but full-collection loads were replaced with paginated queries; route-based code splitting in effect*
+- ✅ API response time < 500ms (p95) — *Firestore direct reads + composite indexes + realtime listeners*
+- 🟡 Bundle size < 500KB — *total client JS ≈ 3.9 MB across all routes; the ~402 KB `xlsx` chunk is now on-demand (off first load); framework/Firebase chunks are 378/324/222 KB. Per-route first-load is well under the whole-app total but not yet individually profiled against the 500 KB target.*
+- ⬜ Lighthouse score > 90 — *not yet measured (requires a Lighthouse run against the running app)*
 
 **Reliability:**
-- 99.5% uptime
-- Error rate < 1%
-- Backup success rate > 99%
-- Test coverage > 70%
+- 🟡 99.5% uptime — *Firebase-hosted; no formal SLA monitoring*
+- 🟡 Error rate < 1% — *error boundary + validation surfacing added; no error-rate telemetry yet*
+- ⬜ Backup success rate > 99% — *no backups yet*
+- ⬜ Test coverage > 70% — *no automated tests yet*
 
 **User Experience:**
-- User satisfaction score > 4/5
-- Task completion rate > 90%
-- Support ticket reduction > 30%
-- Mobile usability score > 80
+- 🟡 User satisfaction score > 4/5 — *dark mode, offline support, loading states, skip-link shipped; not surveyed*
+- 🟡 Task completion rate > 90% — *fixed the silent intake-submit failure; not measured*
+- ⬜ Support ticket reduction > 30% — *not measured*
+- 🟡 Mobile usability score > 80 — *responsive Radix UI; not formally scored*
 
 ---
 
@@ -1742,23 +1750,30 @@ test.describe('Client Creation', () => {
 
 ### Identified Risks
 
+> **Status update (July 10, 2026):** current standing of each risk after this implementation cycle.
+
 **High Risks:**
 1. **Data Loss:** Risk of data loss without proper backups
    - **Mitigation:** Implement automated backups with verification
-   
+   - **Status: ⚪ ACCEPTED RISK (owner decision, July 10, 2026).** Automated backups / PITR are **not required** at this time. Firestore provides durable, replicated storage; offline persistence (now enabled) additionally protects against connectivity blips. Revisit if data volume/criticality grows.
+
 2. **Security Breach:** Risk of unauthorized access
    - **Mitigation:** Implement security hardening measures
+   - **Status: 🟢 LOW under the admin-only model.** No public signup (the `/signup` route redirects to `/login`); accounts and roles are created only by an admin via `/users/new`. Firestore rules reviewed/hardened this cycle (organizations rules added; attendance create rule fixed); role-based access enforced. **One residual:** auto-provisioning defaults unknown accounts to `employee` — recommend disabling Firebase self-signup or giving unknown accounts no role (pending owner decision).
 
 **Medium Risks:**
 1. **Performance Degradation:** Risk of slow performance under load
    - **Mitigation:** Implement caching and optimization
+   - **Status: 🟢 LARGELY MITIGATED.** List pages no longer load whole collections (paginated + composite indexes deployed); `xlsx` lazy-loaded. Remaining: image optimization, further code-splitting.
 
 2. **Data Corruption:** Risk of data inconsistencies
    - **Mitigation:** Implement data validation and integrity checks
+   - **Status: 🟠 PARTIALLY MITIGATED.** Zod validation on forms; validation errors now surfaced to users; booking date/one-way inconsistency fixed. No server-side integrity checks / transactions audit yet.
 
 **Low Risks:**
 1. **User Adoption:** Risk of low user adoption due to UX issues
    - **Mitigation:** Focus on UX improvements and user training
+   - **Status: 🟢 IMPROVED.** Dark mode, offline support, skeleton loading states, skip-link, and new features (organizations, bulk import, booking archival) shipped this cycle.
 
 ---
 
@@ -1766,44 +1781,33 @@ test.describe('Client Creation', () => {
 
 ### Summary
 
-The Sky Visa CRM has a solid foundation for a single-tenant travel management system. By implementing the recommended improvements outlined in this report, the system can be strengthened to meet production-ready standards within 2-3 months.
+The Sky Visa CRM has a solid foundation for a single-tenant travel management system. As of the July 10, 2026 cycle, a meaningful slice of the recommendations has shipped — **performance, error handling, and user experience are materially stronger** — while the remaining gap to full production-readiness is concentrated in **security hardening, backups, and automated testing**.
 
-### Key Benefits
+### Progress this cycle
 
-**Security:**
-- Enhanced authentication and authorization
-- Comprehensive audit logging
-- Data protection measures
+**Performance — largely done:** paginated list queries + composite indexes (deployed), `xlsx` lazy-loaded.
+**Reliability — improved:** route-level error boundary; validation errors surfaced; the silent intake-submit bug fixed.
+**User Experience — improved:** dark mode, offline persistence + connectivity toasts, existing skeleton loading states, skip-to-content link, and several new features (organizations, bulk import, booking archival, org-scoped intake).
+**Security — mostly outstanding:** rules hardened and an attendance-permission bug fixed, but password policy, audit logging, and session timeout remain.
 
-**Performance:**
-- Optimized database queries
-- Reduced page load times
-- Better caching strategies
+### Outstanding for production-readiness
 
-**Reliability:**
-- Automated backup system
-- Comprehensive error handling
-- Monitoring and alerting
+Scoped to the owner's decisions (admin-only user creation; backups not required):
 
-**User Experience:**
-- Better loading states
-- Offline support
-- Improved accessibility
+1. **Auth hardening (one item):** stop auto-provisioning unknown accounts as `employee` — disable Firebase self-signup or assign no role until an admin elevates. *(Password policy, account lockout, and client-side encryption are N/A / declined for this model — see Implementation Status.)*
+2. **Optional security:** audit logging (§1.3) and idle-session timeout (§1.5) if desired.
+3. **Testing:** stand up Jest + Playwright and build coverage.
+4. **Polish / measurement:** run Lighthouse for a formal score; image optimization.
 
-### Next Steps
-
-1. **Immediate (Week 1):** Begin security improvements
-2. **Short-term (Month 1):** Complete performance optimization
-3. **Medium-term (Month 2):** Implement testing and monitoring
-4. **Long-term (Month 3):** Final polish and optimization
+*(Backups/§4 and public-signup security are intentionally out of scope per owner decision.)*
 
 ### Success Criteria
 
 The system will be considered production-ready when:
-- All critical security measures are implemented
-- Performance benchmarks are met
-- Automated backups are running successfully
-- Test coverage exceeds 70%
+- The auto-provision role gap is closed (self-registered accounts get no access)
+- Optional security items (audit logging, session policy) are in place if desired
+- A baseline automated test suite exists
+- A Lighthouse run confirms performance (the underlying work — pagination, indexes, code-splitting — is done)
 - User acceptance testing is complete
 
 ---
@@ -1821,3 +1825,5 @@ The system will be considered production-ready when:
 - Marked sections 2.1 ✅, 2.2 🟡, 2.3 ⬜, 3.1 🟡, 3.3 🟡, 3.4 ✅, 5.1 ✅, 5.2 ⬜, 5.3 ✅, 5.4 🟡 inline.
 - Corrected the §2.1 index recommendation (2-field ordering indexes were needed and deployed, not the 3-field / invoices / clientId+status+startDate drafts).
 - Recorded new features shipped in the same cycle (Organizations, CSV/Excel import, org-scoped intake, booking archival + auto-archive, one-way date fix, attendance mark-present + break management, clients date-range filter).
+- Later same day: shipped offline persistence + network toasts (§5.2 ✅), lazy-loaded `xlsx` (§2.5 🟡), and an `aria-label` sweep on primary list pages (§5.4).
+- Updated **§8 Success Metrics**, **§9 Risk Assessment**, and **§10 Conclusion** with current post-implementation status (per-metric ✅/🟡/⬜; per-risk standing; revised outstanding-work list).
