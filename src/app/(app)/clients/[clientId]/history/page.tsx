@@ -1,13 +1,14 @@
 'use client';
 
 import { PageHeader } from '@/components/common/page-header';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, setDocumentNonBlocking, useUser } from '@/firebase';
 import type { Booking, Client, VisaHistoryItem, PreviousTrip } from '@/lib/types';
 import { collection, doc, query, where, arrayUnion, serverTimestamp, arrayRemove } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plane, Bed, Car, Flag, Calendar, Globe, PlusCircle, CheckCircle, XCircle, MoreHorizontal, Clock } from 'lucide-react';
+import { Plane, Bed, Car, Flag, Calendar, Globe, PlusCircle, CheckCircle, XCircle, MoreHorizontal, Clock, Archive, ArchiveRestore } from 'lucide-react';
+import { bookingReference, formatBookingDates } from '@/lib/booking-details';
 import { format, differenceInDays } from 'date-fns';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -44,6 +45,7 @@ export default function ClientHistoryPage() {
   const [isVisaFormOpen, setIsVisaFormOpen] = useState(false);
   const [editingVisa, setEditingVisa] = useState<VisaHistoryItem | null>(null);
   const { toast } = useToast();
+  const { user } = useUser();
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore || !clientId) return null;
@@ -149,6 +151,25 @@ export default function ClientHistoryPage() {
     }
   }
 
+  const handleUnarchive = (booking: Booking) => {
+    if (!firestore) return;
+    setDocumentNonBlocking(
+      doc(firestore, 'bookings', booking.id),
+      { archived: false, archiveExempt: true, updatedAt: serverTimestamp(), updatedBy: user?.uid },
+      { merge: true }
+    );
+    toast({ title: 'Booking Restored', description: 'Moved back to active bookings.' });
+  };
+
+  // Archived bookings = the client's completed/paid travel, newest first.
+  const archivedBookings = (bookings || [])
+    .filter((b) => b.archived)
+    .sort((a, b) => {
+      const at = a.archivedAt?.toDate ? a.archivedAt.toDate().getTime() : new Date(a.startDate || 0).getTime();
+      const bt = b.archivedAt?.toDate ? b.archivedAt.toDate().getTime() : new Date(b.startDate || 0).getTime();
+      return bt - at;
+    });
+
   const pastTrips = client?.previousTrips
     ?.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()) || [];
     
@@ -159,6 +180,63 @@ export default function ClientHistoryPage() {
       <PageHeader title="Client Travel History" description="A record of the client's previous trips and visa history." />
       
       <div className="space-y-8">
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2"><Archive className="h-5 w-5 text-muted-foreground" />Archived Bookings</CardTitle>
+                {archivedBookings.length > 0 && (
+                    <span className="text-sm text-muted-foreground">{archivedBookings.length} archived</span>
+                )}
+            </CardHeader>
+            <CardContent>
+                {isLoadingBookings && <Skeleton className="h-20 w-full" />}
+                {!isLoadingBookings && archivedBookings.length > 0 && (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Reference</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Dates</TableHead>
+                                <TableHead>Archived</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {archivedBookings.map((booking) => {
+                                const ref = bookingReference(booking);
+                                return (
+                                <TableRow key={booking.id}>
+                                    <TableCell className="font-medium">{ref ? ref.value : '—'}</TableCell>
+                                    <TableCell className="capitalize">{booking.bookingType === 'car' ? 'Transfer' : (booking.bookingType || 'N/A')}</TableCell>
+                                    <TableCell>{formatBookingDates(booking)}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {booking.archivedAt?.toDate ? format(booking.archivedAt.toDate(), 'LLL d, yyyy') : '—'}
+                                    </TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onSelect={() => handleUnarchive(booking)}>
+                                                    <ArchiveRestore className="mr-2 h-4 w-4" />Restore to active
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                )}
+                {!isLoadingBookings && archivedBookings.length === 0 && (
+                    <div className="text-center p-8 text-muted-foreground">
+                        <p>No archived bookings yet. Fully-paid bookings are archived here manually or automatically 15 days after payment.</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Previous Trips</CardTitle>

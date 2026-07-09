@@ -32,6 +32,7 @@ import {
                                           User,
                                           X,
                                           Building2,
+                                          CalendarIcon,
                                           } from 'lucide-react';
                                           import { Input } from '@/components/ui/input';
                                           import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -70,7 +71,10 @@ import {
                                                                             AlertDialogHeader,
                                                                               AlertDialogTitle,
                                                                               } from "@/components/ui/alert-dialog"
-                                                                                import { format } from 'date-fns';
+                                                                                import { format, startOfDay, endOfDay } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
                                                                                 import { CustomerLogForm } from '@/components/forms/customer-log-form';
                                                                                 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
                                                                                 import { FollowUpForm } from '@/components/forms/follow-up-form';
@@ -125,6 +129,7 @@ export default function ClientsPage() {
     const [typeFilter, setTypeFilter] = useState('All');
     const [visaStatusFilter, setVisaStatusFilter] = useState('All');
     const [orgFilter, setOrgFilter] = useState('All');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [bookingClient, setBookingClient] = useState<Client | null>(null);
     const [shareClient, setShareClient] = useState<Client | null>(null);
@@ -220,13 +225,24 @@ export default function ClientsPage() {
                         ? !client.organizationId
                         : client.organizationId === orgFilter;
 
+                let dateMatch = true;
+                if (dateRange?.from || dateRange?.to) {
+                    const created = client.createdAt?.toDate ? client.createdAt.toDate() : null;
+                    if (!created) {
+                        dateMatch = false;
+                    } else {
+                        if (dateRange.from && created < startOfDay(dateRange.from)) dateMatch = false;
+                        if (dateRange.to && created > endOfDay(dateRange.to)) dateMatch = false;
+                    }
+                }
+
                 // Only admins/managers see all clients; everyone else (employees,
                 // agents) sees clients assigned to them OR that they created.
                 const assignmentMatch = isAdminOrManager
                     ? true
                     : user?.uid && (client.assignedEmployees?.includes(user.uid) || false) || client.createdBy === user?.uid;
 
-                return searchMatch && statusMatch && typeMatch && visaStatusMatch && orgMatch && assignmentMatch;
+                return searchMatch && statusMatch && typeMatch && visaStatusMatch && orgMatch && dateMatch && assignmentMatch;
             });
 
             // Non-admin queries drop the server-side orderBy, so sort here.
@@ -244,11 +260,11 @@ export default function ClientsPage() {
             }
 
             setFilteredClients(results);
-    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, orgFilter, isAdminOrManager, user?.uid, sortOrder]);
+    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, orgFilter, dateRange, isAdminOrManager, user?.uid, sortOrder]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, orgFilter, sortOrder]);
+    }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, orgFilter, dateRange, sortOrder]);
     
     const handleAddClient = (newClientData: Partial<Client>) => {
         if (!clientsQuery) return;
@@ -547,6 +563,48 @@ export default function ClientsPage() {
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-full sm:w-auto justify-between">
+                                    <span className="flex items-center">
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>{format(dateRange.from, 'dd MMM yy')} – {format(dateRange.to, 'dd MMM yy')}</>
+                                            ) : (
+                                                <>{format(dateRange.from, 'dd MMM yy')} – …</>
+                                            )
+                                        ) : (
+                                            'Created: All dates'
+                                        )}
+                                    </span>
+                                    {(dateRange?.from || dateRange?.to) ? (
+                                        <X
+                                            className="ml-2 h-4 w-4 opacity-70 hover:opacity-100"
+                                            onClick={(e) => { e.stopPropagation(); setDateRange(undefined); }}
+                                        />
+                                    ) : (
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="range"
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                    disabled={(d) => d > new Date()}
+                                    initialFocus
+                                />
+                                <div className="flex justify-end border-t p-2">
+                                    <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)} disabled={!dateRange?.from && !dateRange?.to}>
+                                        Clear
+                                    </Button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

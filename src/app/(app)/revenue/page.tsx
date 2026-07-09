@@ -35,7 +35,7 @@ import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/fire
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, query, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import type { Booking, Payment } from '@/lib/types';
+import type { Booking, Payment, PaymentMode } from '@/lib/types';
 import { cn, formatINR, toDateSafe, bookingPaid, PAYMENT_MODE_LABELS } from '@/lib/utils';
 import { ledgerFor, newPaymentId, withAddedPayment } from '@/lib/payments';
 import {
@@ -146,11 +146,17 @@ export default function RevenuePage() {
     balance: number;
     bookings: Booking[];
   } | null>(null);
-  // Single total amount received from the client (as typed).
+  // Single total amount received from the client (as typed), plus payment meta.
   const [collectAmount, setCollectAmount] = useState('');
+  const [collectDate, setCollectDate] = useState(new Date().toISOString().slice(0, 10));
+  const [collectMode, setCollectMode] = useState<PaymentMode>('cash');
+  const [collectRef, setCollectRef] = useState('');
 
   const openCollect = (group: { clientName: string; balance: number; bookings: Booking[] }) => {
     setCollectAmount(String(group.balance));
+    setCollectDate(new Date().toISOString().slice(0, 10));
+    setCollectMode('cash');
+    setCollectRef('');
     setCollectTarget(group);
   };
 
@@ -177,7 +183,7 @@ export default function RevenuePage() {
     );
 
     let applied = 0;
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const payDate = collectDate || new Date().toISOString().slice(0, 10);
     for (const b of ordered) {
       if (remaining <= 0) break;
       const balance = bookingBalance(b);
@@ -189,11 +195,12 @@ export default function RevenuePage() {
       const payment: Payment = {
         id: newPaymentId(),
         amount: received,
-        date: todayISO,
-        mode: 'cash',
-        reference: 'Collection',
+        date: payDate,
+        mode: collectMode,
+        reference: collectRef.trim() || 'Collection',
         createdAt: new Date().toISOString(),
         createdBy: authUser.uid,
+        createdByName: authUser.displayName || authUser.email?.split('@')[0] || 'Staff',
       };
       updateDocumentNonBlocking(doc(firestore, 'bookings', b.id), {
         ...withAddedPayment(b, payment),
@@ -683,19 +690,50 @@ export default function RevenuePage() {
               <span className="font-mono font-semibold">{formatINR(collectTarget?.balance ?? 0)}</span>
             </div>
 
-            <div>
-              <Label htmlFor="collect-amount" className="text-xs text-muted-foreground">
-                Amount received
-              </Label>
-              <Input
-                id="collect-amount"
-                type="number"
-                min={0}
-                max={collectTarget?.balance ?? 0}
-                value={collectAmount}
-                onChange={(e) => setCollectAmount(e.target.value)}
-                autoFocus
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="collect-amount" className="text-xs text-muted-foreground">
+                  Amount received
+                </Label>
+                <Input
+                  id="collect-amount"
+                  type="number"
+                  min={0}
+                  max={collectTarget?.balance ?? 0}
+                  value={collectAmount}
+                  onChange={(e) => setCollectAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label htmlFor="collect-date" className="text-xs text-muted-foreground">Date</Label>
+                <Input
+                  id="collect-date"
+                  type="date"
+                  value={collectDate}
+                  onChange={(e) => setCollectDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Mode</Label>
+                <Select value={collectMode} onValueChange={(v) => setCollectMode(v as PaymentMode)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(['cash', 'upi', 'card', 'bank', 'cheque', 'other'] as PaymentMode[]).map((m) => (
+                      <SelectItem key={m} value={m}>{PAYMENT_MODE_LABELS[m]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="collect-ref" className="text-xs text-muted-foreground">Reference (optional)</Label>
+                <Input
+                  id="collect-ref"
+                  value={collectRef}
+                  placeholder="Txn / cheque no."
+                  onChange={(e) => setCollectRef(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">

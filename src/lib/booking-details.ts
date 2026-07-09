@@ -1,5 +1,35 @@
 import type { Booking } from "@/lib/types";
 
+// Parse a stored date string into a valid Date, or null when absent/invalid.
+// A missing endDate is often `null`/`""`, and `new Date(null)` yields the Unix
+// epoch (1 Jan 1970) — the "1970 return date" glitch. Travel dates are never
+// that old, so we treat anything at/ before 1970 as "no date".
+function toValidDate(v: any): Date | null {
+  if (!v) return null;
+  const d = new Date(v);
+  if (isNaN(d.getTime()) || d.getFullYear() <= 1970) return null;
+  return d;
+}
+
+// True only when the booking genuinely has a return/end date (and isn't one-way).
+export function bookingHasReturn(b: Pick<Booking, 'endDate' | 'isOneWay'>): boolean {
+  return !b.isOneWay && toValidDate(b.endDate) !== null;
+}
+
+// Human date range for a booking. One-way / no-return bookings show just the
+// single (departure) date instead of "… – 1 Jan 1970".
+export function formatBookingDates(b: Pick<Booking, 'startDate' | 'endDate' | 'isOneWay'>): string {
+  const start = toValidDate(b.startDate);
+  if (!start) return '—';
+  const withYear: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  const noYear: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  if (!bookingHasReturn(b)) {
+    return start.toLocaleDateString('en-US', withYear);
+  }
+  const end = toValidDate(b.endDate)!;
+  return `${start.toLocaleDateString('en-US', noYear)} - ${end.toLocaleDateString('en-US', withYear)}`;
+}
+
 export const DETAIL_LABELS: Record<string, string> = {
   airline: "Airline",
   pnr: "PNR",

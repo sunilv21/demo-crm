@@ -43,6 +43,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import type { Booking, Client } from '@/lib/types';
+import { formatBookingDates } from '@/lib/booking-details';
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
@@ -356,10 +357,7 @@ export default function BookingsPage() {
                   <ItineraryIcon type={booking.bookingType} />
                   {bookingTypeLabel(booking.bookingType)}
                 </TableCell>
-                <TableCell>
-                  {new Date(booking.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} -{' '}
-                  {new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </TableCell>
+                <TableCell>{formatBookingDates(booking)}</TableCell>
                 {canViewRevenue && <TableCell className="text-right">₹{(booking.total || 0).toLocaleString()}</TableCell>}
                 {canViewRevenue && <TableCell className="text-right text-muted-foreground">₹{(booking.supplierCost || 0).toLocaleString()}</TableCell>}
                 {canViewRevenue && (() => {

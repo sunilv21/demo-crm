@@ -128,6 +128,8 @@ interface ClientFormProps {
   canAssign?: boolean;
   staffUsers?: { id: string; name: string }[];
   organizations?: { id: string; name: string }[];
+  /** Pre-selects the organization for a NEW client (e.g. created from an org page). */
+  defaultOrganizationId?: string;
 }
 
 // Radix <SelectItem> rejects an empty-string value, so we use this sentinel to
@@ -251,7 +253,7 @@ const Combobox = ({
   );
 };
 
-export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false, canAssign = false, staffUsers = [], organizations = [] }, ref) => {
+export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false, canAssign = false, staffUsers = [], organizations = [], defaultOrganizationId }, ref) => {
   const { countryNames, countryOptions, nationalities } = useCountries();
   const { user } = useUser();
   const FORM_KEY = client ? `client-form-${client.id}` : 'new-client-form';
@@ -285,7 +287,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       pax: client?.pax || 1,
       companions: client?.companions || [],
       assignedEmployees: client?.assignedEmployees || [],
-      organizationId: client?.organizationId || '',
+      organizationId: client?.organizationId || defaultOrganizationId || '',
     },
   });
   

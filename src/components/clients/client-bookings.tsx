@@ -3,7 +3,7 @@
 import { collection, query, where } from "firebase/firestore";
 import { useAppUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Booking } from "@/lib/types";
-import { buildDetailEntries, bookingReference } from "@/lib/booking-details";
+import { buildDetailEntries, bookingReference, formatBookingDates } from "@/lib/booking-details";
 import { Skeleton } from "../ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -131,14 +131,7 @@ export function ClientBookings({ clientId }: { clientId: string }) {
                             {typeLabel(booking.bookingType)}
                           </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {booking.startDate
-                            ? new Date(booking.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                            : "—"}
-                          {booking.endDate
-                            ? ` - ${new Date(booking.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                            : ""}
-                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{formatBookingDates(booking)}</TableCell>
                         {canViewRevenue && (
                           <TableCell className="text-right">₹{(booking.total || 0).toLocaleString()}</TableCell>
                         )}

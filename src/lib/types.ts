@@ -328,6 +328,15 @@ export type Booking = {
   // Notes
   remarks?: string;
 
+  // Archival: once a booking is fully paid it can be archived out of the active
+  // bookings list into the client's Travel History (keeps the list uncluttered).
+  // Archives manually, or automatically 15 days after the full payment is received.
+  archived?: boolean;
+  archivedAt?: any;
+  // Set when a booking is manually un-archived, so the 15-day auto-archive rule
+  // doesn't immediately pull it back into Travel History.
+  archiveExempt?: boolean;
+
   // Timeline
   timeline?: {
   action: string;

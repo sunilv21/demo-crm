@@ -278,8 +278,14 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
           updatedBy: user.uid,
         };
 
+    // A flight with a departure date but no return date is a one-way trip —
+    // record that so it never renders a phantom return date.
+    const isOneWay =
+      values.bookingType === 'flight' ? (values.isOneWay || !values.endDate) : values.isOneWay;
+
     const payload: Record<string, any> = {
       ...values,
+      isOneWay,
       clientId: resolvedClientId,
       clientName,
       startDate: values.startDate.toISOString(),

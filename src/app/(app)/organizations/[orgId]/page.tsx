@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PageHeader } from '@/components/common/page-header';
@@ -18,8 +18,19 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { ArrowLeft, Building2, Mail, Phone, User, Users } from 'lucide-react';
-import type { Organization, Client, Booking } from '@/lib/types';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ArrowLeft, Building2, Mail, Phone, User, Users, PlusCircle, UserPlus, Link2Off, MoreHorizontal } from 'lucide-react';
+import type { Organization, Client, Booking, User as StaffUser } from '@/lib/types';
+import { ClientForm } from '@/components/forms/client-form';
+import { useToast } from '@/hooks/use-toast';
 import {
   useCollection,
   useDoc,
@@ -27,8 +38,10 @@ import {
   useMemoFirebase,
   useUser,
   useAppUser,
+  addDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
 
 // A booking counts toward a client's financials unless it was cancelled.
 const isLive = (b: Booking) => b.status !== 'cancelled';
@@ -45,8 +58,11 @@ export default function OrganizationDetailPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { isAdminOrManager, canViewRevenue } = useAppUser();
+  const { toast } = useToast();
   const params = useParams();
   const orgId = params.orgId as string;
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
+  const [isLinkOpen, setIsLinkOpen] = useState(false);
 
   const orgRef = useMemoFirebase(
     () => (firestore && orgId ? doc(firestore, 'organizations', orgId) : null),
@@ -69,6 +85,51 @@ export default function OrganizationDetailPage() {
     () => (allClients || []).filter((c) => c.organizationId === orgId),
     [allClients, orgId]
   );
+
+  // Clients not yet in this org — candidates for the "Link existing" picker.
+  const linkableClients = useMemo(
+    () => (allClients || []).filter((c) => c.organizationId !== orgId),
+    [allClients, orgId]
+  );
+
+  // Staff list so admins/managers can assign a newly-created client.
+  const usersQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'users') : null),
+    [firestore]
+  );
+  const { data: staffUsers } = useCollection<StaffUser>(usersQuery);
+  const staffOptions = useMemo(() => (staffUsers || []).map((u) => ({ id: u.id, name: u.name })), [staffUsers]);
+
+  const handleAddClient = (data: Partial<Client>) => {
+    if (!firestore) return;
+    // Force the link to this org regardless of the form selector, and give
+    // non-admin creators ownership (matches the Clients page behaviour).
+    const dataToSave: Partial<Client> = { ...data, organizationId: orgId };
+    if (!isAdminOrManager && user) dataToSave.assignedEmployees = [user.uid];
+    addDocumentNonBlocking(collection(firestore, 'clients'), dataToSave);
+    setIsAddClientOpen(false);
+    toast({ title: 'Client Added', description: `"${data.name}" was added to ${org?.name ?? 'the organization'}.` });
+  };
+
+  const handleLinkClient = (client: Client) => {
+    if (!firestore || !user) return;
+    setDocumentNonBlocking(
+      doc(firestore, 'clients', client.id),
+      { organizationId: orgId, updatedAt: serverTimestamp(), updatedBy: user.uid },
+      { merge: true }
+    );
+    toast({ title: 'Client Linked', description: `"${client.name}" is now part of ${org?.name ?? 'the organization'}.` });
+  };
+
+  const handleUnlinkClient = (client: Client) => {
+    if (!firestore || !user) return;
+    setDocumentNonBlocking(
+      doc(firestore, 'clients', client.id),
+      { organizationId: null, updatedAt: serverTimestamp(), updatedBy: user.uid },
+      { merge: true }
+    );
+    toast({ title: 'Client Removed', description: `"${client.name}" is no longer in this organization.` });
+  };
 
   // Bookings: admins/managers see all; other roles only their own (rules-safe).
   const bookingsQuery = useMemoFirebase(() => {
@@ -126,10 +187,77 @@ export default function OrganizationDetailPage() {
         }
         description="All clients under this organization and their totals."
       >
-        <Button variant="outline" asChild>
-          <Link href="/organizations"><ArrowLeft className="mr-2 h-4 w-4" />Back to Organizations</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/organizations"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
+          </Button>
+          <Button variant="outline" onClick={() => setIsLinkOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />Link Existing Client
+          </Button>
+          <Button onClick={() => setIsAddClientOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" />Add Client
+          </Button>
+        </div>
       </PageHeader>
+
+      {/* Create a brand-new client already linked to this organization */}
+      <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+        <DialogContent className="md:max-w-2xl w-[95vw] max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="sticky top-0 z-20 bg-background border-b px-6 py-4">
+            <DialogTitle>Add Client to {org?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            <ClientForm
+              onSubmit={handleAddClient}
+              onCancel={() => setIsAddClientOpen(false)}
+              canAssign={isAdminOrManager}
+              staffUsers={staffOptions}
+              organizations={org ? [{ id: org.id, name: org.name }] : []}
+              defaultOrganizationId={orgId}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link one or more already-created clients into this organization */}
+      <Dialog open={isLinkOpen} onOpenChange={setIsLinkOpen}>
+        <DialogContent className="md:max-w-lg w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Link Existing Clients</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Select clients to add to {org?.name}. They stay in your Clients list and their bookings roll up here.
+          </p>
+          <Command className="rounded-md border">
+            <CommandInput placeholder="Search clients by name..." />
+            <CommandList className="max-h-72">
+              <CommandEmpty>No clients available to link.</CommandEmpty>
+              <CommandGroup>
+                {linkableClients.map((c) => (
+                  <CommandItem
+                    key={c.id}
+                    value={c.name}
+                    onSelect={() => handleLinkClient(c)}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span>{c.name}</span>
+                      <span className="text-xs text-muted-foreground">{c.phone}</span>
+                    </span>
+                    {c.organizationId && (
+                      <Badge variant="outline" className="text-xs font-normal">In another org</Badge>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setIsLinkOpen(false)}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {org && (org.contactPerson || org.email || org.phone || org.gstNumber || org.billingAddress) && (
         <Card className="mb-6">
@@ -214,9 +342,24 @@ export default function OrganizationDetailPage() {
                     </TableCell>
                   )}
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/clients/${client.id}/bookings`}>View</Link>
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/clients/${client.id}/bookings`}>View bookings</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/clients/${client.id}`}>Client profile</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onSelect={() => handleUnlinkClient(client)}>
+                          <Link2Off className="mr-2 h-4 w-4" />Remove from organization
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -239,7 +382,7 @@ export default function OrganizationDetailPage() {
           <div className="text-center p-8 text-muted-foreground">
             <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
             <p>No clients linked to this organization yet.</p>
-            <p className="text-sm mt-1">Open a client and set their organization to add them here.</p>
+            <p className="text-sm mt-1">Use <span className="font-medium">Add Client</span> to create one here, or <span className="font-medium">Link Existing Client</span> to attach clients you already have.</p>
           </div>
         )}
       </Card>
