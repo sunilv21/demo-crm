@@ -63,7 +63,7 @@ export default function LoginPage() {
     <Card className="w-full max-w-sm bg-card/10 backdrop-blur-sm border-white/20">
       <CardHeader className="text-white">
         <CardTitle className="text-2xl">Login</CardTitle>
-        <CardDescription className="text-white/80">
+        <CardDescription className="text-white/90">
           Enter your email below to login to your account.
         </CardDescription>
       </CardHeader>
@@ -80,7 +80,7 @@ export default function LoginPage() {
                     <Input 
                       placeholder="m@example.com" 
                       {...field}
-                      className="bg-white/10 border-white/30 text-white placeholder:text-white/60 focus:border-primary"
+                      className="bg-white/10 border-white/30 text-white placeholder:text-white/75 focus:border-primary"
                     />
                   </FormControl>
                   <FormMessage />
@@ -98,13 +98,13 @@ export default function LoginPage() {
                       <Input 
                         type={showPassword ? 'text' : 'password'}
                         {...field}
-                        className="bg-white/10 border-white/30 text-white placeholder:text-white/60 focus:border-primary pr-10"
+                        className="bg-white/10 border-white/30 text-white placeholder:text-white/75 focus:border-primary pr-10"
                       />
                     </FormControl>
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/70 hover:text-white"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/85 hover:text-white"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
