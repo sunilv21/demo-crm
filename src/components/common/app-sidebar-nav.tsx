@@ -18,6 +18,7 @@ import {
   UserCog,
   ChevronRight,
   IndianRupee,
+  Building2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -61,6 +62,7 @@ type NavItem = { href: string; icon: any; label: string; allow: Role[] };
 const topNavItems: NavItem[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', allow: ALL_ROLES },
   { href: '/clients', icon: Users, label: 'Clients', allow: ALL_ROLES },
+  { href: '/organizations', icon: Building2, label: 'Organizations', allow: ALL_ROLES },
   { href: '/leads', icon: Lightbulb, label: 'Leads', allow: ALL_ROLES },
   { href: '/bookings', icon: Book, label: 'Bookings', allow: ALL_ROLES },
   { href: '/revenue', icon: IndianRupee, label: 'Revenue', allow: AGENT_ONLY },

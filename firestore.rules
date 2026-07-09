@@ -150,6 +150,14 @@ service cloud.firestore {
       }
     }
 
+    // Organizations: corporate accounts that group clients. Read by any signed-in
+    // user; staff may create/update; only admin/manager may delete. The org holds
+    // no money itself — financial roll-ups derive from member clients' bookings.
+    match /organizations/{id} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdminOrManager();
+    }
+
     match /customer_logs/{id} {
       allow read, create, update: if isSignedIn();
       allow delete: if isAdminOrManager();

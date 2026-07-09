@@ -111,6 +111,7 @@ const formSchema = z.object({
     type: z.enum(['adult', 'child', 'infant']).optional(),
   })).optional(),
   assignedEmployees: z.array(z.string()).optional(),
+  organizationId: z.string().optional(),
 }).refine(data => !data.phone || !data.country || isValidPhoneNumber(data.phone, data.country as CountryCode), {
   message: "Invalid phone number for the selected country.",
   path: ["phone"],
@@ -126,7 +127,12 @@ interface ClientFormProps {
   isSubmitting?: boolean;
   canAssign?: boolean;
   staffUsers?: { id: string; name: string }[];
+  organizations?: { id: string; name: string }[];
 }
+
+// Radix <SelectItem> rejects an empty-string value, so we use this sentinel to
+// represent "no organization" and convert it back to null on submit.
+const NO_ORG = '__none__';
 
 const FormCard: React.FC<React.PropsWithChildren<{isPublicForm: boolean} & React.HTMLAttributes<HTMLDivElement>>> = ({ isPublicForm, className, ...props }) => {
     const cardClass = isPublicForm 
@@ -245,7 +251,7 @@ const Combobox = ({
   );
 };
 
-export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false, canAssign = false, staffUsers = [] }, ref) => {
+export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ onSubmit, onCancel, client, isPublicForm = false, isSubmitting = false, canAssign = false, staffUsers = [], organizations = [] }, ref) => {
   const { countryNames, countryOptions, nationalities } = useCountries();
   const { user } = useUser();
   const FORM_KEY = client ? `client-form-${client.id}` : 'new-client-form';
@@ -279,6 +285,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       pax: client?.pax || 1,
       companions: client?.companions || [],
       assignedEmployees: client?.assignedEmployees || [],
+      organizationId: client?.organizationId || '',
     },
   });
   
@@ -334,6 +341,10 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
         ? values.assignedEmployees
         : null;
 
+    dataToSubmit.organizationId = values.organizationId && values.organizationId !== NO_ORG
+        ? values.organizationId
+        : null;
+
     dataToSubmit.tripDestinations = (values.tripDestinations || []).map(d => ({
         destination: d.destination || null,
         from: d.from ? d.from.toISOString() : null,
@@ -386,6 +397,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       pax: 1,
       companions: [],
       assignedEmployees: [],
+      organizationId: '',
     });
     if(!client){
         clearSavedData();
@@ -1026,7 +1038,31 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     <CardTitle>Internal Details</CardTitle>
                     <CardDescription>Status and tracking information for internal use.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                    <FormField
+                        control={form.control}
+                        name="organizationId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Organization</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value || NO_ORG}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="No organization (individual)" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value={NO_ORG}>No organization (individual)</SelectItem>
+                                        {organizations.map((o) => (
+                                            <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>Link this client to a corporate organization, or leave as an individual.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                         control={form.control}

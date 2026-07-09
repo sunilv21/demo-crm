@@ -124,9 +124,32 @@ export type PreviousTrip = {
   endDate: string;
 };
 
+// A corporate account that groups multiple clients. The org holds no bookings
+// or money of its own — its totals are the roll-up of its member clients'
+// bookings (computed on read). See the /organizations pages.
+export type Organization = {
+  id: string;
+  name: string;
+  type: 'corporate';
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  gstNumber?: string;
+  billingAddress?: string;
+  notes?: string;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
 export type Client = {
   id:string;
   name: string;
+  // When set, this client belongs to a corporate Organization (one org per
+  // client). Empty/undefined means a standalone individual. The client still
+  // appears normally in the Clients list either way.
+  organizationId?: string;
   email?: string;
   phone: string;
   avatar: string;

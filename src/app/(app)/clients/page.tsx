@@ -31,6 +31,7 @@ import {
                                           ChevronDown,
                                           User,
                                           X,
+                                          Building2,
                                           } from 'lucide-react';
                                           import { Input } from '@/components/ui/input';
                                           import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -49,7 +50,7 @@ import {
                                                               PaginationPrevious,
                                                               PaginationEllipsis,
                                                               } from '@/components/ui/pagination';
-                                                              import type { Client, CustomerLog, FollowUp, Booking, User as StaffUser } from '@/lib/types';
+                                                              import type { Client, CustomerLog, FollowUp, Booking, User as StaffUser, Organization } from '@/lib/types';
                                                               import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser, useAppUser } from '@/firebase';
                                                               import { collection, doc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
                                                               import { Skeleton } from '@/components/ui/skeleton';
@@ -123,6 +124,7 @@ export default function ClientsPage() {
     const [statusFilter, setStatusFilter] = useState('All');
     const [typeFilter, setTypeFilter] = useState('All');
     const [visaStatusFilter, setVisaStatusFilter] = useState('All');
+    const [orgFilter, setOrgFilter] = useState('All');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [bookingClient, setBookingClient] = useState<Client | null>(null);
     const [shareClient, setShareClient] = useState<Client | null>(null);
@@ -157,6 +159,22 @@ export default function ClientsPage() {
     const staffUserNames = useMemo(
         () => new Map((staffUsers || []).map((u) => [u.id, u.name || u.id])),
         [staffUsers]
+    );
+
+    // Organizations for the "Organization" column, filter, and the client form's
+    // organization selector.
+    const orgsQuery = useMemoFirebase(
+        () => (firestore ? collection(firestore, 'organizations') : null),
+        [firestore]
+    );
+    const { data: organizations } = useCollection<Organization>(orgsQuery);
+    const orgOptions = useMemo(
+        () => (organizations || []).map((o) => ({ id: o.id, name: o.name })),
+        [organizations]
+    );
+    const orgNames = useMemo(
+        () => new Map((organizations || []).map((o) => [o.id, o.name])),
+        [organizations]
     );
 
     useEffect(() => {
@@ -195,14 +213,20 @@ export default function ClientsPage() {
                 const visaStatusMatch = visaStatusFilter !== 'All'
                     ? client.visaStatus === mappedVisaStatus
                     : true;
-                
+
+                const orgMatch = orgFilter === 'All'
+                    ? true
+                    : orgFilter === 'Individuals'
+                        ? !client.organizationId
+                        : client.organizationId === orgFilter;
+
                 // Only admins/managers see all clients; everyone else (employees,
                 // agents) sees clients assigned to them OR that they created.
                 const assignmentMatch = isAdminOrManager
                     ? true
                     : user?.uid && (client.assignedEmployees?.includes(user.uid) || false) || client.createdBy === user?.uid;
 
-                return searchMatch && statusMatch && typeMatch && visaStatusMatch && assignmentMatch;
+                return searchMatch && statusMatch && typeMatch && visaStatusMatch && orgMatch && assignmentMatch;
             });
 
             // Non-admin queries drop the server-side orderBy, so sort here.
@@ -220,11 +244,11 @@ export default function ClientsPage() {
             }
 
             setFilteredClients(results);
-    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, isAdminOrManager, user?.uid, sortOrder]);
+    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, orgFilter, isAdminOrManager, user?.uid, sortOrder]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, sortOrder]);
+    }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, orgFilter, sortOrder]);
     
     const handleAddClient = (newClientData: Partial<Client>) => {
         if (!clientsQuery) return;
@@ -451,7 +475,7 @@ export default function ClientsPage() {
                                 <DialogTitle>Create New Client</DialogTitle>
                             </DialogHeader>
                             <div className="px-6 py-4">
-                                <ClientForm onSubmit={handleAddClient} onCancel={() => setIsFormOpen(false)} canAssign={isAdminOrManager} staffUsers={staffOptions} />
+                                <ClientForm onSubmit={handleAddClient} onCancel={() => setIsFormOpen(false)} canAssign={isAdminOrManager} staffUsers={staffOptions} organizations={orgOptions} />
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -512,6 +536,21 @@ export default function ClientsPage() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="w-full sm:w-auto justify-between">
+                                    Organization: {orgFilter === 'All' ? 'All' : orgFilter === 'Individuals' ? 'Individuals' : (orgNames.get(orgFilter) || 'Selected')} <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
+                                <DropdownMenuItem onSelect={() => setOrgFilter('All')}>All</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setOrgFilter('Individuals')}>Individuals only</DropdownMenuItem>
+                                {orgOptions.map((o) => (
+                                    <DropdownMenuItem key={o.id} onSelect={() => setOrgFilter(o.id)}>{o.name}</DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full sm:w-auto justify-between">
                                     Sort by: {sortOptions[sortOrder]} <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -553,7 +592,7 @@ export default function ClientsPage() {
                         <DialogTitle>Edit {editingClient?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="px-6 py-4">
-                        {editingClient && <ClientForm client={editingClient} onSubmit={handleUpdateClient} onCancel={() => setEditingClient(null)} canAssign={isAdminOrManager} staffUsers={staffOptions} />}
+                        {editingClient && <ClientForm client={editingClient} onSubmit={handleUpdateClient} onCancel={() => setEditingClient(null)} canAssign={isAdminOrManager} staffUsers={staffOptions} organizations={orgOptions} />}
                     </div>
                 </DialogContent>
             </Dialog>
@@ -686,6 +725,13 @@ export default function ClientsPage() {
                                 <div>
                                     <Link href={`/clients/${client.id}`} className="hover:underline">{client.name}</Link>
                                     <div className="text-sm text-muted-foreground truncate">{client.preferredDestination || 'No destination set'}</div>
+                                    {client.organizationId && orgNames.get(client.organizationId) && (
+                                        <Link href={`/organizations/${client.organizationId}`} onClick={(e) => e.stopPropagation()}>
+                                            <Badge variant="secondary" className="mt-1 gap-1 font-normal hover:bg-secondary/80">
+                                                <Building2 className="h-3 w-3" />{orgNames.get(client.organizationId)}
+                                            </Badge>
+                                        </Link>
+                                    )}
                                 </div>
                                 </div>
                             </TableCell>
