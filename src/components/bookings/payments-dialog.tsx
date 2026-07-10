@@ -92,6 +92,9 @@ export function PaymentsDialog({
       createdBy: user?.uid,
       createdByName: user?.displayName || user?.email?.split('@')[0] || 'Staff',
     };
+    // Note: this payment surfaces in the Finance module automatically — the
+    // finance views derive income from booking payments on read (no duplicate
+    // transaction is written here). See bookingPaymentsAsTransactions().
     write(withAddedPayment(booking, payment));
     toast({ title: 'Payment recorded', description: `${formatINR(amt)} received via ${PAYMENT_MODE_LABELS[mode]}.` });
     setAmount('');

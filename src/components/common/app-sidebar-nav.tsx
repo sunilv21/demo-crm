@@ -22,6 +22,15 @@ import {
   Sun,
   Moon,
   Monitor,
+  Landmark,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ArrowLeftRight,
+  ReceiptText,
+  BarChart3,
+  Settings,
+  Truck,
+  Trophy,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
@@ -55,11 +64,16 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useAppUser, type Role } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
+// General CRM/management nav — everyone EXCEPT the finance role, which is scoped
+// to the Finance module only (see FINANCE_ROLES + the finance redirect guard).
 const ALL_ROLES: Role[] = ['admin', 'manager', 'employee', 'agent'];
 const ADMIN_MANAGER: Role[] = ['admin', 'manager'];
 const ADMIN_ONLY: Role[] = ['admin'];
 // Revenue/pricing-margin details are private to agents only (see canViewRevenue).
 const AGENT_ONLY: Role[] = ['agent'];
+// Company cash-flow (Finance module) + agent performance — the dedicated
+// finance role ONLY (intentionally not shown to admin).
+const FINANCE_ROLES: Role[] = ['finance'];
 
 type NavItem = { href: string; icon: any; label: string; allow: Role[] };
 
@@ -84,6 +98,19 @@ const employeeMgmtItems: NavItem[] = [
   { href: '/users', icon: Users, label: 'Users', allow: ADMIN_ONLY },
 ];
 
+const financeItems: NavItem[] = [
+  { href: '/finance', icon: LayoutDashboard, label: 'Dashboard', allow: FINANCE_ROLES },
+  { href: '/finance/money-in', icon: ArrowDownCircle, label: 'Money In', allow: FINANCE_ROLES },
+  { href: '/finance/money-out', icon: ArrowUpCircle, label: 'Money Out', allow: FINANCE_ROLES },
+  { href: '/finance/transfers', icon: ArrowLeftRight, label: 'Transfers', allow: FINANCE_ROLES },
+  { href: '/finance/accounts', icon: Wallet, label: 'Accounts', allow: FINANCE_ROLES },
+  { href: '/finance/transactions', icon: ReceiptText, label: 'Transactions', allow: FINANCE_ROLES },
+  { href: '/finance/suppliers', icon: Truck, label: 'Suppliers', allow: FINANCE_ROLES },
+  { href: '/agent-performance', icon: Trophy, label: 'Agent Performance', allow: FINANCE_ROLES },
+  { href: '/finance/reports', icon: BarChart3, label: 'Reports', allow: FINANCE_ROLES },
+  { href: '/finance/settings', icon: Settings, label: 'Settings', allow: FINANCE_ROLES },
+];
+
 export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -103,6 +130,14 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   useEffect(() => {
     if (isInEmpMgmt) setEmpMgmtOpen(true);
   }, [isInEmpMgmt]);
+
+  const visibleFinance = isRoleLoading ? [] : financeItems.filter((i) => i.allow.includes(role));
+  const isInFinance = pathname === '/finance' || pathname.startsWith('/finance/') || pathname.startsWith('/agent-performance');
+  const [financeOpen, setFinanceOpen] = useState(isInFinance);
+
+  useEffect(() => {
+    if (isInFinance) setFinanceOpen(true);
+  }, [isInFinance]);
 
   const handleSignOut = async () => {
     if (auth) {
@@ -168,6 +203,42 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
                         <SidebarMenuSubButton
                           asChild
                           isActive={pathname.startsWith(item.href)}
+                        >
+                          <Link href={item.href}>
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          )}
+
+          {visibleFinance.length > 0 && (
+            <Collapsible open={financeOpen} onOpenChange={setFinanceOpen} asChild>
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton isActive={isInFinance} tooltip="Finance" className="w-full">
+                    <Landmark />
+                    <span>Finance</span>
+                    <ChevronRight
+                      className={cn(
+                        'ml-auto h-4 w-4 transition-transform duration-200',
+                        financeOpen && 'rotate-90'
+                      )}
+                    />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {visibleFinance.map((item) => (
+                      <SidebarMenuSubItem key={item.href}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={item.href === '/finance' ? pathname === '/finance' : pathname.startsWith(item.href)}
                         >
                           <Link href={item.href}>
                             <item.icon />

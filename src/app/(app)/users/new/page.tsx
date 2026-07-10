@@ -28,7 +28,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: 'Name is required.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['employee', 'manager', 'admin', 'agent']),
+  role: z.enum(['employee', 'manager', 'admin', 'agent', 'finance']),
   baseSalary: z.coerce.number().min(0).optional(),
   workStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   workEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
@@ -203,6 +203,7 @@ export default function NewUserPage() {
                         <SelectContent>
                             <SelectItem value="employee">Employee</SelectItem>
                             <SelectItem value="agent">Agent</SelectItem>
+                            <SelectItem value="finance">Finance</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>

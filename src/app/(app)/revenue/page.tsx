@@ -37,7 +37,7 @@ import { collection, doc, query, serverTimestamp, where } from 'firebase/firesto
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, Payment, PaymentMode } from '@/lib/types';
 import { cn, formatINR, toDateSafe, bookingPaid, PAYMENT_MODE_LABELS } from '@/lib/utils';
-import { ledgerFor, newPaymentId, withAddedPayment } from '@/lib/payments';
+import { ledgerFor, newPaymentId, withAddedPayment, computeTotals } from '@/lib/payments';
 import {
   IndianRupee,
   TrendingUp,
@@ -216,6 +216,28 @@ export default function RevenuePage() {
     setCollectTarget(null);
   };
 
+  // Correct how a recorded collection was received (cash / upi / bank / …).
+  // This also drives the Finance cash-vs-bank split, so keeping it accurate matters.
+  const changeMethod = (bookingId: string, paymentId: string, newMode: PaymentMode) => {
+    if (!firestore || !authUser) return;
+    const b = (bookings ?? []).find((x) => x.id === bookingId);
+    if (!b) return;
+    let payments: Payment[];
+    if (b.payments && b.payments.length) {
+      payments = b.payments.map((p) => (p.id === paymentId ? { ...p, mode: newMode } : p));
+    } else {
+      // Materialise the synthetic "recorded earlier" entry with the chosen method.
+      payments = ledgerFor(b).map((p) => ({ ...p, id: p.id === 'opening' ? newPaymentId() : p.id, mode: newMode }));
+    }
+    updateDocumentNonBlocking(doc(firestore, 'bookings', bookingId), {
+      payments,
+      ...computeTotals(payments, b.total || 0),
+      updatedAt: serverTimestamp(),
+      updatedBy: authUser.uid,
+    });
+    toast({ title: 'Method updated', description: `Marked as received via ${PAYMENT_MODE_LABELS[newMode]}.` });
+  };
+
   // Revenue is private to each agent — only ever read the bookings they own.
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !canViewRevenue || !authUser) return null;
@@ -270,6 +292,8 @@ export default function RevenuePage() {
       .flatMap(({ b }) =>
         ledgerFor(b).map((p) => ({
           id: `${b.id}:${p.id}`,
+          bookingId: b.id,
+          paymentId: p.id,
           clientName: b.clientName || '—',
           date: p.date,
           mode: p.mode,
@@ -577,7 +601,7 @@ export default function RevenuePage() {
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>Recent Collections</CardTitle>
-          <CardDescription>Latest payments received in {year}</CardDescription>
+          <CardDescription>Latest payments received in {year}. Change the method dropdown to correct how a payment was received.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -606,7 +630,18 @@ export default function RevenuePage() {
                         ? new Date(p.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
                         : '—'}
                     </TableCell>
-                    <TableCell>{PAYMENT_MODE_LABELS[p.mode] || p.mode}</TableCell>
+                    <TableCell>
+                      <Select value={p.mode} onValueChange={(v) => changeMethod(p.bookingId, p.paymentId, v as PaymentMode)}>
+                        <SelectTrigger className="h-8 w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(['cash', 'upi', 'card', 'bank', 'cheque', 'other'] as PaymentMode[]).map((m) => (
+                            <SelectItem key={m} value={m}>{PAYMENT_MODE_LABELS[m]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell className="text-right font-mono tabular-nums text-green-600">{formatINR(p.amount)}</TableCell>
                   </TableRow>
                 ))}

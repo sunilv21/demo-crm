@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sky Visa CRM — Finance Module: Implementation &amp; Alignment Overview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6; color: #1f2937; background: #f1f5f9; padding: 20px;
+    }
+    .container { max-width: 1150px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    h1 { color: #0f172a; border-bottom: 3px solid #0ea5e9; padding-bottom: 14px; margin-bottom: 8px; font-size: 1.9rem; }
+    .sub { color: #64748b; margin-bottom: 28px; }
+    h2 { color: #0369a1; margin-top: 40px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; font-size: 1.4rem; }
+    h3 { color: #334155; margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; }
+    p { margin-bottom: 12px; }
+    ul, ol { margin: 0 0 14px 22px; }
+    li { margin-bottom: 6px; }
+    code { background: #f1f5f9; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.88em; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 0.92rem; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; color: #0f172a; font-weight: 700; }
+    tr:nth-child(even) td { background: #fbfcfe; }
+    .tag { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+    .reuse { background: #dcfce7; color: #166534; }
+    .extend { background: #fef9c3; color: #854d0e; }
+    .new { background: #dbeafe; color: #1e40af; }
+    .box { padding: 16px 18px; border-radius: 8px; margin: 16px 0; border-left: 4px solid; }
+    .box.info { background: #eff6ff; border-color: #3b82f6; }
+    .box.warn { background: #fff7ed; border-color: #ea580c; }
+    .box.decision { background: #faf5ff; border-color: #a855f7; }
+    .box h3 { margin-top: 0; color: inherit; }
+    .flow { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre; }
+    .pill { display:inline-block; background:#e0f2fe; color:#0369a1; border-radius:6px; padding:1px 7px; font-size:0.8rem; font-weight:600; }
+    .toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 8px; }
+    .toc ul { list-style: none; margin: 0; columns: 2; }
+    .toc a { color: #0369a1; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .muted { color: #64748b; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Finance Management Module — Implementation &amp; Alignment Overview</h1>
+    <p class="sub">
+      How the proposed Finance module maps onto the <strong>existing Sky Visa CRM</strong> (Next.js 16 + Firebase/Firestore) —
+      what to reuse, what to extend, what's new, where it plugs in, and the decisions that must be made first.
+      <br /><span class="muted">Companion to <code>Sky_Visa_CRM_Finance_Management_Architecture.md</code> · analysis, not the spec restated.</span>
+    </p>
+
+    <div class="toc">
+      <ul>
+        <li><a href="#tldr">1. TL;DR</a></li>
+        <li><a href="#align">2. Alignment with the current app</a></li>
+        <li><a href="#where">3. Where it plugs in (nav, routes)</a></li>
+        <li><a href="#data">4. Data model &amp; how balances work</a></li>
+        <li><a href="#flows">5. Integration flows</a></li>
+        <li><a href="#decisions">6. Decisions to make first</a></li>
+        <li><a href="#permissions">7. Permissions mapping</a></li>
+        <li><a href="#rollout">8. Phased rollout</a></li>
+      </ul>
+    </div>
+
+    <h2 id="tldr">1. TL;DR</h2>
+    <p>
+      The Finance module is a <strong>cash-flow ledger</strong> layered on top of the CRM: every rupee lives in an
+      <strong>account</strong>, every movement is one <strong>transaction</strong> (income / expense / transfer), and account
+      balances derive from those transactions. It answers: <em>how much do we have, where is it, where did it come from,
+      where did it go, and who got paid.</em>
+    </p>
+    <p>
+      The good news: your app <strong>already has the raw materials</strong> — a per-booking payment ledger, a
+      <code>PaymentMode</code> enum, supplier fields on bookings, a just-built refund workflow, and a role system.
+      The Finance module mostly <strong>consolidates</strong> these into a single transaction engine plus new master data
+      (accounts, suppliers, categories). Two things need a real decision before building: <strong>who is allowed to see
+      company money</strong> (your revenue data is currently agent-only) and <strong>how balances stay correct</strong>
+      (your current writes are fire-and-forget). Both are covered in §6.
+    </p>
+
+    <h2 id="align">2. Alignment with the current application</h2>
+    <p>Legend: <span class="tag reuse">REUSE</span> already exists · <span class="tag extend">EXTEND</span> exists partially · <span class="tag new">NEW</span> to build.</p>
+    <table>
+      <thead>
+        <tr><th>Finance concept</th><th>Status</th><th>What's already in the app / what to do</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Incoming payment methods</strong> (Cash, UPI, Card, NEFT…)</td>
+          <td><span class="tag reuse">REUSE</span></td>
+          <td>The <code>PaymentMode</code> type (<code>cash·card·upi·bank·cheque·other</code>) and <code>PAYMENT_MODE_LABELS</code> already exist. The <code>payment_methods</code> collection is just this made <em>configurable</em> (add PhonePe/GPay/RTGS, flags for requires-reference/attachment).</td>
+        </tr>
+        <tr>
+          <td><strong>Money In</strong> (client receipts)</td>
+          <td><span class="tag extend">EXTEND</span></td>
+          <td>Bookings already carry a payment ledger — <code>payments[]</code>, <code>amountPaid</code>, <code>balanceAmount</code> — via the Payments dialog. Money In should <em>reuse this as the source</em> and also emit a finance <code>transaction (income)</code> so cash flow sees it. See §5 &amp; §6.3.</td>
+        </tr>
+        <tr>
+          <td><strong>Suppliers / Payees</strong></td>
+          <td><span class="tag extend">EXTEND</span></td>
+          <td>Bookings store <code>supplierName</code>, <code>supplierCost</code>, <code>supplierReference</code> as free text — but there's <em>no supplier directory</em>. The new <code>suppliers</code> collection (VFS, BLS, airlines, embassy…) fills this and lets bookings reference a real supplier id.</td>
+        </tr>
+        <tr>
+          <td><strong>Refund management</strong> (listed as "future" in the spec)</td>
+          <td><span class="tag reuse">REUSE</span></td>
+          <td>Already built on bookings this cycle: <code>cancellationCharges</code>, <code>refundAmount</code>, <code>refundStatus</code>, <code>refundMode</code>. A processed refund becomes a <code>transaction (expense / money-out)</code> in Finance.</td>
+        </tr>
+        <tr>
+          <td><strong>Invoices</strong> link on Money In</td>
+          <td><span class="tag extend">EXTEND</span></td>
+          <td>An <code>invoices</code> collection exists (basic, admin/manager-only). Transactions can link <code>invoiceId</code>; deeper invoicing (GST) is separate.</td>
+        </tr>
+        <tr>
+          <td><strong>Client / Organization</strong> links on transactions</td>
+          <td><span class="tag reuse">REUSE</span></td>
+          <td><code>clients</code> and <code>organizations</code> collections exist; <code>transaction.clientId</code> / <code>organizationId</code> reuse them directly (org roll-ups already compute money per client).</td>
+        </tr>
+        <tr>
+          <td><strong>Roles / permissions</strong></td>
+          <td><span class="tag reuse">REUSE</span></td>
+          <td>Roles <code>admin · manager · employee · agent</code> and <code>useAppUser()</code> gates exist. Maps cleanly to Admin=full, Manager=approve, Employee=create (see §7) — but note the revenue-visibility conflict in §6.1.</td>
+        </tr>
+        <tr>
+          <td><strong>Dashboard KPIs &amp; charts</strong></td>
+          <td><span class="tag extend">EXTEND</span></td>
+          <td><code>StatCard</code>, the existing Dashboard and agent Revenue page, and the <code>dataviz</code> patterns are reusable. Finance dashboard is new pages using these building blocks.</td>
+        </tr>
+        <tr>
+          <td><strong>accounts, transactions, expense_categories</strong></td>
+          <td><span class="tag new">NEW</span></td>
+          <td>No equivalent today. These are the core of the module — new Firestore collections + pages + rules.</td>
+        </tr>
+        <tr>
+          <td><strong>Internal transfers, approval workflow (Draft→Completed)</strong></td>
+          <td><span class="tag new">NEW</span></td>
+          <td>No approval/transfer concept exists yet. New, and introduces a status-machine discipline the app doesn't currently have.</td>
+        </tr>
+        <tr>
+          <td><strong>Money (INR) formatting &amp; helpers</strong></td>
+          <td><span class="tag reuse">REUSE</span></td>
+          <td><code>formatINR</code>, the payments lib, non-blocking write helpers, <code>useCollection</code>/<code>useDoc</code> hooks — all reusable infrastructure.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="where">3. Where it plugs into the app</h2>
+    <h3>Navigation</h3>
+    <p>
+      Add a collapsible <strong>Finance</strong> group to the sidebar (<code>app-sidebar-nav.tsx</code>) — exactly like the
+      existing <em>Employee Management</em> group — visible to Admin/Manager (and Employee for "create" screens). Items:
+      Dashboard · Money In · Money Out · Transfers · Accounts · Transactions · Suppliers · Reports · Settings.
+    </p>
+    <div class="flow">src/app/(app)/finance/
+  page.tsx                 → Finance Dashboard (KPIs + charts)
+  money-in/page.tsx        → receive payments (client → account)
+  money-out/page.tsx       → record expenses / supplier / refund payouts
+  transfers/page.tsx       → account ↔ account
+  accounts/page.tsx        → account list + balances
+  transactions/page.tsx    → unified ledger (filter by type/account/date)
+  suppliers/page.tsx       → payee directory
+  reports/page.tsx         → daily/monthly cash-flow, supplier payments
+  settings/page.tsx        → payment methods, expense categories, accounts</div>
+    <p class="muted">Routes follow the existing <code>src/app/(app)/…</code> convention; each page uses the same <code>useCollection</code>/<code>useDoc</code> + non-blocking-write pattern as Clients/Bookings.</p>
+
+    <h2 id="data">4. Data model &amp; how balances work</h2>
+    <p>Five new collections, all following the app's existing doc conventions (<code>createdAt/createdBy/updatedBy</code>, string ids):</p>
+    <table>
+      <thead><tr><th>Collection</th><th>Purpose</th><th>Links to existing</th></tr></thead>
+      <tbody>
+        <tr><td><code>accounts</code></td><td>Cash / bank / wallet buckets that hold money</td><td>—</td></tr>
+        <tr><td><code>payment_methods</code></td><td>Configurable in/out methods (supersedes the hard-coded <code>PaymentMode</code>)</td><td>generalises <code>PaymentMode</code></td></tr>
+        <tr><td><code>suppliers</code></td><td>Payee directory (VFS, airlines, rent, salary…)</td><td>replaces free-text <code>booking.supplierName</code></td></tr>
+        <tr><td><code>expense_categories</code></td><td>Visa fees, air ticket, rent, salary…</td><td>—</td></tr>
+        <tr><td><code>transactions</code></td><td><strong>The engine.</strong> One doc per income/expense/transfer</td><td><code>clientId</code>, <code>bookingId</code>, <code>invoiceId</code>, <code>supplierId</code>, <code>accountId</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="box info">
+      <h3>Recommended balance strategy: compute on read, don't mutate</h3>
+      <p>
+        The spec keeps a stored <code>currentBalance</code> and mutates it on every transaction. In this app's
+        <strong>fire-and-forget write model</strong> that is a race-condition risk (two writes clobber the balance).
+        Your app already <em>computes money on read</em> elsewhere (organization roll-ups sum booking totals live).
+        Do the same here:
+      </p>
+      <div class="flow">Account balance = openingBalance
+               + Σ(income to this account)
+               − Σ(expense from this account)
+               + Σ(transfers in) − Σ(transfers out)</div>
+      <p style="margin-bottom:0">
+        Compute per-account balances by reading that account's completed transactions. It's always correct, needs no
+        atomic increments, and matches the existing pattern. If real-time performance later demands a cached
+        <code>currentBalance</code>, update it inside a Firestore <code>runTransaction</code> (a deliberate departure from
+        the current non-blocking writes) or a Cloud Function trigger — <em>not</em> a plain <code>setDoc</code>.
+      </p>
+    </div>
+
+    <h2 id="flows">5. Integration flows</h2>
+    <h3>Money In — reuse the booking payment ledger</h3>
+    <div class="flow">Client → Booking → Payments dialog (existing) → records payment[]
+                                     │
+                                     ▼  (also emit)
+        transaction { type:'income', clientId, bookingId, accountId,
+                      paymentMethodId, amount, reference, receivedBy }</div>
+    <p>
+      The booking Payments dialog already captures amount/date/mode/reference. Extend it (or the Money-In screen) to also
+      pick an <strong>account</strong> and write a linked <code>income</code> transaction. That keeps the booking's own
+      balance accurate <em>and</em> feeds company cash flow from one action — no double entry by staff.
+    </p>
+
+    <h3>Money Out — expenses, supplier payments &amp; refunds</h3>
+    <ul>
+      <li><strong>Supplier / expense payment:</strong> new screen → <code>expense</code> transaction from an account, tagged with <code>supplierId</code> + <code>categoryId</code>.</li>
+      <li><strong>Refund payout:</strong> when the booking refund (already built) is marked <em>processed</em>, emit an <code>expense</code> transaction (money leaving an account back to the customer) so cash flow reflects it.</li>
+      <li><strong>Salary:</strong> payroll (existing HR module) can post <code>expense</code> transactions per pay run — a natural later tie-in.</li>
+    </ul>
+
+    <h3>Transfers</h3>
+    <p>A transfer writes one transaction that debits one account and credits another; it never appears as income or expense in reports.</p>
+
+    <h2 id="decisions">6. Decisions to make before building</h2>
+
+    <div class="box warn">
+      <h3>6.1 — Who can see company money? (the big one)</h3>
+      <p>
+        Today, revenue/profit is <strong>agent-only</strong> in this app: <code>canViewRevenue = isAgent</code>, and
+        <em>even admins cannot see booking revenue/profit</em> — this is intentional and enforced across Bookings,
+        the Organizations roll-up, etc. The Finance module, however, is fundamentally about
+        <strong>company cash flow</strong>, and the spec grants <strong>Admin full access</strong>. These directly conflict.
+      </p>
+      <p><strong>Options:</strong></p>
+      <ul>
+        <li><strong>(a)</strong> Make Finance a deliberate exception — Admin/Manager see all accounts &amp; balances.</li>
+        <li><strong>(b)</strong> Scope Finance to the same agent-only visibility (limiting — agents aren't bookkeepers).</li>
+        <li><strong>(c) ✅ Recommended — add a dedicated <code>finance</code> role.</strong> Introduce a new role
+          (Finance / Accountant) alongside <code>admin·manager·employee·agent</code>. Company cash flow becomes
+          <strong>finance-role-only</strong> (plus admin); per-booking <strong>profit margin stays agent-only</strong>,
+          completely unchanged. The two money views never collide because they belong to different roles.</li>
+      </ul>
+      <div class="box info" style="margin: 10px 0 0;">
+        <h3 style="font-size:1rem;">What option (c) touches</h3>
+        <ul style="margin-bottom:8px;">
+          <li>Add <code>'finance'</code> to the <code>Role</code> type (<code>types.ts</code>, <code>use-app-user.tsx</code>) + a new <code>canViewFinance</code> gate (parallel to <code>canViewRevenue</code>).</li>
+          <li>Firestore rules helper <code>isFinance()</code> for the finance collections; add <code>finance</code> to the <code>/users/new</code> role dropdown; show the Finance nav group to the role.</li>
+        </ul>
+        <p style="margin-bottom:0;"><strong>Sub-decisions:</strong>
+          finance also gets <strong>read</strong> access to clients/bookings/invoices (to link payments) but <em>not</em> HR/users;
+          <strong>admin</strong> keeps full finance access (superuser); finance does <strong>not</strong> see per-booking profit margin (that stays agent-only — cash movements ≠ sales margin).</p>
+      </div>
+    </div>
+
+    <div class="box warn">
+      <h3>6.2 — Balance integrity vs. the current write model</h3>
+      <p style="margin-bottom:0">
+        The app uses non-blocking (fire-and-forget) writes with no transactions. The Finance spec demands
+        <em>atomic balance updates</em> and <em>immutable completed records</em>. Adopt <strong>compute-on-read balances</strong>
+        (§4) and treat completed transactions as append-only — corrections happen via <strong>reversal/adjustment</strong>
+        transactions, never edits. This is a new discipline; the rest of the app edits freely.
+      </p>
+    </div>
+
+    <div class="box decision">
+      <h3>6.3 — One ledger or two? (booking payments vs finance transactions)</h3>
+      <p style="margin-bottom:0">
+        Bookings already store <code>payments[]</code>. If Money In also writes a <code>transaction</code>, the same receipt
+        exists in two places. Resolve up front: the booking ledger stays the <strong>operational</strong> record (what the
+        customer owes on <em>this</em> booking); the finance <code>transaction</code> is the <strong>cash-flow</strong> record
+        (what hit which account). Recording a booking payment should <strong>auto-create</strong> the linked transaction so
+        staff never enter it twice, and the two are reconciled by <code>bookingId</code>.
+      </p>
+    </div>
+
+    <div class="box info">
+      <h3>6.4 — Security rules &amp; approvals</h3>
+      <p style="margin-bottom:0">
+        New collections need Firestore rules mirroring the app's pattern: signed-in reads scoped by role; employees create
+        but cannot delete/approve; admin/manager approve. The Draft→Pending→Completed→Cancelled status machine and the
+        "approvedBy" step are <strong>new</strong> — the app has no approval workflow today, so this is genuinely new UI + rules.
+      </p>
+    </div>
+
+    <h2 id="permissions">7. Permissions mapping (with the new <code>finance</code> role from §6.1c)</h2>
+    <table>
+      <thead><tr><th>Role</th><th>Finance capability</th><th>Sees per-booking profit margin?</th></tr></thead>
+      <tbody>
+        <tr><td><code>admin</code></td><td>Full: all accounts, all transactions, approve, delete/reverse, settings, reports</td><td>No (unchanged — agent-only)</td></tr>
+        <tr><td><code>finance</code> <span class="tag new">NEW</span></td><td>Full day-to-day: create/approve transactions, manage accounts &amp; master data, reports; <strong>read</strong> clients/bookings/invoices to link payments</td><td>No — cash movements ≠ sales margin</td></tr>
+        <tr><td><code>manager</code></td><td>Create + approve transactions, view reports; no master-data delete <span class="muted">(optional — only if you want managers in finance)</span></td><td>No</td></tr>
+        <tr><td><code>employee</code></td><td>None by default (or create-draft only, if you want field staff to log expenses)</td><td>No</td></tr>
+        <tr><td><code>agent</code></td><td>None — no company-finance access</td><td><strong>Yes</strong> (unchanged — this is the existing agent-only revenue view)</td></tr>
+      </tbody>
+    </table>
+    <p class="muted">Two orthogonal money gates: <code>canViewRevenue</code> (agent → per-booking margin) and the new <code>canViewFinance</code> (admin + finance → company cash flow). They never overlap.</p>
+
+    <h2 id="rollout">8. Suggested phased rollout</h2>
+    <ol>
+      <li><strong>Foundation:</strong> <code>accounts</code> + <code>transactions</code> collections, rules, and the Transactions ledger page with compute-on-read balances. Nothing else works without these.</li>
+      <li><strong>Master data:</strong> <code>suppliers</code>, <code>expense_categories</code>, <code>payment_methods</code> + a Settings page.</li>
+      <li><strong>Money In:</strong> wire the existing booking Payments flow to also emit income transactions (§6.3).</li>
+      <li><strong>Money Out:</strong> expenses/supplier payments, and tie in the existing refund payout.</li>
+      <li><strong>Transfers</strong> + <strong>Dashboard/Reports</strong> (KPIs, cash-flow charts) on top of the transaction data.</li>
+      <li><strong>Later:</strong> approval workflow polish, payroll→expense tie-in, GST/P&amp;L (the spec's "future" list).</li>
+    </ol>
+
+    <p class="muted" style="margin-top:32px; border-top:1px solid #e2e8f0; padding-top:16px;">
+      Overview prepared as an alignment analysis of the Finance Management Architecture against the current Sky Visa CRM
+      codebase. The two items in §6.1 and §6.2/6.3 are the decisions that most affect the build — resolve those first.
+    </p>
+  </div>
+</body>
+</html>

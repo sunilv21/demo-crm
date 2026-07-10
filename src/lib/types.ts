@@ -13,7 +13,7 @@ export type User = {
   phone?: string;
   jobTitle?: string;
   avatar?: string;
-  role: 'employee' | 'manager' | 'admin' | 'agent';
+  role: 'employee' | 'manager' | 'admin' | 'agent' | 'finance';
   baseSalary?: number;
   workStartTime?: string;
   workEndTime?: string;
@@ -252,6 +252,9 @@ export type Payment = {
   createdAt?: any;
   createdBy?: string;
   createdByName?: string;
+  // Id of the linked Finance income transaction (booking payments flow into the
+  // Finance module). Used to cancel that transaction if the payment is removed.
+  financeTxnId?: string;
 };
 
 export type Booking = {
@@ -328,6 +331,19 @@ export type Booking = {
   // Notes
   remarks?: string;
 
+  // Cancellation & refund (populated when status === 'cancelled').
+  //   cancellationCharges = amount the agency retains (cancellation fee)
+  //   refundAmount        = amount owed back to the customer (paid − charges)
+  //   refundStatus        = 'pending' until the money is actually returned
+  cancellationReason?: string;
+  cancelledAt?: string;
+  cancellationCharges?: number;
+  refundAmount?: number;
+  refundStatus?: 'pending' | 'processed';
+  refundedAt?: string;
+  refundMode?: PaymentMode;
+  refundReference?: string;
+
   // Archival: once a booking is fully paid it can be archived out of the active
   // bookings list into the client's Travel History (keeps the list uncluttered).
   // Archives manually, or automatically 15 days after the full payment is received.
@@ -391,5 +407,105 @@ export type FollowUp = {
   createdAt: any;
   updatedAt: any;
   createdBy: string;
+  updatedBy: string;
+};
+
+// ---------------------------------------------------------------------------
+// Finance module (company cash flow) — visible to admin + finance role only.
+// Balances are computed on read from transactions (see src/lib/finance.ts);
+// no stored currentBalance is mutated.
+// ---------------------------------------------------------------------------
+
+export type FinanceAccountType = 'cash' | 'petty-cash' | 'current' | 'savings' | 'wallet';
+
+export type FinanceAccount = {
+  id: string;
+  name: string;
+  type: FinanceAccountType;
+  bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  openingBalance: number;
+  status: 'active' | 'inactive';
+  notes?: string;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type FinanceSupplier = {
+  id: string;
+  name: string;
+  category?: string; // e.g. VFS, Airline, Hotel, Courier, Utilities, Employee
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  gst?: string;
+  address?: string;
+  notes?: string;
+  status: 'active' | 'inactive';
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type ExpenseCategory = {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type PaymentMethodDoc = {
+  id: string;
+  name: string;
+  direction: 'incoming' | 'outgoing';
+  requiresReference?: boolean;
+  requiresAttachment?: boolean;
+  active?: boolean;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type FinanceTxnType = 'income' | 'expense' | 'transfer';
+export type FinanceTxnStatus = 'completed' | 'cancelled';
+
+export type FinanceTransaction = {
+  id: string;
+  type: FinanceTxnType;
+  amount: number;
+  date: string; // ISO date
+  // For income → destination account; expense → source account;
+  // transfer → source (from) account, with toAccountId as destination.
+  accountId: string;
+  toAccountId?: string;
+  // Optional links to the commercial records.
+  clientId?: string;
+  clientName?: string;
+  bookingId?: string;
+  invoiceId?: string;
+  supplierId?: string;
+  supplierName?: string;
+  categoryId?: string;
+  categoryName?: string;
+  paymentMethod?: string;
+  reference?: string;
+  remarks?: string;
+  status: FinanceTxnStatus;
+  // 'booking' = auto-created from an agent's booking payment; 'manual' = entered
+  // in the Finance module. bookingPaymentId ties it back to the Payment.
+  source?: 'booking' | 'manual';
+  bookingPaymentId?: string;
+  createdAt: any;
+  createdBy: string;
+  createdByName?: string;
+  updatedAt: any;
   updatedBy: string;
 };

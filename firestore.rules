@@ -43,6 +43,12 @@ service cloud.firestore {
     function isAdminOrManager() {
       return userRole() == 'admin' || userRole() == 'manager';
     }
+    // Dedicated Finance/Accountant role (company cash-flow module). Gets read
+    // access to the commercial records (clients/bookings/invoices) so payments
+    // can be linked; the Finance collections themselves are gated separately.
+    function isFinance() {
+      return userRole() == 'finance';
+    }
     // True when the given client is assigned to the requesting user. Uses get()
     // (which bypasses read rules), guarded by exists() so a missing client
     // doesn't throw and poison the whole rule expression.
@@ -121,7 +127,13 @@ service cloud.firestore {
     // List queries for non-admins MUST be constrained (where createdBy == uid,
     // or where clientId == <an assigned client>) or Firestore rejects them.
     match /bookings/{id} {
-      allow read, update: if isSignedIn() && (
+      allow read: if isSignedIn() && (
+                     isAdminOrManager()
+                     || isFinance()
+                     || resource.data.createdBy == request.auth.uid
+                     || clientAssignedToMe(resource.data.clientId)
+                   );
+      allow update: if isSignedIn() && (
                              isAdminOrManager()
                              || resource.data.createdBy == request.auth.uid
                              || clientAssignedToMe(resource.data.clientId)
@@ -134,7 +146,13 @@ service cloud.firestore {
     // clients assigned to them or that they created. Non-admin list queries
     // MUST be constrained by where('assignedEmployees','array-contains', uid).
     match /clients/{id} {
-      allow read, update: if isSignedIn() && (
+      allow read: if isSignedIn() && (
+                     isAdminOrManager()
+                     || isFinance()
+                     || (request.auth.uid in resource.data.assignedEmployees)
+                     || resource.data.createdBy == request.auth.uid
+                   );
+      allow update: if isSignedIn() && (
                              isAdminOrManager()
                              || (request.auth.uid in resource.data.assignedEmployees)
                              || resource.data.createdBy == request.auth.uid
@@ -177,8 +195,50 @@ service cloud.firestore {
     }
 
     match /invoices/{id} {
-      allow read: if isAdminOrManager();
+      allow read: if isAdminOrManager() || isFinance();
       allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Finance module (company cash flow) — admin + finance role only.
+    //   • Read: admin or finance.
+    //   • Create/update: admin or finance (employees don't post finance).
+    //   • Delete: admin only (prefer cancelling a transaction over deleting).
+    // -------------------------------------------------------------------------
+    function canFinance() {
+      return isAdmin() || isFinance();
+    }
+    match /accounts/{id} {
+      allow read, create, update: if canFinance();
+      allow delete: if isAdmin();
+    }
+    match /finance_transactions/{id} {
+      allow read: if canFinance();
+      // Finance/admin post any transaction. Any signed-in user (e.g. an agent
+      // recording a booking payment) may create a booking-sourced income entry.
+      allow create: if canFinance()
+                    || (isSignedIn()
+                        && request.resource.data.source == 'booking'
+                        && request.resource.data.type == 'income');
+      // Finance/admin update anything; the agent who created a booking-sourced
+      // entry may update it (used to cancel it if the payment is removed).
+      allow update: if canFinance()
+                    || (isSignedIn()
+                        && resource.data.source == 'booking'
+                        && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    match /suppliers/{id} {
+      allow read, create, update: if canFinance();
+      allow delete: if isAdmin();
+    }
+    match /expense_categories/{id} {
+      allow read, create, update: if canFinance();
+      allow delete: if isAdmin();
+    }
+    match /payment_methods/{id} {
+      allow read, create, update: if canFinance();
+      allow delete: if isAdmin();
     }
 
     match /process_tracking/{id} {

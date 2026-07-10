@@ -24,6 +24,8 @@ import {
   Printer,
   Wallet,
   Archive,
+  XCircle,
+  RotateCcw,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,6 +40,7 @@ import { differenceInDays } from 'date-fns';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
 import { PrintableBookings } from '@/components/bookings/printable-bookings';
 import { PaymentsDialog } from '@/components/bookings/payments-dialog';
+import { CancelRefundDialog } from '@/components/bookings/cancel-refund-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
@@ -108,6 +111,7 @@ export default function ClientBookingsPage() {
   // Exactly the bookings to print: one row, a chosen selection, or all active.
   const [printBookings, setPrintBookings] = useState<Booking[] | null>(null);
   const [paymentsBooking, setPaymentsBooking] = useState<Booking | null>(null);
+  const [cancelBooking, setCancelBooking] = useState<Booking | null>(null);
   // Row selection for "print some of them" (e.g. 3 of 5).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const printContentRef = useRef<HTMLDivElement>(null);
@@ -631,6 +635,11 @@ export default function ClientBookingsPage() {
                       >
                         {booking.status === 'hold' || booking.status === 'pending' ? 'Hold' : booking.status}
                       </Badge>
+                      {booking.status === 'cancelled' && booking.refundStatus && (booking.refundAmount ?? 0) > 0 && (
+                        <div className={`mt-1 text-xs ${booking.refundStatus === 'processed' ? 'text-green-600' : 'text-yellow-700'}`}>
+                          {booking.refundStatus === 'processed' ? 'Refunded' : 'Refund pending'} ₹{(booking.refundAmount ?? 0).toLocaleString()}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -660,6 +669,18 @@ export default function ClientBookingsPage() {
                             <Archive className="mr-2 h-4 w-4" />
                             {cleared ? 'Archive to Travel History' : 'Archive (payment pending)'}
                           </DropdownMenuItem>
+                          {booking.status === 'cancelled' ? (
+                            <DropdownMenuItem onSelect={() => setCancelBooking(booking)}>
+                              <RotateCcw className="mr-2 h-4 w-4" />
+                              Refund
+                              {booking.refundStatus === 'pending' && <span className="ml-auto text-xs text-yellow-700">pending</span>}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem className="text-destructive" onSelect={() => setCancelBooking(booking)}>
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Cancel / Refund
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -758,6 +779,11 @@ export default function ClientBookingsPage() {
         booking={paymentsBooking ? (bookings?.find((b) => b.id === paymentsBooking.id) ?? paymentsBooking) : null}
         client={client ?? null}
         onOpenChange={(open) => { if (!open) setPaymentsBooking(null); }}
+      />
+
+      <CancelRefundDialog
+        booking={cancelBooking ? (bookings?.find((b) => b.id === cancelBooking.id) ?? cancelBooking) : null}
+        onOpenChange={(open) => { if (!open) setCancelBooking(null); }}
       />
 
       {/* Hidden printable content — a single booking when printing one row, else all */}

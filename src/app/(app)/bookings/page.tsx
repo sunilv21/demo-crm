@@ -25,6 +25,7 @@ import {
   Pencil,
   Printer,
   XCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Input } from '@/components/ui/input';
@@ -43,19 +44,10 @@ import { PrintableBookings } from '@/components/bookings/printable-bookings';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
 import { printContentHtml } from '@/lib/print';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { query, doc, collection, serverTimestamp, where, orderBy, limit } from 'firebase/firestore';
+import { query, doc, collection, where, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { CancelRefundDialog } from '@/components/bookings/cancel-refund-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -188,13 +180,6 @@ export default function BookingsPage() {
       toast({ title: "Booking Updated", description: "The booking has been successfully updated." });
   };
 
-  const handleConfirmCancel = () => {
-      if (!firestore || !bookingToCancel || !user) return;
-      const bookingRef = doc(firestore, 'bookings', bookingToCancel.id);
-      setDocumentNonBlocking(bookingRef, { status: 'cancelled', updatedAt: serverTimestamp(), updatedBy: user.uid }, { merge: true });
-      toast({ variant: 'destructive', title: "Booking Cancelled", description: "The booking has been cancelled." });
-      setBookingToCancel(null);
-  };
 
   // Agents only ever work with their own bookings; everyone else sees all.
   const scopedBookings = (canViewRevenue && user)
@@ -411,9 +396,16 @@ export default function BookingsPage() {
                       <DropdownMenuItem onSelect={() => { setPrintBooking(booking); setPrintSettingsOpen(true); }}>
                         <Printer className="mr-2 h-4 w-4" />Print
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => setBookingToCancel(booking)} className="text-destructive">
-                        <XCircle className="mr-2 h-4 w-4" />Cancel
-                      </DropdownMenuItem>
+                      {booking.status === 'cancelled' ? (
+                        <DropdownMenuItem onSelect={() => setBookingToCancel(booking)}>
+                          <RotateCcw className="mr-2 h-4 w-4" />Refund
+                          {booking.refundStatus === 'pending' && <span className="ml-auto text-xs text-yellow-700">pending</span>}
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onSelect={() => setBookingToCancel(booking)} className="text-destructive">
+                          <XCircle className="mr-2 h-4 w-4" />Cancel
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -473,22 +465,10 @@ export default function BookingsPage() {
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This will cancel the booking for {bookingToCancel?.clientName}. This action cannot be undone.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Back</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90">
-                    Confirm Cancellation
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CancelRefundDialog
+        booking={bookingToCancel ? (bookings?.find((b) => b.id === bookingToCancel.id) ?? bookingToCancel) : null}
+        onOpenChange={(open) => { if (!open) setBookingToCancel(null); }}
+      />
 
       <PrintSettingsDialog
         open={printSettingsOpen}

@@ -4,6 +4,7 @@ import { AppHeader } from '@/components/common/app-header';
 import { AppSidebarNav } from '@/components/common/app-sidebar-nav';
 import { AutoLogoutWatcher } from '@/components/attendance/auto-logout-watcher';
 import { NetworkStatusListener } from '@/components/common/network-status';
+import { FinanceRoleGuard } from '@/components/common/finance-role-guard';
 import {
   SidebarProvider,
   Sidebar,
@@ -78,6 +79,7 @@ export default function AppLayout({
     <AppUserProvider>
       <AutoLogoutWatcher />
       <NetworkStatusListener />
+      <FinanceRoleGuard />
       <SidebarProvider>
         <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
             <AppSidebarNav />

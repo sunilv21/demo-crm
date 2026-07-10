@@ -9,7 +9,7 @@ import { useDoc } from '@/firebase/firestore/use-doc';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { User as AppUser } from '@/lib/types';
 
-export type Role = 'admin' | 'manager' | 'employee' | 'agent';
+export type Role = 'admin' | 'manager' | 'employee' | 'agent' | 'finance';
 
 export interface AppUserContextValue {
   authUser: FirebaseUser | null;
@@ -20,6 +20,7 @@ export interface AppUserContextValue {
   isManager: boolean;
   isEmployee: boolean;
   isAgent: boolean;
+  isFinance: boolean;
   isAdminOrManager: boolean;
   canManageUsers: boolean;
   canDelete: boolean;
@@ -28,6 +29,9 @@ export interface AppUserContextValue {
   canViewAdminPages: boolean;
   // Revenue / pricing-margin details are private to agents only.
   canViewRevenue: boolean;
+  // Company cash-flow (Finance module) — admin + finance role only. Kept
+  // separate from canViewRevenue so per-booking margin stays agent-only.
+  canViewFinance: boolean;
 }
 
 const AppUserContext = createContext<AppUserContextValue | undefined>(undefined);
@@ -83,13 +87,14 @@ export const AppUserProvider: React.FC<{ children: ReactNode }> = ({ children })
   const value = useMemo<AppUserContextValue>(() => {
     const rawRole = (appUser?.role ?? 'employee') as Role;
     const role: Role =
-      rawRole === 'admin' || rawRole === 'manager' || rawRole === 'agent'
+      rawRole === 'admin' || rawRole === 'manager' || rawRole === 'agent' || rawRole === 'finance'
         ? rawRole
         : 'employee';
     const isAdmin = role === 'admin';
     const isManager = role === 'manager';
     const isEmployee = role === 'employee';
     const isAgent = role === 'agent';
+    const isFinance = role === 'finance';
     const isAdminOrManager = isAdmin || isManager;
 
     return {
@@ -101,6 +106,7 @@ export const AppUserProvider: React.FC<{ children: ReactNode }> = ({ children })
       isManager,
       isEmployee,
       isAgent,
+      isFinance,
       isAdminOrManager,
       canManageUsers: isAdmin,
       canDelete: isAdminOrManager,
@@ -108,6 +114,8 @@ export const AppUserProvider: React.FC<{ children: ReactNode }> = ({ children })
       canViewInvoices: isAdminOrManager,
       canViewAdminPages: isAdminOrManager,
       canViewRevenue: isAgent,
+      // Company cash flow + agent performance: the dedicated finance role only.
+      canViewFinance: isFinance,
     };
   }, [authUser, appUser, isUserLoading, isDocLoading]);
 

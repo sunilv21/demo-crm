@@ -67,7 +67,7 @@ export default function UsersPage() {
   );
   const { data: users, isLoading } = useCollection<AppUser>(usersQuery);
 
-  const handleRoleChange = (userId: string, newRole: 'admin' | 'manager' | 'employee' | 'agent') => {
+  const handleRoleChange = (userId: string, newRole: 'admin' | 'manager' | 'employee' | 'agent' | 'finance') => {
     if (!firestore || !currentUser) return;
     if (userId === currentUser.uid) {
       toast({
@@ -144,7 +144,7 @@ export default function UsersPage() {
                       <Select
                         value={u.role ?? 'employee'}
                         onValueChange={(value) =>
-                          handleRoleChange(u.id, value as 'admin' | 'manager' | 'employee' | 'agent')
+                          handleRoleChange(u.id, value as 'admin' | 'manager' | 'employee' | 'agent' | 'finance')
                         }
                         disabled={isSelf}
                       >
@@ -154,6 +154,7 @@ export default function UsersPage() {
                         <SelectContent>
                           <SelectItem value="employee">Employee</SelectItem>
                           <SelectItem value="agent">Agent</SelectItem>
+                          <SelectItem value="finance">Finance</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>

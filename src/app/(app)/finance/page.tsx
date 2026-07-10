@@ -1,0 +1,148 @@
+'use client';
+
+import { useMemo } from 'react';
+import Link from 'next/link';
+import { collection } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import type { FinanceAccount, FinanceTransaction, Booking } from '@/lib/types';
+import {
+  FINANCE_COLLECTIONS, accountBalance, totalBalance, isCashAccount,
+  sumIncome, sumExpense, onDate, inMonth, todayISO, thisMonthISO, ACCOUNT_TYPE_LABELS,
+  bookingPaymentsAsTransactions,
+} from '@/lib/finance';
+import { formatINR } from '@/lib/utils';
+import { format } from 'date-fns';
+import { PageHeader } from '@/components/common/page-header';
+import { StatCard } from '@/components/dashboard/stat-card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Landmark } from 'lucide-react';
+
+export default function FinanceDashboardPage() {
+  const firestore = useFirestore();
+  const accountsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.accounts) : null), [firestore]);
+  const { data: accounts, isLoading } = useCollection<FinanceAccount>(accountsQuery);
+  const txnsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.transactions) : null), [firestore]);
+  const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
+  const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
+  const { data: bookings } = useCollection<Booking>(bookingsQuery);
+
+  // Manual finance transactions + income derived from client-booking payments.
+  const txns = useMemo(
+    () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
+    [transactions, bookings]
+  );
+  const active = useMemo(() => (accounts ?? []).filter((a) => a.status !== 'inactive'), [accounts]);
+  const accName = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);
+
+  const cashAcc = totalBalance(active.filter(isCashAccount), txns);
+  const bankAcc = totalBalance(active, txns) - cashAcc;
+  // Booking collections not yet assigned to a finance account. Split by how they
+  // were collected: cash-mode adds to Cash, everything else to Bank/Wallet.
+  const undep = txns.filter((t) => t.status !== 'cancelled' && t.type === 'income' && !t.accountId);
+  const cashUndep = undep.filter((t) => (t.paymentMethod || '').toLowerCase() === 'cash').reduce((s, t) => s + (t.amount || 0), 0);
+  const otherUndep = undep.reduce((s, t) => s + (t.amount || 0), 0) - cashUndep;
+  const cash = cashAcc + cashUndep;
+  const bank = bankAcc + otherUndep;
+  const total = cash + bank;
+  const totalExpenses = sumExpense(txns);
+  const today = todayISO();
+  const month = thisMonthISO();
+  const todayIn = sumIncome(txns, onDate(today));
+  const todayOut = sumExpense(txns, onDate(today));
+  const monthIn = sumIncome(txns, inMonth(month));
+  const monthOut = sumExpense(txns, inMonth(month));
+
+  const recent = useMemo(
+    () => [...txns].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 8),
+    [txns]
+  );
+
+  const money = (n: number) => (isLoading ? '…' : formatINR(n));
+
+  return (
+    <>
+      <PageHeader title="Finance Dashboard" description="Company cash flow at a glance.">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild><Link href="/finance/money-in"><ArrowDownCircle className="mr-2 h-4 w-4" />Money In</Link></Button>
+          <Button variant="outline" asChild><Link href="/finance/money-out"><ArrowUpCircle className="mr-2 h-4 w-4" />Money Out</Link></Button>
+          <Button variant="outline" asChild><Link href="/finance/transfers"><ArrowLeftRight className="mr-2 h-4 w-4" />Transfer</Link></Button>
+        </div>
+      </PageHeader>
+
+      <div className="grid gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Total Available Balance" value={money(total)} variant="success" />
+        <StatCard title="Cash Balance" value={money(cash)} />
+        <StatCard title="Bank / Wallet Balance" value={money(bank)} />
+        <StatCard title="Total Expenses" value={money(totalExpenses)} variant="danger" />
+      </div>
+      <div className="grid gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Today's Collection" value={money(todayIn)} variant="success" />
+        <StatCard title="Today's Expenses" value={money(todayOut)} variant="danger" />
+        <StatCard title="Monthly Collection" value={money(monthIn)} variant="warning" />
+        <StatCard title="Monthly Expenses" value={money(monthOut)} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Account balances */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Accounts</CardTitle>
+            <Button variant="ghost" size="sm" asChild><Link href="/finance/accounts">Manage</Link></Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableBody>
+                {active.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium"><span className="flex items-center gap-2"><Landmark className="h-4 w-4 text-muted-foreground" />{a.name}</span></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{ACCOUNT_TYPE_LABELS[a.type]}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatINR(accountBalance(a, txns))}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {!isLoading && active.length === 0 && (
+              <div className="p-6 text-center text-sm text-muted-foreground">No accounts yet. <Link href="/finance/accounts" className="underline">Create one</Link>.</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent transactions */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Recent transactions</CardTitle>
+            <Button variant="ghost" size="sm" asChild><Link href="/finance/transactions">View all</Link></Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Date</TableHead><TableHead>Details</TableHead><TableHead className="text-right">Amount</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {recent.map((t) => (
+                  <TableRow key={t.id} className={t.status === 'cancelled' ? 'opacity-50' : ''}>
+                    <TableCell className="text-sm">{t.date ? format(new Date(t.date), 'dd MMM') : '—'}</TableCell>
+                    <TableCell className="text-sm">
+                      {t.type === 'transfer'
+                        ? <span className="text-blue-700">Transfer · {accName.get(t.accountId)} → {accName.get(t.toAccountId ?? '')}</span>
+                        : (t.clientName || t.supplierName || t.categoryName || accName.get(t.accountId) || '—')}
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${t.type === 'income' ? 'text-green-600' : t.type === 'expense' ? 'text-red-600' : ''}`}>
+                      {t.type === 'income' ? '+' : t.type === 'expense' ? '−' : ''}{formatINR(t.amount || 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {!isLoading && recent.length === 0 && (
+              <div className="p-6 text-center text-sm text-muted-foreground">No transactions yet.</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}
