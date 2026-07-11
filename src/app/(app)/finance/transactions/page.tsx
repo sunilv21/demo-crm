@@ -5,8 +5,8 @@ import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
-import type { FinanceAccount, FinanceTransaction, FinanceTxnType, Booking, AgentExpense } from '@/lib/types';
-import { FINANCE_COLLECTIONS, bookingPaymentsAsTransactions, agentExpensesAsTransactions, isDerivedTxn } from '@/lib/finance';
+import type { FinanceAccount, FinanceTransaction, FinanceTxnType, Booking } from '@/lib/types';
+import { FINANCE_COLLECTIONS, bookingPaymentsAsTransactions, isDerivedTxn } from '@/lib/finance';
 import { formatINR } from '@/lib/utils';
 import { format } from 'date-fns';
 import { PageHeader } from '@/components/common/page-header';
@@ -36,15 +36,9 @@ export default function TransactionsPage() {
   const { data: transactions, isLoading } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
-  const agentExpQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.agentExpenses) : null), [firestore]);
-  const { data: agentExpenses } = useCollection<AgentExpense>(agentExpQuery);
   const allTxns = useMemo(
-    () => [
-      ...(transactions ?? []),
-      ...bookingPaymentsAsTransactions(bookings ?? []),
-      ...agentExpensesAsTransactions(agentExpenses ?? []),
-    ],
-    [transactions, bookings, agentExpenses]
+    () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
+    [transactions, bookings]
   );
 
   const accName = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);

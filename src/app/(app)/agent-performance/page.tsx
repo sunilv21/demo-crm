@@ -5,6 +5,7 @@ import { collection } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Booking, User as StaffUser } from '@/lib/types';
 import { formatINR } from '@/lib/utils';
+import { bookingAgentId } from '@/lib/finance';
 import { PageHeader } from '@/components/common/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,9 +49,12 @@ export default function AgentPerformancePage() {
 
     const map = new Map<string, Row>();
     (bookings ?? []).forEach((b) => {
-      if (b.status === 'cancelled' || !b.createdBy || !inRange(b)) return;
-      const u = userById.get(b.createdBy);
-      const key = b.createdBy;
+      if (b.status === 'cancelled' || !inRange(b)) return;
+      // Credit the owning sales agent (agentId), falling back to the creator when
+      // they're an agent. Employee-created, agent-priced bookings credit the agent.
+      const key = bookingAgentId(b, (uid) => userById.get(uid)?.role);
+      if (!key) return;
+      const u = userById.get(key);
       const row = map.get(key) ?? {
         id: key, name: u?.name || 'Unknown', role: u?.role,
         bookings: 0, revenue: 0, profit: 0, collected: 0, pending: 0,

@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { collection } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import type { FinanceAccount, FinanceTransaction, Booking, User as StaffUser, AgentExpense } from '@/lib/types';
-import { FINANCE_COLLECTIONS, accountBalance, sumIncome, sumExpense, inMonth, thisMonthISO, bookingPaymentsAsTransactions, agentExpensesAsTransactions } from '@/lib/finance';
+import type { FinanceAccount, FinanceTransaction, Booking, User as StaffUser } from '@/lib/types';
+import { FINANCE_COLLECTIONS, accountBalance, sumIncome, sumExpense, inMonth, thisMonthISO, bookingPaymentsAsTransactions, bookingAgentId } from '@/lib/finance';
 import { formatINR, formatINRCompact } from '@/lib/utils';
 import { PageHeader } from '@/components/common/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -41,16 +41,9 @@ export default function FinanceReportsPage() {
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
-  const agentExpQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.agentExpenses) : null), [firestore]);
-  const { data: agentExpenses } = useCollection<AgentExpense>(agentExpQuery);
-
   const txns = useMemo(
-    () => [
-      ...(transactions ?? []),
-      ...bookingPaymentsAsTransactions(bookings ?? []),
-      ...agentExpensesAsTransactions(agentExpenses ?? []),
-    ],
-    [transactions, bookings, agentExpenses]
+    () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
+    [transactions, bookings]
   );
   const monthTxns = useMemo(() => txns.filter((t) => live(t) && inMonth(month)(t)), [txns, month]);
 
@@ -73,6 +66,7 @@ export default function FinanceReportsPage() {
   const usersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'users') : null), [firestore]);
   const { data: users } = useCollection<StaffUser>(usersQuery);
   const userName = useMemo(() => new Map((users ?? []).map((u) => [u.id, u.name || u.email?.split('@')[0] || 'User'])), [users]);
+  const userRole = useMemo(() => new Map((users ?? []).map((u) => [u.id, u.role])), [users]);
 
   const year = month.slice(0, 4);
 
@@ -105,20 +99,22 @@ export default function FinanceReportsPage() {
     return rows;
   }, [monthly, forecast]);
 
-  // Collections by agent (who created the booking) for the year.
-  const bookingCreator = useMemo(() => new Map((bookings ?? []).map((b) => [b.id, b.createdBy])), [bookings]);
+  // Collections by the owning sales agent for the year.
+  const bookingById = useMemo(() => new Map((bookings ?? []).map((b) => [b.id, b])), [bookings]);
   const byAgent = useMemo(() => {
     const yearTxns = txns.filter((t) => live(t) && t.type === 'income' && t.bookingId && String(t.date).slice(0, 4) === year);
     const m = new Map<string, number>();
     yearTxns.forEach((t) => {
-      const uid = bookingCreator.get(t.bookingId ?? '') ?? t.createdBy ?? '—';
+      const b = bookingById.get(t.bookingId ?? '');
+      const uid = b ? bookingAgentId(b, (id) => userRole.get(id)) : null;
+      if (!uid) return;
       m.set(uid, (m.get(uid) || 0) + (t.amount || 0));
     });
     return [...m.entries()]
       .map(([uid, value]) => ({ name: userName.get(uid) || 'Unknown', value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
-  }, [txns, year, bookingCreator, userName]);
+  }, [txns, year, bookingById, userName, userRole]);
 
   const pieData = byBookingType.map(([k, v]) => ({ name: typeLabel(k), value: v }));
 

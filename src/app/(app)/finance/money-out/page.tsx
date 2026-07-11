@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AgentExpenseReview } from '@/components/finance/agent-expense-review';
 import { ArrowUpCircle } from 'lucide-react';
 
 const NONE = '__none__';
@@ -75,7 +77,14 @@ export default function MoneyOutPage() {
 
   return (
     <>
-      <PageHeader title="Money Out" description="Record an expense or supplier payment from a company account." />
+      <PageHeader title="Money Out" description="Record an expense or supplier payment, and review agent-logged expenses." />
+      <Tabs defaultValue="record">
+        <TabsList>
+          <TabsTrigger value="record">Record Expense</TabsTrigger>
+          <TabsTrigger value="agent">Agent Expenses</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="record" className="mt-4">
       <Card className="max-w-2xl border rounded-lg">
         <CardContent className="p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -139,6 +148,12 @@ export default function MoneyOutPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="agent" className="mt-4">
+          <AgentExpenseReview />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

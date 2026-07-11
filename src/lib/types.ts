@@ -264,6 +264,12 @@ export type Booking = {
   clientId: string;
   clientName: string;
 
+  // Sales agent who OWNS this booking for revenue attribution. Auto-set to the
+  // first agent who adds pricing (Cost Breakdown); if unset, attribution falls
+  // back to createdBy when the creator is an agent. Separates "who sold it" from
+  // "who typed it in" (an employee can create; an agent can own).
+  agentId?: string;
+
   // Booking
   bookingType: BookingType;
   destination?: string;
@@ -474,8 +480,9 @@ export type PaymentMethodDoc = {
   updatedBy: string;
 };
 
-// An expense logged by an agent (money they spent on the business). Owned by
-// the agent; surfaced in the Finance module as an expense transaction on read.
+// An expense logged by an agent (money they spent on the business). It is a
+// PENDING REIMBURSEMENT — NOT a company expense until finance reimburses the
+// agent. Reimbursing creates a real finance transaction (the company expense).
 export type AgentExpense = {
   id: string;
   amount: number;
@@ -483,7 +490,11 @@ export type AgentExpense = {
   category?: string; // what kind of spend
   purpose?: string;  // what it was for (description)
   payee?: string;    // where / to whom
-  paymentMethod?: string; // how it was paid (Cash / UPI / …)
+  paymentMethod?: string; // how the agent paid (Cash / UPI / …)
+  // Reimbursement (set by finance when the company pays the agent back).
+  reimbursed?: boolean;
+  reimbursedAt?: string;
+  reimbursedTxnId?: string; // the finance_transactions expense created on payout
   createdAt: any;
   createdBy: string;
   createdByName?: string;

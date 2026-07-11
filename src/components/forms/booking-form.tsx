@@ -283,6 +283,12 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
     const isOneWay =
       values.bookingType === 'flight' ? (values.isOneWay || !values.endDate) : values.isOneWay;
 
+    // Revenue attribution: the first AGENT to add pricing claims ownership.
+    // Preserve any existing owner; otherwise, if the current user is an agent and
+    // this booking has a price, they become the owning sales agent.
+    const hasPricing = (values.total ?? 0) > 0 || (values.supplierCost ?? 0) > 0;
+    const agentId = booking?.agentId || (canViewRevenue && user && hasPricing ? user.uid : undefined);
+
     const payload: Record<string, any> = {
       ...values,
       isOneWay,
@@ -294,6 +300,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       supplierCost: values.supplierCost ?? 0,
       profit: (values.total ?? 0) - (values.supplierCost ?? 0),
       progress: progressMap[values.status] ?? 0,
+      ...(agentId ? { agentId } : {}),
       ...auditFields,
     };
 

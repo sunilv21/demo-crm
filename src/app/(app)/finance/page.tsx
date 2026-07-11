@@ -4,11 +4,11 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { collection } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import type { FinanceAccount, FinanceTransaction, Booking, AgentExpense } from '@/lib/types';
+import type { FinanceAccount, FinanceTransaction, Booking } from '@/lib/types';
 import {
   FINANCE_COLLECTIONS, accountBalance, totalBalance, isCashAccount,
   sumIncome, sumExpense, onDate, inMonth, todayISO, thisMonthISO, ACCOUNT_TYPE_LABELS,
-  bookingPaymentsAsTransactions, agentExpensesAsTransactions,
+  bookingPaymentsAsTransactions,
 } from '@/lib/finance';
 import { formatINR } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -28,17 +28,16 @@ export default function FinanceDashboardPage() {
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
-  const agentExpQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.agentExpenses) : null), [firestore]);
-  const { data: agentExpenses } = useCollection<AgentExpense>(agentExpQuery);
-
-  // Manual finance transactions + booking-payment income + agent-logged expenses.
+  // Manual finance transactions + income derived from client-booking payments.
+  // NOTE: agent-logged expenses are intentionally NOT included — they are pending
+  // reimbursements and only become a company expense when finance reimburses the
+  // agent (which posts a real finance transaction from an account).
   const txns = useMemo(
     () => [
       ...(transactions ?? []),
       ...bookingPaymentsAsTransactions(bookings ?? []),
-      ...agentExpensesAsTransactions(agentExpenses ?? []),
     ],
-    [transactions, bookings, agentExpenses]
+    [transactions, bookings]
   );
   const active = useMemo(() => (accounts ?? []).filter((a) => a.status !== 'inactive'), [accounts]);
   const accName = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);

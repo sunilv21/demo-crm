@@ -154,6 +154,18 @@ export function agentExpensesAsTransactions(expenses: AgentExpense[], nameById?:
 // A derived (read-only) transaction can't be cancelled/edited in Finance.
 export const isDerivedTxn = (t: FinanceTransaction) => t.id.startsWith('bk_') || t.id.startsWith('ae_');
 
+// The agent credited for a booking's revenue/collection: the explicit owner
+// (agentId) if they're currently an agent, else the creator if they're an
+// agent, else null (e.g. an employee-created booking no agent has claimed).
+export function bookingAgentId(
+  b: Pick<Booking, 'agentId' | 'createdBy'>,
+  roleOf: (uid: string) => string | undefined
+): string | null {
+  if (b.agentId && roleOf(b.agentId) === 'agent') return b.agentId;
+  if (b.createdBy && roleOf(b.createdBy) === 'agent') return b.createdBy;
+  return null;
+}
+
 // Unified payment methods — the same labels the booking Payments dialog uses
 // (PaymentMode), so agent-collected payments and finance entries speak one
 // vocabulary. Extra outgoing-only options are appended for expenses.

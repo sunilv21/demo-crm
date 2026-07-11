@@ -10,6 +10,7 @@ import { FINANCE_COLLECTIONS, DEFAULT_EXPENSE_CATEGORIES, UNIFIED_METHODS, today
 import { formatINR } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,7 +66,7 @@ export function AgentExpenses() {
     <Card className="mt-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> My Expenses</CardTitle>
-        <CardDescription>Log what you spend on the business — it flows into the company Finance module. Total this list: <span className="font-medium text-foreground">{formatINR(total)}</span></CardDescription>
+        <CardDescription>Log what you spend on the business. These are <strong>pending reimbursements</strong> — finance pays them back, and only then do they become a company expense. Total logged: <span className="font-medium text-foreground">{formatINR(total)}</span></CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Add form */}
@@ -115,6 +116,7 @@ export function AgentExpenses() {
                 <TableHead>Spent on</TableHead>
                 <TableHead>Where</TableHead>
                 <TableHead>Paid by</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="w-[40px]"></TableHead>
               </TableRow>
@@ -127,9 +129,20 @@ export function AgentExpenses() {
                   <TableCell className="text-sm">{e.purpose || '—'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{e.payee || '—'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{e.paymentMethod || '—'}</TableCell>
+                  <TableCell>
+                    {e.reimbursed
+                      ? <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">Reimbursed</Badge>
+                      : <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>}
+                  </TableCell>
                   <TableCell className="text-right font-medium text-red-600">{formatINR(e.amount || 0)}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Delete expense" onClick={() => remove(e.id)}>
+                    <Button
+                      variant="ghost" size="icon" className="h-7 w-7"
+                      aria-label="Delete expense"
+                      disabled={!!e.reimbursed}
+                      title={e.reimbursed ? 'Reimbursed expenses cannot be deleted' : undefined}
+                      onClick={() => remove(e.id)}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
