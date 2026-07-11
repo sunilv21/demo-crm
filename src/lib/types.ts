@@ -474,6 +474,23 @@ export type PaymentMethodDoc = {
   updatedBy: string;
 };
 
+// An expense logged by an agent (money they spent on the business). Owned by
+// the agent; surfaced in the Finance module as an expense transaction on read.
+export type AgentExpense = {
+  id: string;
+  amount: number;
+  date: string; // ISO date
+  category?: string; // what kind of spend
+  purpose?: string;  // what it was for (description)
+  payee?: string;    // where / to whom
+  paymentMethod?: string; // how it was paid (Cash / UPI / …)
+  createdAt: any;
+  createdBy: string;
+  createdByName?: string;
+  updatedAt: any;
+  updatedBy: string;
+};
+
 export type FinanceTxnType = 'income' | 'expense' | 'transfer';
 export type FinanceTxnStatus = 'completed' | 'cancelled';
 
@@ -499,9 +516,9 @@ export type FinanceTransaction = {
   reference?: string;
   remarks?: string;
   status: FinanceTxnStatus;
-  // 'booking' = auto-created from an agent's booking payment; 'manual' = entered
-  // in the Finance module. bookingPaymentId ties it back to the Payment.
-  source?: 'booking' | 'manual';
+  // 'booking' = derived from a booking payment; 'agent' = derived from an
+  // agent-logged expense; 'manual' = entered in the Finance module.
+  source?: 'booking' | 'agent' | 'manual';
   bookingPaymentId?: string;
   createdAt: any;
   createdBy: string;

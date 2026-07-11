@@ -4,11 +4,11 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { collection } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import type { FinanceAccount, FinanceTransaction, Booking } from '@/lib/types';
+import type { FinanceAccount, FinanceTransaction, Booking, AgentExpense } from '@/lib/types';
 import {
   FINANCE_COLLECTIONS, accountBalance, totalBalance, isCashAccount,
   sumIncome, sumExpense, onDate, inMonth, todayISO, thisMonthISO, ACCOUNT_TYPE_LABELS,
-  bookingPaymentsAsTransactions,
+  bookingPaymentsAsTransactions, agentExpensesAsTransactions,
 } from '@/lib/finance';
 import { formatINR } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -28,22 +28,31 @@ export default function FinanceDashboardPage() {
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const agentExpQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.agentExpenses) : null), [firestore]);
+  const { data: agentExpenses } = useCollection<AgentExpense>(agentExpQuery);
 
-  // Manual finance transactions + income derived from client-booking payments.
+  // Manual finance transactions + booking-payment income + agent-logged expenses.
   const txns = useMemo(
-    () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
-    [transactions, bookings]
+    () => [
+      ...(transactions ?? []),
+      ...bookingPaymentsAsTransactions(bookings ?? []),
+      ...agentExpensesAsTransactions(agentExpenses ?? []),
+    ],
+    [transactions, bookings, agentExpenses]
   );
   const active = useMemo(() => (accounts ?? []).filter((a) => a.status !== 'inactive'), [accounts]);
   const accName = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);
 
   const cashAcc = totalBalance(active.filter(isCashAccount), txns);
   const bankAcc = totalBalance(active, txns) - cashAcc;
-  // Booking collections not yet assigned to a finance account. Split by how they
-  // were collected: cash-mode adds to Cash, everything else to Bank/Wallet.
-  const undep = txns.filter((t) => t.status !== 'cancelled' && t.type === 'income' && !t.accountId);
-  const cashUndep = undep.filter((t) => (t.paymentMethod || '').toLowerCase() === 'cash').reduce((s, t) => s + (t.amount || 0), 0);
-  const otherUndep = undep.reduce((s, t) => s + (t.amount || 0), 0) - cashUndep;
+  // Money not tied to a finance account yet: booking collections (income) and
+  // agent-logged expenses (out). Netted and split by how it moved — cash-mode
+  // to Cash, everything else to Bank/Wallet.
+  const undep = txns.filter((t) => t.status !== 'cancelled' && !t.accountId && (t.type === 'income' || t.type === 'expense'));
+  const signed = (t: FinanceTransaction) => (t.type === 'income' ? 1 : -1) * (t.amount || 0);
+  const isCashMethod = (t: FinanceTransaction) => (t.paymentMethod || '').toLowerCase() === 'cash';
+  const cashUndep = undep.filter(isCashMethod).reduce((s, t) => s + signed(t), 0);
+  const otherUndep = undep.reduce((s, t) => s + signed(t), 0) - cashUndep;
   const cash = cashAcc + cashUndep;
   const bank = bankAcc + otherUndep;
   const total = cash + bank;

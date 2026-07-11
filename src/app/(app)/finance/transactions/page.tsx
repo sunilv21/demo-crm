@@ -5,8 +5,8 @@ import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
-import type { FinanceAccount, FinanceTransaction, FinanceTxnType, Booking } from '@/lib/types';
-import { FINANCE_COLLECTIONS, bookingPaymentsAsTransactions, isDerivedTxn } from '@/lib/finance';
+import type { FinanceAccount, FinanceTransaction, FinanceTxnType, Booking, AgentExpense } from '@/lib/types';
+import { FINANCE_COLLECTIONS, bookingPaymentsAsTransactions, agentExpensesAsTransactions, isDerivedTxn } from '@/lib/finance';
 import { formatINR } from '@/lib/utils';
 import { format } from 'date-fns';
 import { PageHeader } from '@/components/common/page-header';
@@ -36,9 +36,15 @@ export default function TransactionsPage() {
   const { data: transactions, isLoading } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const agentExpQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.agentExpenses) : null), [firestore]);
+  const { data: agentExpenses } = useCollection<AgentExpense>(agentExpQuery);
   const allTxns = useMemo(
-    () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
-    [transactions, bookings]
+    () => [
+      ...(transactions ?? []),
+      ...bookingPaymentsAsTransactions(bookings ?? []),
+      ...agentExpensesAsTransactions(agentExpenses ?? []),
+    ],
+    [transactions, bookings, agentExpenses]
   );
 
   const accName = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);
@@ -125,7 +131,8 @@ export default function TransactionsPage() {
                       {t.clientName || t.supplierName || t.categoryName || t.remarks || '—'}
                       {t.paymentMethod && <span className="text-muted-foreground"> · {t.paymentMethod}</span>}
                       {t.reference && <span className="text-muted-foreground"> · {t.reference}</span>}
-                      {isDerivedTxn(t) && <Badge variant="secondary" className="ml-2 bg-sky-100 text-sky-800 border-sky-200">Booking</Badge>}
+                      {t.source === 'booking' && <Badge variant="secondary" className="ml-2 bg-sky-100 text-sky-800 border-sky-200">Booking</Badge>}
+                      {t.source === 'agent' && <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800 border-amber-200">Agent expense</Badge>}
                       {cancelled && <Badge variant="secondary" className="ml-2">Cancelled</Badge>}
                     </TableCell>
                     <TableCell className={`text-right font-semibold tabular-nums ${t.type === 'income' ? 'text-green-600' : t.type === 'expense' ? 'text-red-600' : ''}`}>

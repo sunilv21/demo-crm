@@ -3,6 +3,7 @@ import type {
   FinanceTransaction,
   FinanceAccountType,
   Booking,
+  AgentExpense,
 } from '@/lib/types';
 import { PAYMENT_MODE_LABELS } from '@/lib/utils';
 import { ledgerFor } from '@/lib/payments';
@@ -14,6 +15,7 @@ export const FINANCE_COLLECTIONS = {
   suppliers: 'suppliers',
   categories: 'expense_categories',
   methods: 'payment_methods',
+  agentExpenses: 'agent_expenses',
 } as const;
 
 export const ACCOUNT_TYPE_LABELS: Record<FinanceAccountType, string> = {
@@ -123,8 +125,34 @@ export function bookingPaymentsAsTransactions(bookings: Booking[]): FinanceTrans
   return out;
 }
 
-// A derived (read-only, from a booking) transaction can't be cancelled/edited.
-export const isDerivedTxn = (t: FinanceTransaction) => t.id.startsWith('bk_');
+// Agent-logged expenses surface in Finance as expense transactions (derived on
+// read, like booking collections). Unassigned to a finance account until
+// reconciled; they count in expense totals.
+export function agentExpensesAsTransactions(expenses: AgentExpense[], nameById?: Map<string, string>): FinanceTransaction[] {
+  return (expenses ?? [])
+    .filter((e) => e && e.amount > 0)
+    .map((e) => ({
+      id: `ae_${e.id}`,
+      type: 'expense',
+      amount: e.amount,
+      date: (e.date || '').slice(0, 10),
+      accountId: '',
+      supplierName: e.payee || undefined,
+      categoryName: e.category || 'Agent expense',
+      paymentMethod: e.paymentMethod || '',
+      remarks: e.purpose || 'Agent expense',
+      status: 'completed',
+      source: 'agent',
+      createdAt: e.createdAt ?? null,
+      createdBy: e.createdBy ?? '',
+      createdByName: e.createdByName ?? (nameById ? nameById.get(e.createdBy) : undefined),
+      updatedAt: e.updatedAt ?? null,
+      updatedBy: e.updatedBy ?? '',
+    } as FinanceTransaction));
+}
+
+// A derived (read-only) transaction can't be cancelled/edited in Finance.
+export const isDerivedTxn = (t: FinanceTransaction) => t.id.startsWith('bk_') || t.id.startsWith('ae_');
 
 // Unified payment methods — the same labels the booking Payments dialog uses
 // (PaymentMode), so agent-collected payments and finance entries speak one

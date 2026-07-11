@@ -38,6 +38,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Booking, Payment, PaymentMode } from '@/lib/types';
 import { cn, formatINR, toDateSafe, bookingPaid, PAYMENT_MODE_LABELS } from '@/lib/utils';
 import { ledgerFor, newPaymentId, withAddedPayment, computeTotals } from '@/lib/payments';
+import { AgentExpenses } from '@/components/finance/agent-expenses';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   IndianRupee,
   TrendingUp,
@@ -427,6 +429,13 @@ export default function RevenuePage() {
         </Select>
       </PageHeader>
 
+      <Tabs defaultValue="revenue" className="mt-2">
+        <TabsList>
+          <TabsTrigger value="revenue">Revenue</TabsTrigger>
+          <TabsTrigger value="expenses">My Expenses</TabsTrigger>
+        </TabsList>
+        <TabsContent value="revenue" className="mt-4">
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title={`Revenue in ${year}`}
@@ -708,6 +717,12 @@ export default function RevenuePage() {
           </div>
         </CardContent>
       </Card>
+
+        </TabsContent>
+        <TabsContent value="expenses" className="mt-4">
+          <AgentExpenses />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={!!collectTarget} onOpenChange={(open) => !open && setCollectTarget(null)}>
         <DialogContent>

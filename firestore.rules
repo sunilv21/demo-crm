@@ -240,6 +240,16 @@ service cloud.firestore {
       allow read, create, update: if canFinance();
       allow delete: if isAdmin();
     }
+    // Agent-logged expenses. An agent owns the ones they created (read/create/
+    // update/delete their own); finance/admin can read all + manage. Agents list
+    // theirs with where('createdBy','==',uid).
+    match /agent_expenses/{id} {
+      allow read: if canFinance()
+                  || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canFinance()
+                            || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
 
     match /process_tracking/{id} {
       allow read, create, update: if isSignedIn();
