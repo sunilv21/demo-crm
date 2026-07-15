@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { usePathname } from 'next/navigation';
@@ -47,18 +48,37 @@ const Breadcrumb = () => {
 
 export function AppHeader() {
   const { isMobile } = useSidebar();
+  const pathname = usePathname();
+  const [navOpen, setNavOpen] = useState(false);
+
+  // The drawer is uncontrolled by default, so tapping a nav link navigates but
+  // leaves it covering the page. Close it once the new route lands. Desktop is
+  // untouched — it renders the breadcrumb and has no Sheet at all.
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-40 flex h-10 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 print:hidden">
       {isMobile ? (
-         <Sheet>
+         <Sheet open={navOpen} onOpenChange={setNavOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" className="shrink-0 md:hidden">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle navigation menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col p-0">
+          <SheetContent
+            side="left"
+            className="flex flex-col p-0"
+            // Also close the moment a link is tapped. This covers re-tapping the
+            // page you're already on, where the pathname never changes and the
+            // effect above would not fire. Group toggles (e.g. Finance) are
+            // <button>s, not links, so they still expand without closing.
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('a')) setNavOpen(false);
+            }}
+          >
              <AppSidebarNav isMobile={true} />
           </SheetContent>
         </Sheet>

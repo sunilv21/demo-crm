@@ -151,12 +151,15 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
     });
   }
 
-  // Hotel: guest names for the voucher.
+  // Hotel: guest names for the voucher. Labelled "Guest Names" rather than
+  // "Guests" so it can't collide with the bookingDetails.guests count above —
+  // the two are different facts (a booking can be for 4 guests with only 2
+  // names captured), and duplicate labels break the React keys downstream.
   if (booking.bookingType === 'hotel' && booking.hotelGuests?.length) {
     const named = booking.hotelGuests.filter((g) => g.name && g.name.trim());
     if (named.length) {
       entries.push({
-        label: "Guests",
+        label: "Guest Names",
         isTable: true,
         columns: [
           { key: 'no', label: '#' },

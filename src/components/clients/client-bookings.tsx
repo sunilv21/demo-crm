@@ -176,7 +176,7 @@ export function ClientBookings({ clientId }: { clientId: string }) {
                         <TableRow className="hover:bg-transparent">
                           <TableCell colSpan={colCount} className="pt-0">
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 rounded-md bg-muted/40 p-3 text-xs">
-                              {detailEntries.map((entry) => {
+                              {detailEntries.map((entry, entryIdx) => {
                                 if (entry.isTable && Array.isArray(entry.value)) {
                                   const cols = entry.columns ?? [
                                     { key: 'from', label: 'From' },
@@ -184,7 +184,7 @@ export function ClientBookings({ clientId }: { clientId: string }) {
                                     { key: 'date', label: 'Date' },
                                   ];
                                   return (
-                                    <div key={entry.label} className="col-span-2 sm:col-span-4">
+                                    <div key={`${entry.label}-${entryIdx}`} className="col-span-2 sm:col-span-4">
                                       <span className="text-muted-foreground font-medium">{entry.label}: </span>
                                       <table className="mt-2 w-full text-left border-collapse">
                                         <thead>
@@ -208,7 +208,7 @@ export function ClientBookings({ clientId }: { clientId: string }) {
                                   );
                                 }
                                 return (
-                                  <div key={entry.label} className="min-w-0">
+                                  <div key={`${entry.label}-${entryIdx}`} className="min-w-0">
                                     <span className="text-muted-foreground">{entry.label}: </span>
                                     <span className="text-foreground break-words">{entry.value}</span>
                                   </div>

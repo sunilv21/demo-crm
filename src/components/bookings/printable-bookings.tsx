@@ -184,7 +184,7 @@ export function PrintableBookings({ client, bookings, settings }: PrintableBooki
                 ))}
               </div>
 
-              {tableEntries.map((entry) => {
+              {tableEntries.map((entry, entryIdx) => {
                 const cols = entry.columns ?? [
                   { key: 'from', label: 'From' },
                   { key: 'to', label: 'To' },
@@ -192,7 +192,7 @@ export function PrintableBookings({ client, bookings, settings }: PrintableBooki
                 ];
                 const rows = entry.value as any[];
                 return (
-                  <div key={entry.label} className="bk-tbl-wrap">
+                  <div key={`${entry.label}-${entryIdx}`} className="bk-tbl-wrap">
                     <div className="bk-tbl-title">{entry.label}</div>
                     <table className="bk-tbl">
                       <thead>

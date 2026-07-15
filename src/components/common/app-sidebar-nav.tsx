@@ -36,7 +36,7 @@ import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -113,7 +113,6 @@ const financeItems: NavItem[] = [
 
 export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useUser();
   const { role, isLoading: isRoleLoading } = useAppUser();
   const auth = useAuth();
@@ -140,10 +139,19 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   }, [isInFinance]);
 
   const handleSignOut = async () => {
-    if (auth) {
-      await signOut(auth);
-      router.push('/login');
-    }
+    if (!auth) return;
+    await signOut(auth);
+    // Full document load instead of router.push('/login').
+    //
+    // This menu item lives inside Radix modal overlays — the dropdown, and on
+    // mobile a Sheet as well. While open they set `pointer-events: none` on
+    // <body> and only restore it on a clean close. A client-side route change
+    // unmounts the whole (app) layout underneath them, so that cleanup never
+    // runs and the style sticks: the login form can't be tapped until the user
+    // manually refreshes. A fresh document also tears down any Firestore
+    // listeners still attached to the now signed-out session, which would
+    // otherwise fire permission-denied errors on the way out.
+    window.location.assign('/login');
   };
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
