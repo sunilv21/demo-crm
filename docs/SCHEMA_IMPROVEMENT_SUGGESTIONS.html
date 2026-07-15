@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Visa CRM - Schema & Architecture Improvement Suggestions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #0ea5e9;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #2563eb;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        h3 {
+            color: #4b5563;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h4 {
+            color: #6b7280;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+        }
+        
+        ul, ol {
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            max-height: 500px;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .collection-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .collection-card h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .field-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .type-string { background: #dbeafe; color: #1e40af; }
+        .type-number { background: #dcfce7; color: #166534; }
+        .type-boolean { background: #fef9c3; color: #854d0e; }
+        .type-timestamp { background: #fce7f3; color: #9d174d; }
+        .type-array { background: #e0e7ff; color: #3730a3; }
+        .type-object { background: #f3e8ff; color: #6b21a8; }
+        .type-enum { background: #ffedd5; color: #9a3412; }
+        
+        .required {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .optional {
+            color: #6b7280;
+        }
+        
+        .toc {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 8px;
+        }
+        
+        .toc a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .toc .toc-level-2 {
+            padding-left: 20px;
+        }
+        
+        .toc .toc-level-3 {
+            padding-left: 40px;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+<div class="toc"><h3>Contents</h3><ul><li><a href="#1-money-model-deriveonread-vs-a-real-ledger">1. Money model — derive-on-read vs. a real ledger</a></li><li><a href="#2-reconciliation-make-financetxnid-do-its-job">2. Reconciliation: make `financeTxnId` do its job</a></li><li><a href="#3-agent-revenue-attribution-close-the-edge-cases">3. Agent revenue attribution — close the edge cases</a></li><li><a href="#4-denormalization-drift">4. Denormalization drift</a></li><li><a href="#5-serverside-integrity-the-real-gap">5. Server-side integrity (the real gap)</a></li><li><a href="#6-indexes-query-cost">6. Indexes &amp; query cost</a></li><li><a href="#7-subcollections-for-unbounded-arrays">7. Subcollections for unbounded arrays</a></li><li><a href="#8-refund-cancellation-as-a-firstclass-flow">8. Refund / cancellation as a first-class flow</a></li><li><a href="#9-consolidate-role-capability-definitions">9. Consolidate "role capability" definitions</a></li><li><a href="#10-naming-schema-hygiene-lowrisk-cleanups">10. Naming &amp; schema hygiene (low-risk cleanups)</a></li><li><a href="#how-the-data-is-stored-current-vs-recommended">How the data is stored — current vs. recommended</a></li><li><a href="#benefits-at-a-glance">Benefits at a glance</a></li><li><a href="#priority-summary">Priority summary</a></li></ul></div>
+<h1 id="sky-visa-crm-schema-architecture-improvement-suggestions">Sky Visa CRM — Schema &amp; Architecture Improvement Suggestions</h1>
+<p><strong>Companion to:</strong>  <code>DATABASE_SCHEMA.md</code>  (v1.2) <strong>Date:</strong> July 13, 2026 <strong>Scope:</strong> Better approaches and future fixes for the data model, money flow, security, and integrity. Nothing here is a bug report — the app works today. These are the higher-leverage changes to make it robust as data grows.</p>
+<p>Each item is tagged with <strong>Priority</strong> (P1 = do soon / correctness-adjacent, P2 = worth doing, P3 = nice-to-have) and <strong>Effort</strong> (S / M / L).</p>
+<hr>
+<h2 id="1-money-model-deriveonread-vs-a-real-ledger">1. Money model — derive-on-read vs. a real ledger</h2>
+<h3 id="current-approach">Current approach</h3>
+<p>Booking collections and agent expenses are <strong>derived on read</strong> into Finance ( <code>bookingPaymentsAsTransactions</code> ,  <code>agentExpensesAsTransactions</code> ). Account balances are computed by summing every transaction each time a page loads. This was the right call to ship: no double-entry, no migration, historical bookings show up for free.</p>
+<h3 id="where-it-strains">Where it strains</h3>
+<ul><li><strong>Every finance page reads the entire  <code>bookings</code>  +  <code>finance_transactions</code>  collections</strong> to compute one number. At a few thousand bookings this is fine; at tens of thousands it becomes slow and expensive (Firestore bills per document read).</li><li>Derived booking income has <strong> <code>accountId: ''</code> </strong> (unassigned), so it never lands in a real account balance — it only shows in "collected" totals. Reconciling "cash the agent collected" → "cash actually in the drawer/account" is manual.</li><li>No <strong>immutable audit trail</strong>: if a booking's  <code>amountPaid</code>  is edited, the historical derived transaction silently changes. A real ledger never rewrites the past.</li></ul>
+<h3 id="better-approach-p2-l-hybrid-ledger-with-monthly-snapshots">Better approach (P2, L) — hybrid ledger with monthly snapshots</h3>
+<ul><li>Keep derive-on-read for the <strong>current open period</strong> (fast to change, no migration pain).</li><li>On a schedule (or a "close month" action), <strong>materialize</strong> that month's booking payments into real  <code>finance_transactions</code>  rows with a real  <code>accountId</code> , set  <code>financeTxnId</code>  back on the booking  <code>Payment</code>  (the field already exists — it's currently unused as the reconciliation hook), and store a <strong> <code>period_balances/{accountId}_{YYYY-MM}</code> </strong> snapshot doc with the closing balance.</li><li>Balance-on-read then = latest snapshot + only the current period's deltas. Reads drop from "all history" to "one month."</li></ul>
+<p><strong>Smaller interim win (P1, S):</strong> cache the computed dashboard KPIs in a single  <code>finance_summary/current</code>  doc updated by a Cloud Function on booking/transaction writes, so the dashboard reads 1 doc instead of the whole collections.</p>
+<hr>
+<h2 id="2-reconciliation-make-financetxnid-do-its-job">2. Reconciliation: make  <code>financeTxnId</code>  do its job</h2>
+<p> <code>Payment.financeTxnId</code>  exists but is never written. Right now there's no way to answer "has this collected payment been deposited into a real account yet?"</p>
+<p><strong>Suggestion (P1, M):</strong> Add a lightweight <strong>"Deposit / Reconcile"</strong> action in Finance → Money In: select unassigned booking payments, pick the destination account, and on confirm write a real  <code>finance_transactions</code>  income row + stamp  <code>financeTxnId</code>  on each  <code>Payment</code> . The derivation already skips any payment with  <code>financeTxnId</code>  set, so this composes cleanly with the existing code — no double counting. This turns the abstract "collected" number into "money actually in accounts."</p>
+<hr>
+<h2 id="3-agent-revenue-attribution-close-the-edge-cases">3. Agent revenue attribution — close the edge cases</h2>
+<p> <code>bookingAgentId(b, roleOf)</code>  credits  <code>agentId</code>  if that user is *currently* an  <code>agent</code> , else the creator if they're an agent, else nobody.</p>
+<h3 id="weak-spots">Weak spots</h3>
+<ul><li><strong>Role changes rewrite history.</strong> If an agent later becomes a manager, all their past bookings silently drop out of Agent Performance and Finance-by-agent reporting. Attribution should be a fact recorded *at the time*, not recomputed from the user's current role.</li><li><strong>Unclaimed bookings vanish</strong> from revenue reporting (employee-created, no agent priced them) — correct by design, but there's no report surfacing "₹X of revenue is unattributed," which is exactly the leakage an owner wants to see.</li></ul>
+<p><strong>Suggestion (P2, S):</strong></p>
+<ul><li>When  <code>agentId</code>  is set, also snapshot  <code>agentRole: 'agent'</code>  (or just trust that only agents ever get written to  <code>agentId</code> , and stop re-checking  <code>roleOf</code>  on read). Attribution becomes stable across role changes.</li><li>Add an <strong>"Unattributed revenue"</strong> line to Agent Performance so nothing is silently dropped.</li></ul>
+<hr>
+<h2 id="4-denormalization-drift">4. Denormalization drift</h2>
+<p>Many docs copy a name for display:  <code>clientName</code>  on bookings,  <code>supplierName</code> / <code>categoryName</code> / <code>clientName</code>  on transactions,  <code>userName</code>  on attendance/leaves,  <code>createdByName</code>  on payments/expenses. If the source record is renamed, copies go stale.</p>
+<p><strong>Suggestion (P2, M):</strong> Pick a policy and document it in the schema:</p>
+<ul><li><strong>Accept drift</strong> for historical/audit rows (a receipt *should* show the name as it was) — most of these fall here. Just say so explicitly.</li><li>For <strong>live</strong> joins where the current name matters, resolve by ID on read (you already load  <code>users</code>  into a  <code>Map</code>  in several pages — extend that pattern) instead of trusting the copy.</li><li>Optionally add a small <strong>backfill/repair script</strong> run occasionally to re-sync names where drift isn't wanted.</li></ul>
+<hr>
+<h2 id="5-serverside-integrity-the-real-gap">5. Server-side integrity (the real gap)</h2>
+<p>All validation is client-side Zod + Firestore rules. Rules enforce *who* can write, not *what's consistent*. Nothing stops a client from writing  <code>balanceAmount</code>  that doesn't equal  <code>total − amountPaid</code> , or a  <code>payments[]</code>  sum that disagrees with  <code>amountPaid</code> , or a refund larger than the amount collected.</p>
+<p><strong>Suggestion (P1, M) — Cloud Functions as the integrity layer:</strong></p>
+<ul><li> <code>onBookingWrite</code> : recompute  <code>amountPaid</code> / <code>balanceAmount</code> / <code>profit</code>  server-side from  <code>payments[]</code>  +  <code>total</code> / <code>supplierCost</code>  so they can't diverge (the client already computes these via  <code>computeTotals</code>  — move the authoritative copy to a trigger).</li><li> <code>onRefundWrite</code> : reject  <code>refundAmount &gt; collected</code>  and  <code>cancellationCharges &gt; total</code> .</li><li>Enforce enum/required fields in rules too (rules *can* check  <code>request.resource.data.type in ['income','expense','transfer']</code> ), not only in the client.</li></ul>
+<p>This is the single biggest robustness upgrade and pairs naturally with #1's summary-doc function.</p>
+<hr>
+<h2 id="6-indexes-query-cost">6. Indexes &amp; query cost</h2>
+<p><strong>Suggestion (P2, S):</strong></p>
+<ul><li>Audit  <code>firestore.indexes.json</code>  against the actual queries — every  <code>where(...).orderBy(...)</code>  combination needs a composite index or it throws in production even if it works locally.</li><li>The finance pages that pull <strong>whole collections</strong> to filter/sum in JS should move to <strong>scoped queries</strong> ( <code>where('date','&gt;=',monthStart)</code> ,  <code>where('status','==','completed')</code> ) so Firestore returns only what's needed. This also directly reduces read billing.</li><li>Add  <code>where('archived','!=',true)</code>  (or an  <code>archived==false</code>  index) to the default booking lists so the archival feature actually shrinks the working set.</li></ul>
+<hr>
+<h2 id="7-subcollections-for-unbounded-arrays">7. Subcollections for unbounded arrays</h2>
+<p> <code>Booking.payments[]</code>  is an in-document array. Fine for a handful of installments; a 1 MB doc ceiling and full-doc rewrites-on-every-payment make it a poor fit if a booking accrues many payments.</p>
+<p><strong>Suggestion (P3, M):</strong> If any booking realistically exceeds ~20 payments, move to  <code>bookings/{id}/payments/{paymentId}</code>  subcollection. Keep  <code>amountPaid</code> / <code>balanceAmount</code>  denormalized on the parent (maintained by the #5 trigger) so list views don't need the subcollection.</p>
+<hr>
+<h2 id="8-refund-cancellation-as-a-firstclass-flow">8. Refund / cancellation as a first-class flow</h2>
+<p> <code>refundStatus: 'pending' | 'processed'</code>  captures state but there's no money movement tied to it — a processed refund should <strong>decrease</strong> an account and appear in Finance as an outgoing.</p>
+<p><strong>Suggestion (P2, M):</strong> When a refund is marked processed, post a  <code>finance_transactions</code>  <strong>expense</strong> (source  <code>'manual'</code> , category "Refund", linked  <code>bookingId</code> ) against the account it's paid from — symmetric with how #2 handles deposits. Then refunds show in cash-flow and account balances instead of living only on the booking.</p>
+<hr>
+<h2 id="9-consolidate-role-capability-definitions">9. Consolidate "role capability" definitions</h2>
+<p>Role gates are spread across  <code>use-app-user.tsx</code>  ( <code>canViewRevenue</code> ,  <code>canViewFinance</code> ),  <code>app-sidebar-nav.tsx</code>  ( <code>FINANCE_ROLES</code> ,  <code>ALL_ROLES</code> ), layout  <code>RequireRole</code>  allow-lists,  <code>finance-role-guard.tsx</code> , and  <code>firestore.rules</code> . Adding the next role means editing 5 places and it's easy to miss one (rules vs. UI can silently disagree).</p>
+<p><strong>Suggestion (P2, S):</strong> Centralize a single  <code>ROLE_CAPABILITIES</code>  map (role → booleans/allowed-paths) in one module, and derive nav, guards, and  <code>RequireRole</code>  from it. Keep  <code>firestore.rules</code>  as the independent enforcement layer, but generate its role lists from the same source of truth where possible.</p>
+<hr>
+<h2 id="10-naming-schema-hygiene-lowrisk-cleanups">10. Naming &amp; schema hygiene (low-risk cleanups)</h2>
+<p><strong>Suggestion (P3, S):</strong></p>
+<ul><li>Finance collection names are unprefixed ( <code>accounts</code> ,  <code>suppliers</code> ,  <code>payment_methods</code> ) — generic enough to collide with future modules. Consider a  <code>finance_</code>  prefix convention (you already have  <code>finance_transactions</code> ) for the rest, or document that they're finance-owned.</li><li> <code>expense_categories</code>  and  <code>payment_methods</code>  fall back to hardcoded defaults until a doc exists. Document the default lists in the schema so nobody assumes an empty collection means "no methods."</li><li>Add  <code>createdAt</code> / <code>updatedAt</code> / <code>createdBy</code>  uniformly — a few of the newer types are inconsistent about which audit fields they carry.</li></ul>
+<hr>
+<h2 id="how-the-data-is-stored-current-vs-recommended">How the data is stored — current vs. recommended</h2>
+<p>This section shows the <strong>actual document shapes</strong> for the highest-value changes, so it's clear what "better" means concretely and why.</p>
+<h3 id="a-money-model-three-storage-strategies-compared">A. Money model — three storage strategies compared</h3>
+<table><thead><tr><th>Strategy</th><th>How data is stored</th><th>Read cost</th><th>Audit trail</th><th>Migration</th><th>Verdict</th></tr></thead><tbody><tr><td><strong>Derive-on-read</strong> (today)</td><td>Nothing extra stored. Balances = sum of *all*  <code>bookings</code>  +  <code>finance_transactions</code>  on every page load.</td><td>Grows forever (reads whole collections)</td><td>Weak — editing a booking rewrites the past</td><td>None</td><td>✅ Good to ship, ❌ doesn't scale</td></tr><tr><td><strong>Write-on-transaction</strong> (full ledger)</td><td>Every collection writes a real  <code>finance_transactions</code>  row immediately; balance stored + updated per write.</td><td>Cheap (read balance doc)</td><td>Strong</td><td>Heavy backfill, double-entry risk</td><td>Robust but rigid</td></tr><tr><td><strong>Hybrid: snapshot + derive current period</strong> ⭐</td><td>Store a monthly closing balance per account; derive only the *open* month on read.</td><td>Cheap (1 snapshot + 1 short month)</td><td>Strong (closed months are immutable)</td><td>Incremental, no big-bang</td><td><strong>Best fit</strong></td></tr></tbody></table>
+<p><strong>Recommended storage — a period snapshot doc:</strong></p>
+<pre><code class="language-typescript">// period_balances/{accountId}_{YYYY-MM}
+{
+  accountId: string
+  period: string          // "2026-07"
+  openingBalance: number  // = previous period's closingBalance
+  income: number          // sum of income posted to this account this period
+  expense: number
+  transfersIn: number
+  transfersOut: number
+  closingBalance: number  // opening + income − expense + in − out (frozen at close)
+  closedAt: Timestamp
+  closedBy: string
+}</code></pre>
+<p><strong>Balance-on-read becomes:</strong>  <code>latest snapshot.closingBalance + sum(current-month deltas)</code>  — bounded, not "all history."</p>
+<p><strong>Benefits:</strong> predictable read cost as the business grows; closed months can't silently change (real audit trail); month-end numbers are frozen and trustworthy; still no risky big-bang migration — you start snapshotting from this month forward.</p>
+<hr>
+<h3 id="b-interim-summary-doc-do-this-first-smallest-effort-big-win">B. Interim summary doc (do this first — smallest effort, big win)</h3>
+<p>Instead of every dashboard visit summing whole collections, keep one rolled-up doc a Cloud Function maintains on write:</p>
+<pre><code class="language-typescript">// finance_summary/current
+{
+  totalCash: number
+  totalBank: number
+  totalAvailable: number
+  monthIncome: number
+  monthExpense: number
+  pendingReimbursements: number   // agent expenses not yet paid
+  unassignedCollected: number     // collected but not deposited to an account
+  updatedAt: Timestamp
+}</code></pre>
+<p><strong>How it's stored:</strong> a single always-current document; the function adjusts the affected fields (+/−) on each booking/transaction write rather than recomputing from scratch. <strong>Benefits:</strong> the Finance dashboard reads <strong>1 document instead of thousands</strong>; near-instant load; dramatically lower Firestore read billing; no schema change to existing collections.</p>
+<hr>
+<h3 id="c-reconciliation-activate-the-unused-paymentfinancetxnid">C. Reconciliation — activate the unused  <code>Payment.financeTxnId</code> </h3>
+<p><strong>Today:</strong> a booking payment lives only inside the booking;  <code>financeTxnId</code>  is defined but never written, so "collected" and "money actually in an account" can't be linked.</p>
+<pre><code class="language-typescript">// bookings/{id}.payments[n]  — BEFORE
+{ id, amount: 5000, mode: 'cash', date, reference }   // financeTxnId absent → unassigned income, accountId ''</code></pre>
+<p><strong>Recommended:</strong> a "Deposit / Reconcile" action posts a real income row to a chosen account and stamps the link back:</p>
+<pre><code class="language-typescript">// finance_transactions/{txnId}  — NEW real row
+{ type: 'income', amount: 5000, accountId: 'cash-drawer', source: 'booking',
+  bookingId, bookingPaymentId: '&lt;paymentId&gt;', status: 'completed', ... }
+
+// bookings/{id}.payments[n]  — AFTER
+{ id, amount: 5000, mode: 'cash', date, reference, financeTxnId: '&lt;txnId&gt;' }</code></pre>
+<p>The existing derivation <strong>already skips any payment with  <code>financeTxnId</code>  set</strong>, so a reconciled payment stops being derived and starts being a real account entry — <strong>no double counting</strong>. <strong>Benefits:</strong> "collected" becomes reconcilable against real accounts; you can answer "how much collected cash is still undeposited?"; account balances reflect reality; the reconciliation is auditable per payment.</p>
+<hr>
+<h3 id="d-stable-agent-attribution">D. Stable agent attribution</h3>
+<p><strong>Today:</strong> attribution is recomputed from the user's *current* role on every read, so a role change rewrites reporting history.</p>
+<pre><code class="language-typescript">// bookings/{id}  — BEFORE (attribution is a runtime guess)
+{ agentId: 'u123', createdBy: 'u123' }   // credited only while roleOf('u123') === 'agent'</code></pre>
+<p><strong>Recommended:</strong> record attribution as a fact at the moment of pricing/collection:</p>
+<pre><code class="language-typescript">// bookings/{id}  — AFTER (attribution is stored, immutable)
+{ agentId: 'u123', agentName: 'Ravi', attributedAt: Timestamp, createdBy: 'u123' }</code></pre>
+<p><strong>Benefits:</strong> past performance stays correct even after promotions/role changes; reporting stops depending on the live  <code>users</code>  collection; enables an "unattributed revenue" report (bookings with no  <code>agentId</code> ) so nothing leaks silently.</p>
+<hr>
+<h3 id="e-refunds-move-real-money">E. Refunds move real money</h3>
+<p><strong>Today:</strong>  <code>refundStatus: 'processed'</code>  is a flag on the booking; no money leaves any account. <strong>Recommended:</strong> on "mark processed," post a matching outgoing so it appears in cash-flow:</p>
+<pre><code class="language-typescript">// finance_transactions/{txnId}
+{ type: 'expense', amount: &lt;refundAmount&gt;, accountId: '&lt;paid-from&gt;',
+  categoryName: 'Refund', bookingId, source: 'manual', status: 'completed', ... }</code></pre>
+<p><strong>Benefits:</strong> refunds show up in account balances and reports (not just on the booking); symmetric with deposits (C); the net "revenue after refunds" is real, not implied.</p>
+<hr>
+<h2 id="benefits-at-a-glance">Benefits at a glance</h2>
+<table><thead><tr><th>#</th><th>Change</th><th>Primary benefit</th><th>Who feels it</th></tr></thead><tbody><tr><td>5</td><td>Server-side integrity (Cloud Functions)</td><td>Money numbers can't diverge or be tampered client-side</td><td>Owner / Finance — trust</td></tr><tr><td>2</td><td>Reconcile payments ( <code>financeTxnId</code> )</td><td>"Collected" ties to real accounts; nothing double-counted</td><td>Finance — daily reconciliation</td></tr><tr><td>1B</td><td> <code>finance_summary/current</code>  doc</td><td>Dashboard reads 1 doc, not whole collections</td><td>Everyone — speed &amp; cost</td></tr><tr><td>1A</td><td>Period snapshots (hybrid ledger)</td><td>Predictable cost at scale + immutable closed months</td><td>Owner — audit, scaling</td></tr><tr><td>3</td><td>Stable attribution</td><td>History survives role changes; no revenue leaks unseen</td><td>Agents &amp; Owner — fairness</td></tr><tr><td>6</td><td>Scoped queries + indexes</td><td>Lower read billing, no production index errors</td><td>Everyone — cost &amp; reliability</td></tr><tr><td>8</td><td>Refunds as real transactions</td><td>Cash-flow and balances reflect refunds</td><td>Finance — accuracy</td></tr><tr><td>9</td><td>Central role capabilities</td><td>One place to edit; UI and rules can't disagree</td><td>Devs — fewer bugs</td></tr><tr><td>4</td><td>Denormalization policy</td><td>Names are either intentionally frozen or resolved live</td><td>Devs — clarity</td></tr><tr><td>7</td><td>Payments subcollection</td><td>No 1 MB doc ceiling; smaller writes</td><td>Scaling edge case</td></tr></tbody></table>
+<hr>
+<h2 id="priority-summary">Priority summary</h2>
+<table><thead><tr><th>#</th><th>Item</th><th>Priority</th><th>Effort</th></tr></thead><tbody><tr><td>5</td><td>Server-side integrity via Cloud Functions</td><td><strong>P1</strong></td><td>M</td></tr><tr><td>2</td><td>Reconcile booking payments into accounts ( <code>financeTxnId</code> )</td><td><strong>P1</strong></td><td>M</td></tr><tr><td>1</td><td>Finance summary doc (interim) → hybrid ledger (later)</td><td>P1 / P2</td><td>S / L</td></tr><tr><td>3</td><td>Stable agent attribution + unattributed-revenue report</td><td>P2</td><td>S</td></tr><tr><td>6</td><td>Scoped finance queries + index audit</td><td>P2</td><td>S</td></tr><tr><td>8</td><td>Refunds post real outgoing transactions</td><td>P2</td><td>M</td></tr><tr><td>9</td><td>Centralize role capabilities</td><td>P2</td><td>S</td></tr><tr><td>4</td><td>Denormalization drift policy</td><td>P2</td><td>M</td></tr><tr><td>7</td><td>Payments subcollection (only if arrays grow)</td><td>P3</td><td>M</td></tr><tr><td>10</td><td>Naming/hygiene cleanups</td><td>P3</td><td>S</td></tr></tbody></table>
+<p><strong>If you do only three things:</strong> #5 (integrity triggers), #2 (reconciliation), and the interim summary-doc half of #1. Together they make the money numbers authoritative, reconcilable, and cheap to read.</p>
+</div>
+</body>
+</html>

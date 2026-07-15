@@ -24,6 +24,7 @@ import {
   Eye,
   Pencil,
   Printer,
+  Download,
   XCircle,
   RotateCcw,
 } from 'lucide-react';
@@ -42,7 +43,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { BookingForm } from '@/components/forms/booking-form';
 import { PrintableBookings } from '@/components/bookings/printable-bookings';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
-import { printContentHtml } from '@/lib/print';
+import { printContentHtml, pdfTitle } from '@/lib/print';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
 import { query, doc, collection, where, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -95,6 +96,7 @@ export default function BookingsPage() {
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [printBooking, setPrintBooking] = useState<Booking | null>(null);
   const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
+  const [pendingPdf, setPendingPdf] = useState(false);
   const [printSettings, setPrintSettings] = useState<PrintSettings>(defaultSettings);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -103,18 +105,51 @@ export default function BookingsPage() {
     () => (firestore && printBooking?.clientId ? doc(firestore, 'clients', printBooking.clientId) : null),
     [firestore, printBooking?.clientId]
   );
-  const { data: printClient } = useDoc<Client>(printClientRef);
+  const { data: printClient, isLoading: isPrintClientLoading } = useDoc<Client>(printClientRef);
   const printClientResolved: Client | null = printBooking
     ? printClient ?? ({ id: printBooking.clientId, name: printBooking.clientName } as Client)
     : null;
 
-  const handlePrint = () => {
+  // Give the hidden content a tick to reflect the latest settings/booking before
+  // handing it to the print engine.
+  const withPrintContent = (fn: (html: string) => void) => {
     setPrintSettingsOpen(false);
-    // Give the hidden content a tick to reflect the latest settings/booking.
     setTimeout(() => {
-      if (printRef.current) printContentHtml(printRef.current.innerHTML);
+      if (printRef.current) fn(printRef.current.innerHTML);
     }, 50);
   };
+
+  const handlePrint = () => withPrintContent((html) => printContentHtml(html));
+
+  // Same print engine, titled so the browser's "Save as PDF" destination
+  // pre-fills a sensible filename instead of the page URL.
+  const handleDownloadPdf = () =>
+    withPrintContent((html) =>
+      printContentHtml(html, { title: pdfTitle('Booking', printBooking?.clientName) })
+    );
+
+  // Row action: save one booking as a PDF without going through the settings
+  // dialog (uses whatever print settings are currently selected).
+  const downloadPdfFor = (booking: Booking) => {
+    setPrintBooking(booking);
+    setPendingPdf(true);
+  };
+
+  // The voucher header needs the client doc, which loads asynchronously after
+  // setPrintBooking. Wait for it to settle, otherwise the PDF goes out with the
+  // customer's phone/email missing.
+  useEffect(() => {
+    if (!pendingPdf || !printBooking || isPrintClientLoading) return;
+    const t = setTimeout(() => {
+      if (printRef.current) {
+        printContentHtml(printRef.current.innerHTML, {
+          title: pdfTitle('Booking', printBooking.clientName),
+        });
+      }
+      setPendingPdf(false);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [pendingPdf, printBooking, isPrintClientLoading]);
 
   // Server-side bounded loading: fetch the newest N bookings, "Load more" raises
   // the cap. Search/status filters run over the loaded set.
@@ -396,6 +431,9 @@ export default function BookingsPage() {
                       <DropdownMenuItem onSelect={() => { setPrintBooking(booking); setPrintSettingsOpen(true); }}>
                         <Printer className="mr-2 h-4 w-4" />Print
                       </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => downloadPdfFor(booking)}>
+                        <Download className="mr-2 h-4 w-4" />Download PDF
+                      </DropdownMenuItem>
                       {booking.status === 'cancelled' ? (
                         <DropdownMenuItem onSelect={() => setBookingToCancel(booking)}>
                           <RotateCcw className="mr-2 h-4 w-4" />Refund
@@ -476,6 +514,7 @@ export default function BookingsPage() {
         settings={printSettings}
         onSettingsChange={setPrintSettings}
         onPrint={handlePrint}
+        onDownloadPdf={handleDownloadPdf}
       />
 
       {/* Hidden printable content — the single booking chosen from the row menu */}

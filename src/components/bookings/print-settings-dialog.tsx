@@ -1,5 +1,6 @@
 'use client';
 
+import { Download, Printer } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,11 @@ interface PrintSettingsDialogProps {
   settings: PrintSettings;
   onSettingsChange: (settings: PrintSettings) => void;
   onPrint: () => void;
+  /**
+   * Save the voucher as a PDF. Goes through the browser's print dialog with the
+   * filename pre-filled, so the output is vector and identical to Print.
+   */
+  onDownloadPdf?: () => void;
 }
 
 const defaultSettings: PrintSettings = {
@@ -44,6 +50,7 @@ export function PrintSettingsDialog({
   settings,
   onSettingsChange,
   onPrint,
+  onDownloadPdf,
 }: PrintSettingsDialogProps) {
   const handleSettingChange = (key: keyof PrintSettings, checked: boolean) => {
     onSettingsChange({ ...settings, [key]: checked });
@@ -160,11 +167,18 @@ export function PrintSettingsDialog({
           <Button variant="outline" onClick={handleResetDefaults} className="sm:order-1">
             Reset Defaults
           </Button>
-          <div className="flex gap-2 sm:order-2">
+          <div className="flex flex-wrap gap-2 sm:order-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
+            {onDownloadPdf && (
+              <Button variant="outline" onClick={onDownloadPdf}>
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </Button>
+            )}
             <Button onClick={onPrint}>
+              <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
           </div>

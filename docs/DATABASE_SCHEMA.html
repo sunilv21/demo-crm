@@ -213,84 +213,29 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Sky Visa CRM - Database Schema Documentation</h1>
-        
-        <div class="info-box">
-            <p><strong>Database:</strong> Firebase Firestore (NoSQL Document Database)</p>
-            <p><strong>Project:</strong> Sky Visa CRM</p>
-            <p><strong>Schema Version:</strong> 1.0</p>
-            <p><strong>Last Updated:</strong> July 9, 2026</p>
-        </div>
-        
-        <h2>Database Overview</h2>
-        
-        <p><strong>Technology:</strong> Firebase Firestore (NoSQL Document Database)</p>
-        <p><strong>Data Model:</strong> Document-based with subcollections</p>
-        <p><strong>Real-time:</strong> Yes (real-time listeners supported)</p>
-        <p><strong>Offline Support:</strong> Yes (with IndexedDB persistence)</p>
-        
-        <div class="info-box">
-            <h4>Database Characteristics:</h4>
-            <ul>
-                <li>Schemaless (flexible document structure)</li>
-                <li>Scalable (automatic scaling)</li>
-                <li>Real-time synchronization</li>
-                <li>Offline-first capabilities</li>
-                <li>Strong consistency within documents</li>
-                <li>Eventual consistency across collections</li>
-            </ul>
-        </div>
-        
-        <div class="toc">
-            <h3>Table of Contents</h3>
-            <ul>
-                <li><a href="#collection-structure">Collection Structure</a>
-                    <ul class="toc-level-2">
-                        <li><a href="#1-users-collection">1. Users Collection</a></li>
-                        <li><a href="#2-clients-collection">2. Clients Collection</a></li>
-                        <li><a href="#3-bookings-collection">3. Bookings Collection</a></li>
-                        <li><a href="#4-invoices-collection">4. Invoices Collection</a></li>
-                        <li><a href="#5-leads-collection">5. Leads Collection</a></li>
-                        <li><a href="#6-organizations-collection">6. Organizations Collection</a></li>
-                        <li><a href="#7-customer-logs-collection">7. Customer Logs Collection</a></li>
-                        <li><a href="#8-follow-ups-collection">8. Follow Ups Collection</a></li>
-                        <li><a href="#9-attendance-collection">9. Attendance Collection</a></li>
-                        <li><a href="#10-leaves-collection">10. Leaves Collection</a></li>
-                        <li><a href="#11-holidays-collection">11. Holidays Collection</a></li>
-                        <li><a href="#12-process-tracking-collection">12. Process Tracking Collection</a></li>
-                        <li><a href="#13-customer-statuses-collection">13. Customer Statuses Collection</a></li>
-                        <li><a href="#14-roles-collection">14. Roles Collection</a></li>
-                        <li><a href="#15-audit-logs-collection">15. Audit Logs Collection</a></li>
-                        <li><a href="#16-error-logs-collection">16. Error Logs Collection</a></li>
-                        <li><a href="#17-login-attempts-collection">17. Login Attempts Collection</a></li>
-                    </ul>
-                </li>
-                <li><a href="#data-type-reference">Data Type Reference</a></li>
-                <li><a href="#relationships">Relationships</a></li>
-                <li><a href="#index-strategy">Index Strategy</a></li>
-                <li><a href="#security-rules-summary">Security Rules Summary</a></li>
-                <li><a href="#data-validation-rules">Data Validation Rules</a></li>
-                <li><a href="#best-practices">Best Practices</a></li>
-            </ul>
-        </div>
-        
-        <h2 id="collection-structure">Collection Structure</h2>
-        
-        <div class="collection-card">
-            <h3 id="1-users-collection">1. Users Collection</h3>
-            <p><strong>Collection Path:</strong> <code>users/{userId}</code></p>
-            <p><strong>Purpose:</strong> Store user profiles and authentication data</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<div class="container">
+<div class="toc"><h3>Table of Contents</h3><ul><li><a href="#database-overview">Database Overview</a></li><li><a href="#collection-structure">Collection Structure</a></li><li class="toc-level-2"><a href="#1-users-collection">1. Users Collection</a></li><li class="toc-level-2"><a href="#2-clients-collection">2. Clients Collection</a></li><li class="toc-level-2"><a href="#3-bookings-collection">3. Bookings Collection</a></li><li class="toc-level-2"><a href="#4-invoices-collection">4. Invoices Collection</a></li><li class="toc-level-2"><a href="#5-leads-collection">5. Leads Collection</a></li><li class="toc-level-2"><a href="#6-organizations-collection">6. Organizations Collection</a></li><li class="toc-level-2"><a href="#7-customer-logs-collection">7. Customer Logs Collection</a></li><li class="toc-level-2"><a href="#8-follow-ups-collection">8. Follow Ups Collection</a></li><li class="toc-level-2"><a href="#9-attendance-collection">9. Attendance Collection</a></li><li class="toc-level-2"><a href="#10-leaves-collection">10. Leaves Collection</a></li><li class="toc-level-2"><a href="#11-holidays-collection">11. Holidays Collection</a></li><li class="toc-level-2"><a href="#12-process-tracking-collection">12. Process Tracking Collection</a></li><li class="toc-level-2"><a href="#13-customer-statuses-collection">13. Customer Statuses Collection</a></li><li class="toc-level-2"><a href="#14-roles-collection">14. Roles Collection</a></li><li class="toc-level-2"><a href="#15-audit-logs-collection">15. Audit Logs Collection</a></li><li class="toc-level-2"><a href="#16-error-logs-collection">16. Error Logs Collection</a></li><li class="toc-level-2"><a href="#17-login-attempts-collection">17. Login Attempts Collection</a></li><li><a href="#finance-module-collections">Finance Module Collections</a></li><li class="toc-level-2"><a href="#18-accounts-collection">18. Accounts Collection</a></li><li class="toc-level-2"><a href="#19-finance-transactions-collection">19. Finance Transactions Collection</a></li><li class="toc-level-2"><a href="#20-suppliers-collection">20. Suppliers Collection</a></li><li class="toc-level-2"><a href="#21-expense-categories-collection">21. Expense Categories Collection</a></li><li class="toc-level-2"><a href="#22-payment-methods-collection">22. Payment Methods Collection</a></li><li class="toc-level-2"><a href="#23-agent-expenses-collection">23. Agent Expenses Collection</a></li><li><a href="#data-type-reference">Data Type Reference</a></li><li class="toc-level-2"><a href="#firestore-data-types-used">Firestore Data Types Used</a></li><li class="toc-level-2"><a href="#custom-type-definitions">Custom Type Definitions</a></li><li class="toc-level-2"><a href="#datetime-formats">Date/Time Formats</a></li><li class="toc-level-2"><a href="#phone-number-format">Phone Number Format</a></li><li class="toc-level-2"><a href="#email-format">Email Format</a></li><li><a href="#relationships">Relationships</a></li><li class="toc-level-2"><a href="#document-relationships">Document Relationships</a></li><li><a href="#index-strategy">Index Strategy</a></li><li class="toc-level-2"><a href="#composite-indexes">Composite Indexes</a></li><li><a href="#security-rules-summary">Security Rules Summary</a></li><li class="toc-level-2"><a href="#access-control-matrix">Access Control Matrix</a></li><li><a href="#data-validation-rules">Data Validation Rules</a></li><li class="toc-level-2"><a href="#required-fields">Required Fields</a></li><li class="toc-level-2"><a href="#field-constraints">Field Constraints</a></li><li><a href="#best-practices">Best Practices</a></li><li class="toc-level-2"><a href="#document-size-limits">Document Size Limits</a></li><li class="toc-level-2"><a href="#query-optimization">Query Optimization</a></li><li class="toc-level-2"><a href="#data-consistency">Data Consistency</a></li><li class="toc-level-2"><a href="#performance-considerations">Performance Considerations</a></li><li><a href="#migration-notes">Migration Notes</a></li><li class="toc-level-2"><a href="#schema-evolution">Schema Evolution</a></li><li class="toc-level-2"><a href="#data-cleanup">Data Cleanup</a></li><li><a href="#change-log">Change Log</a></li><li class="toc-level-2"><a href="#v12-july-12-2026">v1.2 — July 12, 2026</a></li><li class="toc-level-2"><a href="#v11-earlier">v1.1 — earlier</a></li><li class="toc-level-2"><a href="#v10-july-9-2026">v1.0 — July 9, 2026</a></li></ul></div>
+<h1 id="sky-visa-crm-database-schema-documentation">Sky Visa CRM - Database Schema Documentation</h1>
+<p><strong>Database:</strong> Firebase Firestore (NoSQL Document Database)   <strong>Project:</strong> Sky Visa CRM   <strong>Schema Version:</strong> 1.2   <strong>Last Updated:</strong> July 12, 2026</p>
+<div class="info-box"><strong>v1.2 changes:</strong> added the <strong>Finance module</strong> collections (<code>accounts</code>, <code>finance_transactions</code>, <code>suppliers</code>, <code>expense_categories</code>, <code>payment_methods</code>, <code>agent_expenses</code>); added the <strong><code>finance</code></strong> user role; added booking <strong>cancellation/refund</strong> fields and the <strong><code>agentId</code></strong> sales-owner field; added <code>Payment.financeTxnId</code>. See the new *Finance Module Collections* section and the *Change Log* at the end.</div>
+<hr>
+<h2 id="database-overview">Database Overview</h2>
+<p><strong>Technology:</strong> Firebase Firestore (NoSQL Document Database)   <strong>Data Model:</strong> Document-based with subcollections   <strong>Real-time:</strong> Yes (real-time listeners supported)   <strong>Offline Support:</strong> Yes (with IndexedDB persistence)</p>
+<p><strong>Database Characteristics:</strong></p>
+<ul><li>Schemaless (flexible document structure)</li><li>Scalable (automatic scaling)</li><li>Real-time synchronization</li><li>Offline-first capabilities</li><li>Strong consistency within documents</li><li>Eventual consistency across collections</li></ul>
+<hr>
+<h2 id="collection-structure">Collection Structure</h2>
+<h3 id="1-users-collection">1. Users Collection</h3>
+<p><strong>Collection Path:</strong> <code>users/{userId}</code>   <strong>Purpose:</strong> Store user profiles and authentication data</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                    // User ID (string, matches document ID)
   name: string                  // Full name (string, required, max 200 chars)
   email: string                 // Email address (string, required, valid email format)
   phone?: string                // Phone number (string, optional, E.164 format)
   jobTitle?: string             // Job title (string, optional)
   avatar?: string               // Avatar URL (string, optional, URL)
-  role: string                  // User role (string, enum: 'employee' | 'manager' | 'admin' | 'agent')
+  role: string                  // User role (string, enum: 'employee' | 'manager' | 'admin' | 'agent' | 'finance')
   baseSalary?: number           // Base salary (number, optional, decimal)
   workStartTime?: string       // Work start time (string, optional, format: "HH:MM")
   workEndTime?: string         // Work end time (string, optional, format: "HH:MM")
@@ -302,26 +247,15 @@
   createdBy: string             // Creator user ID (string, required)
   updatedBy: string             // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <p>None (queries by ID only)</p>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: All signed-in users</li>
-                <li>Create: Self-create only</li>
-                <li>Update: Self-update (except role, salary, work times - admin only)</li>
-                <li>Delete: Admin only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="2-clients-collection">2. Clients Collection</h3>
-            <p><strong>Collection Path:</strong> <code>clients/{clientId}</code></p>
-            <p><strong>Purpose:</strong> Store client/customer information</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>None (queries by ID only)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: All signed-in users</li><li>Create: Self-create only</li><li>Update: Self-update (except role, salary, work times - admin only)</li><li>Delete: Admin only</li></ul>
+<hr>
+<h3 id="2-clients-collection">2. Clients Collection</h3>
+<p><strong>Collection Path:</strong> <code>clients/{clientId}</code>   <strong>Purpose:</strong> Store client/customer information</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Client ID (string, matches document ID)
   name: string                            // Full name (string, required, 2-200 chars)
   organizationId?: string                 // Organization ID (string, optional, references organizations)
@@ -376,36 +310,24 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Subcollections</h4>
-            <p><code>clients/{clientId}/itineraries/{itineraryId}</code> - Itinerary documents for client trips</p>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>assignedEmployees</code> (array-contains) + <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
-                <li>Composite: <code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
-                <li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users (assignedEmployees or createdBy or admin/manager)</li>
-                <li>Create: Signed-in users or public form (with validation)</li>
-                <li>Update: Signed-in users (assignedEmployees or createdBy or admin/manager)</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="3-bookings-collection">3. Bookings Collection</h3>
-            <p><strong>Collection Path:</strong> <code>bookings/{bookingId}</code></p>
-            <p><strong>Purpose:</strong> Store booking information</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="subcollections">Subcollections</h4>
+<p><strong><code>clients/{clientId}/itineraries/{itineraryId}</code></strong></p>
+<ul><li>Itinerary documents for client trips</li></ul>
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>assignedEmployees</code> (array-contains) + <code>status</code> (asc) + <code>createdAt</code> (desc)</li><li>Composite: <code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li><li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users (assignedEmployees or createdBy or admin/manager)</li><li>Create: Signed-in users or public form (with validation)</li><li>Update: Signed-in users (assignedEmployees or createdBy or admin/manager)</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="3-bookings-collection">3. Bookings Collection</h3>
+<p><strong>Collection Path:</strong> <code>bookings/{bookingId}</code>   <strong>Purpose:</strong> Store booking information</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Booking ID (string, matches document ID)
   clientId: string                       // Client ID (string, required, references clients)
   clientName: string                      // Client name (string, required, denormalized)
+  agentId?: string                        // Owning SALES agent for revenue attribution (string, optional, references users).
+                                          //   Auto-set to the first agent who adds pricing; if unset, attribution falls
+                                          //   back to createdBy when the creator is an agent. Separates who-sold-it from who-typed-it.
   bookingType: string                    // Booking type (string, enum: 'flight' | 'hotel' | 'car' | 'activity' | 'visa' | 'other')
   destination?: string                    // Destination (string, optional)
   
@@ -457,7 +379,19 @@
     createdAt?: Timestamp                // Creation timestamp (Firestore Timestamp, optional)
     createdBy?: string                    // Creator user ID (string, optional)
     createdByName?: string                // Creator name (string, optional)
+    financeTxnId?: string                 // Linked Finance income transaction ID (string, optional) — set if the
+                                          //   payment was mirrored to finance_transactions (legacy; current model derives on read)
   }]
+  
+  // Cancellation &amp; refund (populated when status === 'cancelled')
+  cancellationReason?: string             // Cancellation reason (string, optional)
+  cancelledAt?: string                    // Cancellation date (string, optional, ISO date format)
+  cancellationCharges?: number            // Cancellation fee retained by the agency (number, optional, decimal)
+  refundAmount?: number                   // Amount owed back to the customer (number, optional, decimal)
+  refundStatus?: string                   // Refund status (string, optional, enum: 'pending' | 'processed')
+  refundedAt?: string                     // Refund payout date (string, optional, ISO date format)
+  refundMode?: string                     // Refund payment mode (string, optional, enum: 'cash' | 'card' | 'upi' | 'bank' | 'cheque' | 'other')
+  refundReference?: string                // Refund reference (string, optional)
   
   // Supplier information
   supplierName?: string                   // Supplier name (string, optional)
@@ -466,7 +400,7 @@
   profit?: number                         // Profit (number, optional, decimal, calculated: total - supplierCost)
   
   // Generic data
-  bookingDetails?: Record<string, any>    // Additional booking details (object, optional, flexible schema)
+  bookingDetails?: Record&lt;string, any&gt;    // Additional booking details (object, optional, flexible schema)
   
   // Documents
   documents?: [{                          // Documents (array of objects, optional)
@@ -495,30 +429,15 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>clientId</code> (asc) + <code>status</code> (asc) + <code>startDate</code> (desc)</li>
-                <li>Composite: <code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
-                <li>Composite: <code>status</code> (asc) + <code>startDate</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users (createdBy or client assigned or admin/manager)</li>
-                <li>Create: Signed-in users</li>
-                <li>Update: Signed-in users (createdBy or client assigned or admin/manager)</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="4-invoices-collection">4. Invoices Collection</h3>
-            <p><strong>Collection Path:</strong> <code>invoices/{invoiceId}</code></p>
-            <p><strong>Purpose:</strong> Store invoice information</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>clientId</code> (asc) + <code>status</code> (asc) + <code>startDate</code> (desc)</li><li>Composite: <code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li><li>Composite: <code>status</code> (asc) + <code>startDate</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users (createdBy or client assigned or admin/manager)</li><li>Create: Signed-in users</li><li>Update: Signed-in users (createdBy or client assigned or admin/manager)</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="4-invoices-collection">4. Invoices Collection</h3>
+<p><strong>Collection Path:</strong> <code>invoices/{invoiceId}</code>   <strong>Purpose:</strong> Store invoice information</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Invoice ID (string, matches document ID)
   bookingId: string                       // Booking ID (string, required, references bookings)
   clientName: string                      // Client name (string, required, denormalized)
@@ -530,27 +449,15 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>bookingId</code> (asc)</li>
-                <li>Composite: <code>status</code> (asc) + <code>dueDate</code> (asc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Admin/Manager only</li>
-                <li>Write: Admin only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="5-leads-collection">5. Leads Collection</h3>
-            <p><strong>Collection Path:</strong> <code>leads/{leadId}</code></p>
-            <p><strong>Purpose:</strong> Store lead information</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>bookingId</code> (asc)</li><li>Composite: <code>status</code> (asc) + <code>dueDate</code> (asc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Admin/Manager only</li><li>Write: Admin only</li></ul>
+<hr>
+<h3 id="5-leads-collection">5. Leads Collection</h3>
+<p><strong>Collection Path:</strong> <code>leads/{leadId}</code>   <strong>Purpose:</strong> Store lead information</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Lead ID (string, matches document ID)
   name: string                            // Name (string, required, 1-200 chars)
   email?: string                          // Email address (string, optional, valid email format)
@@ -578,7 +485,7 @@
   // Website lead fields
   destination?: string                    // Destination (string, optional, from website)
   message?: string                        // Message (string, optional, from website)
-  rawPayload?: Record<string, any>        // Raw payload (object, optional, from website)
+  rawPayload?: Record&lt;string, any&gt;        // Raw payload (object, optional, from website)
   localRef?: {                            // Local reference (object, optional)
     collection: string                     // Collection name (string, required)
     id: string                            // Document ID (string, required)
@@ -592,29 +499,15 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
-                <li>Composite: <code>source</code> (asc) + <code>createdAt</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Create: Signed-in users or public form (with validation)</li>
-                <li>Update: Signed-in users</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="6-organizations-collection">6. Organizations Collection</h3>
-            <p><strong>Collection Path:</strong> <code>organizations/{organizationId}</code></p>
-            <p><strong>Purpose:</strong> Store corporate organization information</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li><li>Composite: <code>source</code> (asc) + <code>createdAt</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Create: Signed-in users or public form (with validation)</li><li>Update: Signed-in users</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="6-organizations-collection">6. Organizations Collection</h3>
+<p><strong>Collection Path:</strong> <code>organizations/{organizationId}</code>   <strong>Purpose:</strong> Store corporate organization information</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Organization ID (string, matches document ID)
   name: string                            // Organization name (string, required)
   type: string                            // Organization type (string, enum: 'corporate')
@@ -629,26 +522,15 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <p>None (queries by ID only)</p>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Create: Signed-in users</li>
-                <li>Update: Signed-in users</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="7-customer-logs-collection">7. Customer Logs Collection</h3>
-            <p><strong>Collection Path:</strong> <code>customer_logs/{logId}</code></p>
-            <p><strong>Purpose:</strong> Store customer activity logs</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>None (queries by ID only)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Create: Signed-in users</li><li>Update: Signed-in users</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="7-customer-logs-collection">7. Customer Logs Collection</h3>
+<p><strong>Collection Path:</strong> <code>customer_logs/{logId}</code>   <strong>Purpose:</strong> Store customer activity logs</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Log ID (string, matches document ID)
   clientId: string                        // Client ID (string, required, references clients)
   clientName?: string                     // Client name (string, optional, denormalized)
@@ -660,29 +542,15 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>clientId</code> (asc) + <code>createdAt</code> (desc)</li>
-                <li>Composite: <code>userId</code> (asc) + <code>createdAt</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Create: Signed-in users</li>
-                <li>Update: Signed-in users</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="8-follow-ups-collection">8. Follow Ups Collection</h3>
-            <p><strong>Collection Path:</strong> <code>follow_ups/{followUpId}</code></p>
-            <p><strong>Purpose:</strong> Store follow-up tasks</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>clientId</code> (asc) + <code>createdAt</code> (desc)</li><li>Composite: <code>userId</code> (asc) + <code>createdAt</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Create: Signed-in users</li><li>Update: Signed-in users</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="8-follow-ups-collection">8. Follow Ups Collection</h3>
+<p><strong>Collection Path:</strong> <code>follow_ups/{followUpId}</code>   <strong>Purpose:</strong> Store follow-up tasks</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Follow-up ID (string, matches document ID)
   clientId: string                        // Client ID (string, required, references clients)
   clientName: string                      // Client name (string, required, denormalized)
@@ -697,29 +565,15 @@
   createdBy: string                       // Creator user ID (string, required)
   updatedBy: string                       // Last updater user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>clientId</code> (asc) + <code>date</code> (desc)</li>
-                <li>Composite: <code>done</code> (asc) + <code>date</code> (asc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Create: Signed-in users</li>
-                <li>Update: Signed-in users</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="9-attendance-collection">9. Attendance Collection</h3>
-            <p><strong>Collection Path:</strong> <code>attendance/{attendanceId}</code></p>
-            <p><strong>Purpose:</strong> Store employee attendance records</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>clientId</code> (asc) + <code>date</code> (desc)</li><li>Composite: <code>done</code> (asc) + <code>date</code> (asc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Create: Signed-in users</li><li>Update: Signed-in users</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="9-attendance-collection">9. Attendance Collection</h3>
+<p><strong>Collection Path:</strong> <code>attendance/{attendanceId}</code>   <strong>Purpose:</strong> Store employee attendance records</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Attendance ID (string, format: "{userId}_{YYYY-MM-DD}")
   userId: string                          // User ID (string, required, references users)
   userName: string                        // User name (string, required, denormalized)
@@ -751,29 +605,15 @@
   createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
   updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>userId</code> (asc) + <code>date</code> (asc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Get: Admin or owner (by path or userId)</li>
-                <li>List: Admin or owner (where userId == uid)</li>
-                <li>Create: Admin or owner (deterministic ID)</li>
-                <li>Update: Admin or owner (punchIn, date locked)</li>
-                <li>Delete: Admin only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="10-leaves-collection">10. Leaves Collection</h3>
-            <p><strong>Collection Path:</strong> <code>leaves/{leaveId}</code></p>
-            <p><strong>Purpose:</strong> Store employee leave requests</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>userId</code> (asc) + <code>date</code> (asc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Get: Admin or owner (by path or userId)</li><li>List: Admin or owner (where userId == uid)</li><li>Create: Admin or owner (deterministic ID)</li><li>Update: Admin or owner (punchIn, date locked)</li><li>Delete: Admin only</li></ul>
+<hr>
+<h3 id="10-leaves-collection">10. Leaves Collection</h3>
+<p><strong>Collection Path:</strong> <code>leaves/{leaveId}</code>   <strong>Purpose:</strong> Store employee leave requests</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Leave ID (string, matches document ID)
   userId: string                          // User ID (string, required, references users)
   userName: string                        // User name (string, required, denormalized)
@@ -791,125 +631,71 @@
   createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
   updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>userId</code> (asc) + <code>startDate</code> (desc)</li>
-                <li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Create: Signed-in users (self, pending status)</li>
-                <li>Update: Admin or self (pending status, cannot flip status)</li>
-                <li>Delete: Admin or self (pending status only)</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="11-holidays-collection">11. Holidays Collection</h3>
-            <p><strong>Collection Path:</strong> <code>holidays/{holidayId}</code></p>
-            <p><strong>Purpose:</strong> Store company holidays</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>userId</code> (asc) + <code>startDate</code> (desc)</li><li>Composite: <code>status</code> (asc) + <code>createdAt</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Create: Signed-in users (self, pending status)</li><li>Update: Admin or self (pending status, cannot flip status)</li><li>Delete: Admin or self (pending status only)</li></ul>
+<hr>
+<h3 id="11-holidays-collection">11. Holidays Collection</h3>
+<p><strong>Collection Path:</strong> <code>holidays/{holidayId}</code>   <strong>Purpose:</strong> Store company holidays</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Holiday ID (string, matches document ID)
   date: string                            // Holiday date (string, required, format: "YYYY-MM-DD")
   name: string                            // Holiday name (string, required)
   createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
   createdBy: string                       // Creator user ID (string, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>date</code> (asc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Write: Admin only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="12-process-tracking-collection">12. Process Tracking Collection</h3>
-            <p><strong>Collection Path:</strong> <code>process_tracking/{trackingId}</code></p>
-            <p><strong>Purpose:</strong> Store process tracking information</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>date</code> (asc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Write: Admin only</li></ul>
+<hr>
+<h3 id="12-process-tracking-collection">12. Process Tracking Collection</h3>
+<p><strong>Collection Path:</strong> <code>process_tracking/{trackingId}</code>   <strong>Purpose:</strong> Store process tracking information</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Tracking ID (string, matches document ID)
   // Flexible schema based on process type
   // Fields vary by process being tracked
   createdAt: Timestamp                    // Creation timestamp (Firestore Timestamp)
   updatedAt: Timestamp                    // Last update timestamp (Firestore Timestamp)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <p>None (flexible schema)</p>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Create: Signed-in users</li>
-                <li>Update: Signed-in users</li>
-                <li>Delete: Admin/Manager only</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="13-customer-statuses-collection">13. Customer Statuses Collection</h3>
-            <p><strong>Collection Path:</strong> <code>customer_statuses/{statusId}</code></p>
-            <p><strong>Purpose:</strong> Store customer status definitions</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>None (flexible schema)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Create: Signed-in users</li><li>Update: Signed-in users</li><li>Delete: Admin/Manager only</li></ul>
+<hr>
+<h3 id="13-customer-statuses-collection">13. Customer Statuses Collection</h3>
+<p><strong>Collection Path:</strong> <code>customer_statuses/{statusId}</code>   <strong>Purpose:</strong> Store customer status definitions</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Status ID (string, matches document ID)
   // Status definition fields
   // Read-only collection
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <p>None (read-only)</p>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Write: False (read-only)</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="14-roles-collection">14. Roles Collection</h3>
-            <p><strong>Collection Path:</strong> <code>roles/{roleId}</code></p>
-            <p><strong>Purpose:</strong> Store role definitions</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>None (read-only)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Write: False (read-only)</li></ul>
+<hr>
+<h3 id="14-roles-collection">14. Roles Collection</h3>
+<p><strong>Collection Path:</strong> <code>roles/{roleId}</code>   <strong>Purpose:</strong> Store role definitions</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Role ID (string, matches document ID)
   // Role definition fields
   // Read-only collection
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <p>None (read-only)</p>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Signed-in users</li>
-                <li>Write: False (read-only)</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="15-audit-logs-collection">15. Audit Logs Collection</h3>
-            <p><strong>Collection Path:</strong> <code>audit_logs/{auditLogId}</code></p>
-            <p><strong>Purpose:</strong> Store security audit logs</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>None (read-only)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Signed-in users</li><li>Write: False (read-only)</li></ul>
+<hr>
+<h3 id="15-audit-logs-collection">15. Audit Logs Collection</h3>
+<p><strong>Collection Path:</strong> <code>audit_logs/{auditLogId}</code>   <strong>Purpose:</strong> Store security audit logs</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Audit log ID (string, matches document ID)
   action: string                          // Action performed (string, required)
   userId: string                          // User ID (string, required)
@@ -917,35 +703,22 @@
   userName?: string                       // User name (string, optional)
   resourceType?: string                   // Resource type (string, optional)
   resourceId?: string                     // Resource ID (string, optional)
-  changes?: Record<string, any>           // Changes made (object, optional)
+  changes?: Record&lt;string, any&gt;           // Changes made (object, optional)
   ipAddress?: string                      // IP address (string, optional)
   userAgent?: string                      // User agent (string, optional)
   success: boolean                        // Success flag (boolean, required)
   errorMessage?: string                   // Error message (string, optional)
   timestamp: Timestamp                    // Timestamp (Firestore Timestamp, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>userId</code> (asc) + <code>timestamp</code> (desc)</li>
-                <li>Composite: <code>action</code> (asc) + <code>timestamp</code> (desc)</li>
-                <li>Composite: <code>resourceType</code> (asc) + <code>resourceId</code> (asc) + <code>timestamp</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Admin only</li>
-                <li>Write: System only (via backend functions)</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="16-error-logs-collection">16. Error Logs Collection</h3>
-            <p><strong>Collection Path:</strong> <code>error_logs/{errorLogId}</code></p>
-            <p><strong>Purpose:</strong> Store application error logs</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>userId</code> (asc) + <code>timestamp</code> (desc)</li><li>Composite: <code>action</code> (asc) + <code>timestamp</code> (desc)</li><li>Composite: <code>resourceType</code> (asc) + <code>resourceId</code> (asc) + <code>timestamp</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Admin only</li><li>Write: System only (via backend functions)</li></ul>
+<hr>
+<h3 id="16-error-logs-collection">16. Error Logs Collection</h3>
+<p><strong>Collection Path:</strong> <code>error_logs/{errorLogId}</code>   <strong>Purpose:</strong> Store application error logs</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Error log ID (string, matches document ID)
   message: string                         // Error message (string, required)
   code: string                            // Error code (string, required)
@@ -953,515 +726,238 @@
   userId?: string                         // User ID (string, optional)
   route?: string                          // Route (string, optional)
   userAgent?: string                      // User agent (string, optional)
-  details?: Record<string, any>           // Additional details (object, optional)
+  details?: Record&lt;string, any&gt;           // Additional details (object, optional)
   timestamp: Timestamp                    // Timestamp (Firestore Timestamp, required)
   resolved: boolean                       // Resolved flag (boolean, required)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <ul>
-                <li>Composite: <code>resolved</code> (asc) + <code>timestamp</code> (desc)</li>
-                <li>Composite: <code>code</code> (asc) + <code>timestamp</code> (desc)</li>
-            </ul>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: Admin only</li>
-                <li>Write: System only (via error handler)</li>
-            </ul>
-        </div>
-        
-        <div class="collection-card">
-            <h3 id="17-login-attempts-collection">17. Login Attempts Collection</h3>
-            <p><strong>Collection Path:</strong> <code>login_attempts/{email}</code></p>
-            <p><strong>Purpose:</strong> Track failed login attempts for account lockout</p>
-            
-            <h4>Document Schema</h4>
-            <pre><code>{
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>Composite: <code>resolved</code> (asc) + <code>timestamp</code> (desc)</li><li>Composite: <code>code</code> (asc) + <code>timestamp</code> (desc)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: Admin only</li><li>Write: System only (via error handler)</li></ul>
+<hr>
+<h3 id="17-login-attempts-collection">17. Login Attempts Collection</h3>
+<p><strong>Collection Path:</strong> <code>login_attempts/{email}</code>   <strong>Purpose:</strong> Track failed login attempts for account lockout</p>
+<h4 id="document-schema">Document Schema</h4>
+<pre><code class="language-typescript">{
   id: string                              // Email address (string, used as document ID)
   count: number                           // Failed attempt count (number, required, integer)
   lastAttempt: Timestamp                  // Last attempt timestamp (Firestore Timestamp, required)
   lockedUntil?: Timestamp                 // Lockout expiration (Firestore Timestamp, optional)
 }</code></pre>
-            
-            <h4>Indexes Required</h4>
-            <p>None (queries by email only)</p>
-            
-            <h4>Security Rules</h4>
-            <ul>
-                <li>Read: System only</li>
-                <li>Write: System only (via auth functions)</li>
-            </ul>
-        </div>
-        
-        <h2 id="data-type-reference">Data Type Reference</h2>
-        
-        <h3>Firestore Data Types Used</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Example</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><span class="field-type type-string">string</span></td>
-                    <td>Text data</td>
-                    <td>"John Doe"</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-number">number</span></td>
-                    <td>Numeric data (double precision)</td>
-                    <td>1234.56</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-boolean">boolean</span></td>
-                    <td>True/false values</td>
-                    <td>true</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-timestamp">Timestamp</span></td>
-                    <td>Date/time data</td>
-                    <td>Timestamp from serverTimestamp()</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-array">array</span></td>
-                    <td>List of values</td>
-                    <td>["flight", "hotel"]</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-object">object</span></td>
-                    <td>Key-value pairs</td>
-                    <td>{ from: "2026-01-01", to: "2026-01-10" }</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-string">null</span></td>
-                    <td>Null value</td>
-                    <td>null</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-string">geopoint</span></td>
-                    <td>Geographic coordinates</td>
-                    <td>GeoPoint(40.7128, -74.0060)</td>
-                </tr>
-                <tr>
-                    <td><span class="field-type type-string">reference</span></td>
-                    <td>Document reference</td>
-                    <td>doc("users/abc123")</td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <h3>Custom Type Definitions</h3>
-        
-        <h4>Enums Used</h4>
-        
-        <p><strong>User Roles:</strong></p>
-        <ul>
-            <li><code>employee</code> - Regular employee</li>
-            <li><code>manager</code> - Manager with elevated permissions</li>
-            <li><code>admin</code> - Administrator with full access</li>
-            <li><code>agent</code> - Agent with limited permissions</li>
-        </ul>
-        
-        <p><strong>Client Status:</strong></p>
-        <ul>
-            <li><code>active</code> - Active client</li>
-            <li><code>inactive</code> - Inactive client</li>
-            <li><code>lead</code> - Lead/prospect</li>
-            <li><code>prospect</code> - Potential client</li>
-        </ul>
-        
-        <p><strong>Booking Status:</strong></p>
-        <ul>
-            <li><code>draft</code> - Draft booking</li>
-            <li><code>pending</code> - Pending confirmation</li>
-            <li><code>hold</code> - On hold</li>
-            <li><code>confirmed</code> - Confirmed booking</li>
-            <li><code>cancelled</code> - Cancelled booking</li>
-        </ul>
-        
-        <p><strong>Payment Status:</strong></p>
-        <ul>
-            <li><code>unpaid</code> - Not paid</li>
-            <li><code>partial</code> - Partially paid</li>
-            <li><code>paid</code> - Fully paid</li>
-            <li><code>refunded</code> - Refunded</li>
-        </ul>
-        
-        <p><strong>Lead Status:</strong></p>
-        <ul>
-            <li><code>new</code> - New lead</li>
-            <li><code>contacted</code> - Contacted</li>
-            <li><code>proposal</code> - Proposal sent</li>
-            <li><code>won</code> - Converted to client</li>
-            <li><code>lost</code> - Lost lead</li>
-        </ul>
-        
-        <p><strong>Leave Type:</strong></p>
-        <ul>
-            <li><code>casual</code> - Casual leave</li>
-            <li><code>sick</code> - Sick leave</li>
-            <li><code>earned</code> - Earned leave</li>
-            <li><code>lop</code> - Loss of pay</li>
-        </ul>
-        
-        <p><strong>Attendance Status:</strong></p>
-        <ul>
-            <li><code>present</code> - Present</li>
-            <li><code>late</code> - Late</li>
-            <li><code>half-day</code> - Half day</li>
-            <li><code>absent</code> - Absent</li>
-            <li><code>leave</code> - On leave</li>
-            <li><code>holiday</code> - Holiday</li>
-            <li><code>upcoming</code> - Upcoming</li>
-        </ul>
-        
-        <p><strong>Visa Status:</strong></p>
-        <ul>
-            <li><code>toStart</code> - Not started</li>
-            <li><code>inProcess</code> - In process</li>
-            <li><code>applied</code> - Applied</li>
-            <li><code>approved</code> - Approved</li>
-            <li><code>rejected</code> - Rejected</li>
-            <li><code>completed</code> - Completed</li>
-            <li><code>travelling</code> - Travelling</li>
-        </ul>
-        
-        <h3>Date/Time Formats</h3>
-        
-        <p><strong>ISO 8601 Format:</strong></p>
-        <ul>
-            <li>Dates: <code>YYYY-MM-DD</code> (e.g., "2026-07-09")</li>
-            <li>DateTimes: <code>YYYY-MM-DDTHH:mm:ss.sssZ</code> (e.g., "2026-07-09T10:30:00.000Z")</li>
-        </ul>
-        
-        <p><strong>Time Format:</strong></p>
-        <ul>
-            <li>Times: <code>HH:MM</code> (e.g., "09:30", "18:30")</li>
-        </ul>
-        
-        <h3>Phone Number Format</h3>
-        
-        <p><strong>E.164 Format:</strong></p>
-        <ul>
-            <li>Format: <code>+[country code][number]</code></li>
-            <li>Example: <code>+919876543210</code></li>
-        </ul>
-        
-        <h3>Email Format</h3>
-        
-        <p><strong>Standard Email Format:</strong></p>
-        <ul>
-            <li>Format: <code>local@domain.com</code></li>
-            <li>Example: <code>user@example.com</code></li>
-        </ul>
-        
-        <h2 id="relationships">Relationships</h2>
-        
-        <h3>Document Relationships</h3>
-        
-        <p><strong>One-to-Many:</strong></p>
-        <ul>
-            <li>User → Attendance (userId)</li>
-            <li>User → Leaves (userId)</li>
-            <li>User → Bookings (createdBy)</li>
-            <li>Client → Bookings (clientId)</li>
-            <li>Client → Customer Logs (clientId)</li>
-            <li>Client → Follow Ups (clientId)</li>
-            <li>Organization → Clients (organizationId)</li>
-            <li>Booking → Invoices (bookingId)</li>
-        </ul>
-        
-        <p><strong>Many-to-Many:</strong></p>
-        <ul>
-            <li>Client ↔ User (assignedEmployees array)</li>
-            <li>Booking ↔ Payment (payments array)</li>
-        </ul>
-        
-        <p><strong>Self-Referential:</strong></p>
-        <ul>
-            <li>Lead → Client (convertedToClientId)</li>
-        </ul>
-        
-        <h2 id="index-strategy">Index Strategy</h2>
-        
-        <h3>Composite Indexes</h3>
-        
-        <p><strong>Required for efficient queries:</strong></p>
-        
-        <ol>
-            <li><strong>Clients Collection:</strong>
-                <ul>
-                    <li><code>assignedEmployees</code> (array-contains) + <code>status</code> (asc) + <code>createdAt</code> (desc)</li>
-                    <li><code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
-                </ul>
-            </li>
-            <li><strong>Bookings Collection:</strong>
-                <ul>
-                    <li><code>clientId</code> (asc) + <code>status</code> (asc) + <code>startDate</code> (desc)</li>
-                    <li><code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li>
-                </ul>
-            </li>
-            <li><strong>Invoices Collection:</strong>
-                <ul>
-                    <li><code>bookingId</code> (asc)</li>
-                    <li><code>status</code> (asc) + <code>dueDate</code> (asc)</li>
-                </ul>
-            </li>
-            <li><strong>Follow Ups Collection:</strong>
-                <ul>
-                    <li><code>clientId</code> (asc) + <code>date</code> (desc)</li>
-                    <li><code>done</code> (asc) + <code>date</code> (asc)</li>
-                </ul>
-            </li>
-            <li><strong>Customer Logs Collection:</strong>
-                <ul>
-                    <li><code>clientId</code> (asc) + <code>createdAt</code> (desc)</li>
-                    <li><code>userId</code> (asc) + <code>createdAt</code> (desc)</li>
-                </ul>
-            </li>
-            <li><strong>Attendance Collection:</strong>
-                <ul>
-                    <li><code>userId</code> (asc) + <code>date</code> (asc)</li>
-                </ul>
-            </li>
-            <li><strong>Leaves Collection:</strong>
-                <ul>
-                    <li><code>userId</code> (asc) + <code>startDate</code> (desc)</li>
-                    <li><code>status</code> (asc) + <code>createdAt</code> (desc)</li>
-                </ul>
-            </li>
-        </ol>
-        
-        <h2 id="security-rules-summary">Security Rules Summary</h2>
-        
-        <h3>Access Control Matrix</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Collection</th>
-                    <th>Read</th>
-                    <th>Create</th>
-                    <th>Update</th>
-                    <th>Delete</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>users</td>
-                    <td>Signed-in</td>
-                    <td>Self</td>
-                    <td>Self/Admin</td>
-                    <td>Admin</td>
-                </tr>
-                <tr>
-                    <td>clients</td>
-                    <td>Assigned/Created</td>
-                    <td>Signed-in/Public</td>
-                    <td>Assigned/Created/Admin</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>bookings</td>
-                    <td>Created/Assigned</td>
-                    <td>Signed-in</td>
-                    <td>Created/Assigned/Admin</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>invoices</td>
-                    <td>Admin/Manager</td>
-                    <td>Admin</td>
-                    <td>Admin</td>
-                    <td>Admin</td>
-                </tr>
-                <tr>
-                    <td>leads</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in/Public</td>
-                    <td>Signed-in</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>organizations</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>customer_logs</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>follow_ups</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>attendance</td>
-                    <td>Owner/Admin</td>
-                    <td>Owner/Admin</td>
-                    <td>Owner/Admin</td>
-                    <td>Admin</td>
-                </tr>
-                <tr>
-                    <td>leaves</td>
-                    <td>Signed-in</td>
-                    <td>Self (pending)</td>
-                    <td>Self/Admin</td>
-                    <td>Self/Admin</td>
-                </tr>
-                <tr>
-                    <td>holidays</td>
-                    <td>Signed-in</td>
-                    <td>Admin</td>
-                    <td>Admin</td>
-                    <td>Admin</td>
-                </tr>
-                <tr>
-                    <td>process_tracking</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Signed-in</td>
-                    <td>Admin/Manager</td>
-                </tr>
-                <tr>
-                    <td>audit_logs</td>
-                    <td>Admin</td>
-                    <td>System</td>
-                    <td>System</td>
-                    <td>System</td>
-                </tr>
-                <tr>
-                    <td>error_logs</td>
-                    <td>Admin</td>
-                    <td>System</td>
-                    <td>System</td>
-                    <td>System</td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <h2 id="data-validation-rules">Data Validation Rules</h2>
-        
-        <h3>Required Fields</h3>
-        
-        <p><strong>Users:</strong></p>
-        <ul>
-            <li>id, name, email, role, createdAt, createdBy</li>
-        </ul>
-        
-        <p><strong>Clients:</strong></p>
-        <ul>
-            <li>id, name, phone, avatar, preferences, status, createdAt, createdBy</li>
-        </ul>
-        
-        <p><strong>Bookings:</strong></p>
-        <ul>
-            <li>id, clientId, clientName, bookingType, startDate, endDate, status, progress, total, createdAt, createdBy</li>
-        </ul>
-        
-        <p><strong>Invoices:</strong></p>
-        <ul>
-            <li>id, bookingId, clientName, amount, dueDate, status, createdAt, createdBy</li>
-        </ul>
-        
-        <p><strong>Leads:</strong></p>
-        <ul>
-            <li>id, name, phone, avatar, status, createdAt, createdBy</li>
-        </ul>
-        
-        <p><strong>Organizations:</strong></p>
-        <ul>
-            <li>id, name, type, createdAt, createdBy</li>
-        </ul>
-        
-        <p><strong>Attendance:</strong></p>
-        <ul>
-            <li>id, userId, userName, date, punchIn, workStartTime, workEndTime, lateGraceMinutes, punchInLate, punchOutEarly, autoLoggedOut, status, createdAt</li>
-        </ul>
-        
-        <p><strong>Leaves:</strong></p>
-        <ul>
-            <li>id, userId, userName, type, startDate, endDate, days, reason, status, createdAt</li>
-        </ul>
-        
-        <p><strong>Holidays:</strong></p>
-        <ul>
-            <li>id, date, name, createdAt, createdBy</li>
-        </ul>
-        
-        <h3>Field Constraints</h3>
-        
-        <p><strong>String Lengths:</strong></p>
-        <ul>
-            <li>User name: max 200 characters</li>
-            <li>Client name: 2-200 characters</li>
-            <li>Lead name: 1-200 characters</li>
-            <li>Lead phone: 0-40 characters</li>
-        </ul>
-        
-        <p><strong>Number Ranges:</strong></p>
-        <ul>
-            <li>Booking progress: 0-100</li>
-            <li>Attendance work minutes: non-negative integer</li>
-            <li>Leave days: positive integer</li>
-        </ul>
-        
-        <p><strong>Enum Values:</strong></p>
-        <ul>
-            <li>All enum fields must use predefined values only</li>
-        </ul>
-        
-        <h2 id="best-practices">Best Practices</h2>
-        
-        <h3>Document Size Limits</h3>
-        <ul>
-            <li><strong>Maximum document size:</strong> 1 MB</li>
-            <li><strong>Recommended document size:</strong> &lt; 100 KB</li>
-            <li><strong>Large arrays:</strong> Consider subcollections for &gt; 100 items</li>
-        </ul>
-        
-        <h3>Query Optimization</h3>
-        <ul>
-            <li>Use selective field retrieval (projection)</li>
-            <li>Limit query results with pagination</li>
-            <li>Use composite indexes for complex queries</li>
-            <li>Avoid array-contains with large arrays</li>
-        </ul>
-        
-        <h3>Data Consistency</h3>
-        <ul>
-            <li>Use transactions for multi-document operations</li>
-            <li>Implement optimistic concurrency control</li>
-            <li>Use serverTimestamp() for consistent timestamps</li>
-            <li>Denormalize frequently accessed data</li>
-        </ul>
-        
-        <h3>Performance Considerations</h3>
-        <ul>
-            <li>Batch writes for multiple documents</li>
-            <li>Use offline persistence for better UX</li>
-            <li>Implement caching for frequently accessed data</li>
-            <li>Monitor query performance with Firestore metrics</li>
-        </ul>
-        
-        <hr>
-        
-        <p style="text-align: center; color: #6b7280; margin-top: 40px;">
-            <strong>Document Version:</strong> 1.0<br>
-            <strong>Last Updated:</strong> July 9, 2026<br>
-            <strong>Maintained By:</strong> Development Team
-        </p>
-    </div>
+<h4 id="indexes-required">Indexes Required</h4>
+<ul><li>None (queries by email only)</li></ul>
+<h4 id="security-rules">Security Rules</h4>
+<ul><li>Read: System only</li><li>Write: System only (via auth functions)</li></ul>
+<hr>
+<h2 id="finance-module-collections">Finance Module Collections</h2>
+<div class="info-box">Company cash-flow module. Visible to the <strong><code>finance</code></strong> role only (and to <code>admin</code> at the data/rules level as a break-glass). Account <strong>balances are computed on read</strong> by summing transactions — no stored running balance is mutated. Booking collections and agent expenses are <strong>derived on read</strong> into finance views (they are not duplicated as transactions), except reimbursements, which post a real transaction.</div>
+<h3 id="18-accounts-collection">18. Accounts Collection</h3>
+<p><strong>Collection Path:</strong> <code>accounts/{accountId}</code> <strong>Purpose:</strong> Cash / bank / wallet accounts that hold company money</p>
+<pre><code class="language-typescript">{
+  id: string                    // Account ID (string, matches document ID)
+  name: string                  // Account name (string, required)
+  type: string                  // Account type (string, enum: 'cash' | 'petty-cash' | 'current' | 'savings' | 'wallet')
+  bankName?: string             // Bank name (string, optional)
+  accountNumber?: string        // Account number (string, optional)
+  ifsc?: string                 // IFSC code (string, optional)
+  openingBalance: number        // Opening balance (number, required, decimal)
+  status: string                // Status (string, enum: 'active' | 'inactive')
+  notes?: string                // Notes (string, optional)
+  createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string
+}</code></pre>
+<ul><li><strong>Current balance</strong> = openingBalance + Σ(income to account) − Σ(expense from account) + Σ(transfer in) − Σ(transfer out) — computed on read, not stored.</li><li><strong>Security:</strong> Read/Create/Update: finance or admin. Delete: admin only.</li></ul>
+<h3 id="19-finance-transactions-collection">19. Finance Transactions Collection</h3>
+<p><strong>Collection Path:</strong> <code>finance_transactions/{txnId}</code> <strong>Purpose:</strong> The transaction engine — one doc per income / expense / transfer</p>
+<pre><code class="language-typescript">{
+  id: string                    // Transaction ID (string, matches document ID)
+  type: string                  // Type (string, enum: 'income' | 'expense' | 'transfer')
+  amount: number                // Amount (number, required, decimal)
+  date: string                  // Date (string, required, ISO date format)
+  accountId: string             // Account: income → destination; expense → source; transfer → source. '' = unassigned
+  toAccountId?: string          // Transfer destination account (string, optional)
+  clientId?: string             // Linked client (string, optional, references clients)
+  clientName?: string           // Client name (string, optional, denormalized)
+  bookingId?: string            // Linked booking (string, optional, references bookings)
+  invoiceId?: string            // Linked invoice (string, optional)
+  supplierId?: string           // Linked supplier (string, optional, references suppliers)
+  supplierName?: string         // Supplier name (string, optional, denormalized)
+  categoryId?: string           // Expense category ID (string, optional)
+  categoryName?: string         // Expense category name (string, optional, denormalized)
+  paymentMethod?: string        // Payment method label (string, optional)
+  reference?: string            // Reference (string, optional)
+  remarks?: string              // Remarks (string, optional)
+  status: string                // Status (string, enum: 'completed' | 'cancelled')
+  source?: string               // Origin (string, optional, enum: 'booking' | 'agent' | 'manual')
+  bookingPaymentId?: string     // Linked booking Payment id (string, optional)
+  createdAt: Timestamp; createdBy: string; createdByName?: string; updatedAt: Timestamp; updatedBy: string
+}</code></pre>
+<ul><li><strong>Security:</strong> Read: finance/admin. Create: finance/admin (or any signed-in user for a booking-sourced income entry). Update: finance/admin (or the creator of a booking-sourced entry). Delete: admin only. *Prefer cancelling (status='cancelled') over deleting.*</li></ul>
+<h3 id="20-suppliers-collection">20. Suppliers Collection</h3>
+<p><strong>Collection Path:</strong> <code>suppliers/{supplierId}</code> <strong>Purpose:</strong> Payee directory (VFS, BLS, embassy, DMC, B2B portals, airlines, hotels, courier, employees, utilities…)</p>
+<pre><code class="language-typescript">{
+  id: string; name: string      // required
+  category?: string             // e.g. VFS, BLS, Embassy, DMC, B2B Portal, Airline, Hotel, Transport, Courier, Utility…
+  contactPerson?: string; phone?: string; email?: string; gst?: string; address?: string; notes?: string
+  status: string                // enum: 'active' | 'inactive'
+  createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string
+}</code></pre>
+<ul><li><strong>Security:</strong> Read/Create/Update: finance/admin. Delete: admin only.</li></ul>
+<h3 id="21-expense-categories-collection">21. Expense Categories Collection</h3>
+<p><strong>Collection Path:</strong> <code>expense_categories/{categoryId}</code> <strong>Purpose:</strong> Configurable expense categories (falls back to defaults until customized)</p>
+<pre><code class="language-typescript">{ id: string; name: string; active: boolean; createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string }</code></pre>
+<ul><li><strong>Security:</strong> Read/Create/Update: finance/admin. Delete: admin only.</li></ul>
+<h3 id="22-payment-methods-collection">22. Payment Methods Collection</h3>
+<p><strong>Collection Path:</strong> <code>payment_methods/{methodId}</code> <strong>Purpose:</strong> Configurable incoming/outgoing payment methods (falls back to the booking PaymentMode labels until customized)</p>
+<pre><code class="language-typescript">{
+  id: string; name: string      // required
+  direction: string             // enum: 'incoming' | 'outgoing'
+  requiresReference?: boolean; requiresAttachment?: boolean; active?: boolean
+  createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string
+}</code></pre>
+<ul><li><strong>Security:</strong> Read/Create/Update: finance/admin. Delete: admin only.</li></ul>
+<h3 id="23-agent-expenses-collection">23. Agent Expenses Collection</h3>
+<p><strong>Collection Path:</strong> <code>agent_expenses/{expenseId}</code> <strong>Purpose:</strong> Expenses an agent logs (money spent on the business). A <strong>PENDING REIMBURSEMENT</strong> — NOT a company expense until finance reimburses the agent (which posts a real <code>finance_transactions</code> expense).</p>
+<pre><code class="language-typescript">{
+  id: string; amount: number; date: string    // required (date ISO)
+  category?: string             // what kind of spend
+  purpose?: string              // what it was for (description)
+  payee?: string                // where / to whom
+  paymentMethod?: string        // how the agent paid (Cash / UPI / …)
+  reimbursed?: boolean          // set by finance when the company pays the agent back
+  reimbursedAt?: string         // reimbursement date (ISO)
+  reimbursedTxnId?: string      // the finance_transactions expense created on payout
+  createdAt: Timestamp; createdBy: string; createdByName?: string; updatedAt: Timestamp; updatedBy: string
+}</code></pre>
+<ul><li><strong>Security:</strong> an agent owns the ones they created (read/create/update/delete own); finance/admin can read all and manage (reimburse). Agents list theirs via <code>where('createdBy','==',uid)</code>.</li></ul>
+<hr>
+<h2 id="data-type-reference">Data Type Reference</h2>
+<h3 id="firestore-data-types-used">Firestore Data Types Used</h3>
+<table><thead><tr><th>Type</th><th>Description</th><th>Example</th></tr></thead><tbody><tr><td><strong>string</strong></td><td>Text data</td><td>"John Doe"</td></tr><tr><td><strong>number</strong></td><td>Numeric data (double precision)</td><td>1234.56</td></tr><tr><td><strong>boolean</strong></td><td>True/false values</td><td>true</td></tr><tr><td><strong>Timestamp</strong></td><td>Date/time data</td><td>Timestamp from serverTimestamp()</td></tr><tr><td><strong>array</strong></td><td>List of values</td><td>["flight", "hotel"]</td></tr><tr><td><strong>object</strong></td><td>Key-value pairs</td><td>{ from: "2026-01-01", to: "2026-01-10"</td></tr><tr><td><strong>null</strong></td><td>Null value</td><td>null</td></tr><tr><td><strong>geopoint</strong></td><td>Geographic coordinates</td><td>GeoPoint(40.7128, -74.0060)</td></tr><tr><td><strong>reference</strong></td><td>Document reference</td><td>doc("users/abc123")</td></tr></tbody></table>
+<h3 id="custom-type-definitions">Custom Type Definitions</h3>
+<h4 id="enums-used">Enums Used</h4>
+<p><strong>User Roles:</strong></p>
+<ul><li><code>employee</code> - Regular employee</li><li><code>manager</code> - Manager with elevated permissions</li><li><code>admin</code> - Administrator with full access</li><li><code>agent</code> - Agent; only role that sees per-booking revenue/profit margin (<code>canViewRevenue</code>)</li><li><code>finance</code> - Finance/accountant; sees the Finance module + Agent Performance (<code>canViewFinance</code>), scoped to those pages only</li></ul>
+<p><strong>Client Status:</strong></p>
+<ul><li><code>active</code> - Active client</li><li><code>inactive</code> - Inactive client</li><li><code>lead</code> - Lead/prospect</li><li><code>prospect</code> - Potential client</li></ul>
+<p><strong>Booking Status:</strong></p>
+<ul><li><code>draft</code> - Draft booking</li><li><code>pending</code> - Pending confirmation</li><li><code>hold</code> - On hold</li><li><code>confirmed</code> - Confirmed booking</li><li><code>cancelled</code> - Cancelled booking</li></ul>
+<p><strong>Payment Status:</strong></p>
+<ul><li><code>unpaid</code> - Not paid</li><li><code>partial</code> - Partially paid</li><li><code>paid</code> - Fully paid</li><li><code>refunded</code> - Refunded</li></ul>
+<p><strong>Lead Status:</strong></p>
+<ul><li><code>new</code> - New lead</li><li><code>contacted</code> - Contacted</li><li><code>proposal</code> - Proposal sent</li><li><code>won</code> - Converted to client</li><li><code>lost</code> - Lost lead</li></ul>
+<p><strong>Leave Type:</strong></p>
+<ul><li><code>casual</code> - Casual leave</li><li><code>sick</code> - Sick leave</li><li><code>earned</code> - Earned leave</li><li><code>lop</code> - Loss of pay</li></ul>
+<p><strong>Attendance Status:</strong></p>
+<ul><li><code>present</code> - Present</li><li><code>late</code> - Late</li><li><code>half-day</code> - Half day</li><li><code>absent</code> - Absent</li><li><code>leave</code> - On leave</li><li><code>holiday</code> - Holiday</li><li><code>upcoming</code> - Upcoming</li></ul>
+<p><strong>Visa Status:</strong></p>
+<ul><li><code>toStart</code> - Not started</li><li><code>inProcess</code> - In process</li><li><code>applied</code> - Applied</li><li><code>approved</code> - Approved</li><li><code>rejected</code> - Rejected</li><li><code>completed</code> - Completed</li><li><code>travelling</code> - Travelling</li></ul>
+<p><strong>Refund Status (booking):</strong></p>
+<ul><li><code>pending</code> - Refund owed, not yet paid to the customer</li><li><code>processed</code> - Refund paid back</li></ul>
+<p><strong>Finance Account Type:</strong></p>
+<ul><li><code>cash</code> · <code>petty-cash</code> · <code>current</code> · <code>savings</code> · <code>wallet</code></li></ul>
+<p><strong>Finance Transaction Type / Status / Source:</strong></p>
+<ul><li>Type: <code>income</code> · <code>expense</code> · <code>transfer</code></li><li>Status: <code>completed</code> · <code>cancelled</code></li><li>Source: <code>booking</code> (derived from a booking payment) · <code>agent</code> (derived from an agent expense) · <code>manual</code> (entered in Finance)</li></ul>
+<p><strong>Payment Method Direction:</strong></p>
+<ul><li><code>incoming</code> (Money In) · <code>outgoing</code> (Money Out)</li></ul>
+<h3 id="datetime-formats">Date/Time Formats</h3>
+<p><strong>ISO 8601 Format:</strong></p>
+<ul><li>Dates: <code>YYYY-MM-DD</code> (e.g., "2026-07-09")</li><li>DateTimes: <code>YYYY-MM-DDTHH:mm:ss.sssZ</code> (e.g., "2026-07-09T10:30:00.000Z")</li></ul>
+<p><strong>Time Format:</strong></p>
+<ul><li>Times: <code>HH:MM</code> (e.g., "09:30", "18:30")</li></ul>
+<h3 id="phone-number-format">Phone Number Format</h3>
+<p><strong>E.164 Format:</strong></p>
+<ul><li>Format: <code>+[country code][number]</code></li><li>Example: <code>+919876543210</code></li></ul>
+<h3 id="email-format">Email Format</h3>
+<p><strong>Standard Email Format:</strong></p>
+<ul><li>Format: <code>local@domain.com</code></li><li>Example: <code>user@example.com</code></li></ul>
+<hr>
+<h2 id="relationships">Relationships</h2>
+<h3 id="document-relationships">Document Relationships</h3>
+<p><strong>One-to-Many:</strong></p>
+<ul><li>User → Attendance (userId)</li><li>User → Leaves (userId)</li><li>User → Bookings (createdBy)</li><li>Agent (User) → Bookings (agentId) — sales-ownership for revenue attribution</li><li>Agent (User) → Agent Expenses (createdBy)</li><li>Client → Bookings (clientId)</li><li>Client → Customer Logs (clientId)</li><li>Client → Follow Ups (clientId)</li><li>Organization → Clients (organizationId)</li><li>Booking → Invoices (bookingId)</li><li>Account → Finance Transactions (accountId / toAccountId)</li><li>Supplier → Finance Transactions (supplierId)</li><li>Booking → Finance Transactions (bookingId) — for reimbursement/reconciliation links</li><li>Finance Transaction → Agent Expenses (reimbursedTxnId) — a reimbursement covers 1..n agent expenses</li></ul>
+<p><strong>Many-to-Many:</strong></p>
+<ul><li>Client ↔ User (assignedEmployees array)</li><li>Booking ↔ Payment (payments array)</li></ul>
+<p><strong>Self-Referential:</strong></p>
+<ul><li>Lead → Client (convertedToClientId)</li></ul>
+<p><strong>Derived-on-read (not stored as rows):</strong></p>
+<ul><li>Booking Payments → Finance income (shown in Money In / Transactions / Dashboard)</li><li>Agent Expenses → shown as pending reimbursements; become a company expense only when reimbursed (a real Finance transaction)</li></ul>
+<hr>
+<h2 id="index-strategy">Index Strategy</h2>
+<h3 id="composite-indexes">Composite Indexes</h3>
+<p><strong>Required for efficient queries:</strong></p>
+<ul><li><strong>Clients Collection:</strong></li><ul><li><code>assignedEmployees</code> (array-contains) + <code>status</code> (asc) + <code>createdAt</code> (desc)</li><li><code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li></ul></ul>
+<ul><li><strong>Bookings Collection:</strong></li><ul><li><code>clientId</code> (asc) + <code>status</code> (asc) + <code>startDate</code> (desc)</li><li><code>createdBy</code> (asc) + <code>createdAt</code> (desc)</li></ul></ul>
+<ul><li><strong>Invoices Collection:</strong></li><ul><li><code>bookingId</code> (asc)</li><li><code>status</code> (asc) + <code>dueDate</code> (asc)</li></ul></ul>
+<ul><li><strong>Follow Ups Collection:</strong></li><ul><li><code>clientId</code> (asc) + <code>date</code> (desc)</li><li><code>done</code> (asc) + <code>date</code> (asc)</li></ul></ul>
+<ul><li><strong>Customer Logs Collection:</strong></li><ul><li><code>clientId</code> (asc) + <code>createdAt</code> (desc)</li><li><code>userId</code> (asc) + <code>createdAt</code> (desc)</li></ul></ul>
+<ul><li><strong>Attendance Collection:</strong></li><ul><li><code>userId</code> (asc) + <code>date</code> (asc)</li></ul></ul>
+<ul><li><strong>Leaves Collection:</strong></li><ul><li><code>userId</code> (asc) + <code>startDate</code> (desc)</li><li><code>status</code> (asc) + <code>createdAt</code> (desc)</li></ul></ul>
+<hr>
+<h2 id="security-rules-summary">Security Rules Summary</h2>
+<h3 id="access-control-matrix">Access Control Matrix</h3>
+<table><thead><tr><th>Collection</th><th>Read</th><th>Create</th><th>Update</th><th>Delete</th></tr></thead><tbody><tr><td>users</td><td>Signed-in</td><td>Self</td><td>Self/Admin</td><td>Admin</td></tr><tr><td>clients</td><td>Assigned/Created/Finance</td><td>Signed-in/Public</td><td>Assigned/Created/Admin</td><td>Admin/Manager</td></tr><tr><td>bookings</td><td>Created/Assigned/Finance</td><td>Signed-in</td><td>Created/Assigned/Admin</td><td>Admin/Manager</td></tr><tr><td>invoices</td><td>Admin/Manager</td><td>Admin</td><td>Admin</td><td>Admin</td></tr><tr><td>leads</td><td>Signed-in</td><td>Signed-in/Public</td><td>Signed-in</td><td>Admin/Manager</td></tr><tr><td>organizations</td><td>Signed-in</td><td>Signed-in</td><td>Signed-in</td><td>Admin/Manager</td></tr><tr><td>customer_logs</td><td>Signed-in</td><td>Signed-in</td><td>Signed-in</td><td>Admin/Manager</td></tr><tr><td>follow_ups</td><td>Signed-in</td><td>Signed-in</td><td>Signed-in</td><td>Admin/Manager</td></tr><tr><td>attendance</td><td>Owner/Admin</td><td>Owner/Admin</td><td>Owner/Admin</td><td>Admin</td></tr><tr><td>leaves</td><td>Signed-in</td><td>Self (pending)</td><td>Self/Admin</td><td>Self/Admin</td></tr><tr><td>holidays</td><td>Signed-in</td><td>Admin</td><td>Admin</td><td>Admin</td></tr><tr><td>process_tracking</td><td>Signed-in</td><td>Signed-in</td><td>Signed-in</td><td>Admin/Manager</td></tr><tr><td>accounts</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Admin</td></tr><tr><td>finance_transactions</td><td>Finance/Admin</td><td>Finance/Admin (+any: booking-sourced)</td><td>Finance/Admin (+creator: booking-sourced)</td><td>Admin</td></tr><tr><td>suppliers</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Admin</td></tr><tr><td>expense_categories</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Admin</td></tr><tr><td>payment_methods</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Finance/Admin</td><td>Admin</td></tr><tr><td>agent_expenses</td><td>Finance/Admin/Owner</td><td>Owner</td><td>Finance/Admin/Owner</td><td>Finance/Admin/Owner</td></tr><tr><td>audit_logs</td><td>Admin</td><td>System</td><td>System</td><td>System</td></tr><tr><td>error_logs</td><td>Admin</td><td>System</td><td>System</td><td>System</td></tr></tbody></table>
+<hr>
+<h2 id="data-validation-rules">Data Validation Rules</h2>
+<h3 id="required-fields">Required Fields</h3>
+<p><strong>Users:</strong></p>
+<ul><li>id, name, email, role, createdAt, createdBy</li></ul>
+<p><strong>Clients:</strong></p>
+<ul><li>id, name, phone, avatar, preferences, status, createdAt, createdBy</li></ul>
+<p><strong>Bookings:</strong></p>
+<ul><li>id, clientId, clientName, bookingType, startDate, endDate, status, progress, total, createdAt, createdBy</li></ul>
+<p><strong>Invoices:</strong></p>
+<ul><li>id, bookingId, clientName, amount, dueDate, status, createdAt, createdBy</li></ul>
+<p><strong>Leads:</strong></p>
+<ul><li>id, name, phone, avatar, status, createdAt, createdBy</li></ul>
+<p><strong>Organizations:</strong></p>
+<ul><li>id, name, type, createdAt, createdBy</li></ul>
+<p><strong>Attendance:</strong></p>
+<ul><li>id, userId, userName, date, punchIn, workStartTime, workEndTime, lateGraceMinutes, punchInLate, punchOutEarly, autoLoggedOut, status, createdAt</li></ul>
+<p><strong>Leaves:</strong></p>
+<ul><li>id, userId, userName, type, startDate, endDate, days, reason, status, createdAt</li></ul>
+<p><strong>Holidays:</strong></p>
+<ul><li>id, date, name, createdAt, createdBy</li></ul>
+<h3 id="field-constraints">Field Constraints</h3>
+<p><strong>String Lengths:</strong></p>
+<ul><li>User name: max 200 characters</li><li>Client name: 2-200 characters</li><li>Lead name: 1-200 characters</li><li>Lead phone: 0-40 characters</li></ul>
+<p><strong>Number Ranges:</strong></p>
+<ul><li>Booking progress: 0-100</li><li>Attendance work minutes: non-negative integer</li><li>Leave days: positive integer</li></ul>
+<p><strong>Enum Values:</strong></p>
+<ul><li>All enum fields must use predefined values only</li></ul>
+<hr>
+<h2 id="best-practices">Best Practices</h2>
+<h3 id="document-size-limits">Document Size Limits</h3>
+<ul><li><strong>Maximum document size:</strong> 1 MB</li><li><strong>Recommended document size:</strong> &lt; 100 KB</li><li><strong>Large arrays:</strong> Consider subcollections for &gt; 100 items</li></ul>
+<h3 id="query-optimization">Query Optimization</h3>
+<ul><li>Use selective field retrieval (projection)</li><li>Limit query results with pagination</li><li>Use composite indexes for complex queries</li><li>Avoid array-contains with large arrays</li></ul>
+<h3 id="data-consistency">Data Consistency</h3>
+<ul><li>Use transactions for multi-document operations</li><li>Implement optimistic concurrency control</li><li>Use serverTimestamp() for consistent timestamps</li><li>Denormalize frequently accessed data</li></ul>
+<h3 id="performance-considerations">Performance Considerations</h3>
+<ul><li>Batch writes for multiple documents</li><li>Use offline persistence for better UX</li><li>Implement caching for frequently accessed data</li><li>Monitor query performance with Firestore metrics</li></ul>
+<hr>
+<h2 id="migration-notes">Migration Notes</h2>
+<h3 id="schema-evolution">Schema Evolution</h3>
+<p><strong>Adding Fields:</strong></p>
+<ul><li>New fields can be added without breaking existing code</li><li>Use optional fields for backward compatibility</li></ul>
+<p><strong>Removing Fields:</strong></p>
+<ul><li>Deprecated fields should be marked in documentation</li><li>Consider data migration before removal</li></ul>
+<p><strong>Changing Field Types:</strong></p>
+<ul><li>Requires data migration</li><li>Test thoroughly in staging environment</li></ul>
+<h3 id="data-cleanup">Data Cleanup</h3>
+<p><strong>Archival Strategy:</strong></p>
+<ul><li>Archive old bookings (15 days after payment)</li><li>Archive completed follow-ups</li><li>Clean up old audit logs (90-day retention)</li></ul>
+<p><strong>Backup Strategy:</strong></p>
+<ul><li>Daily automated backups</li><li>30-day retention</li><li>Verification of backup integrity</li></ul>
+<hr>
+<h2 id="change-log">Change Log</h2>
+<h3 id="v12-july-12-2026">v1.2 — July 12, 2026</h3>
+<ul><li>Added the <strong>Finance role</strong> (<code>finance</code>) — sees the Finance module + Agent Performance only.</li><li>Added <strong>Finance module collections</strong>: <code>accounts</code>, <code>finance_transactions</code>, <code>suppliers</code>, <code>expense_categories</code>, <code>payment_methods</code>, <code>agent_expenses</code> (§18–23).</li><li><strong>Booking</strong> gained <code>agentId</code> (sales-owner for revenue attribution) and a <strong>cancellation &amp; refund</strong> block (<code>cancellationReason</code>, <code>cancelledAt</code>, <code>cancellationCharges</code>, <code>refundAmount</code>, <code>refundStatus</code>, <code>refundedAt</code>, <code>refundMode</code>, <code>refundReference</code>); <strong>Payment</strong> gained <code>financeTxnId</code>.</li><li>New enums documented: finance account type, transaction type/status/source, payment-method direction, booking refund status.</li><li>Access Control Matrix + Relationships extended for finance collections and agent attribution.</li><li><strong>Derived-on-read</strong> money model documented: booking payments surface as Finance income, and agent expenses surface as *pending reimbursements* that become a company expense only when finance reimburses them.</li></ul>
+<h3 id="v11-earlier">v1.1 — earlier</h3>
+<ul><li>Booking <strong>archival</strong> fields (<code>archived</code>, <code>archivedAt</code>, <code>archiveExempt</code>); Organizations collection and <code>Client.organizationId</code>.</li></ul>
+<h3 id="v10-july-9-2026">v1.0 — July 9, 2026</h3>
+<ul><li>Initial schema documentation.</li></ul>
+<hr>
+<p><strong>Document Version:</strong> 1.2   <strong>Last Updated:</strong> July 12, 2026   <strong>Maintained By:</strong> Development Team</p>
+</div>
 </body>
 </html>

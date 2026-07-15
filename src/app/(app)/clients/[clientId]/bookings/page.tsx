@@ -22,6 +22,7 @@ import {
   Stamp,
   Pencil,
   Printer,
+  Download,
   Wallet,
   Archive,
   XCircle,
@@ -39,6 +40,7 @@ import { Fragment, useState, useRef, useEffect } from 'react';
 import { differenceInDays } from 'date-fns';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
 import { PrintableBookings } from '@/components/bookings/printable-bookings';
+import { printContentHtml, pdfTitle } from '@/lib/print';
 import { PaymentsDialog } from '@/components/bookings/payments-dialog';
 import { CancelRefundDialog } from '@/components/bookings/cancel-refund-dialog';
 import { Card, CardContent } from '@/components/ui/card';
@@ -156,294 +158,40 @@ export default function ClientBookingsPage() {
     toast({ title: 'Booking Archived', description: 'Moved to the client’s Travel History.' });
   };
 
+  // The printable content (PrintableBookings) carries its own scoped .inv-*
+  // styles, so the shared helper only needs to add the A4 page frame.
+  const printHtml = () => document.querySelector('.print-content')?.innerHTML ?? null;
+
+  // One booking selected from a row menu names the file after the client;
+  // printing several at once is a combined summary.
+  const printTitle = () =>
+    pdfTitle(printBookings && printBookings.length === 1 ? 'Booking' : 'Bookings', client?.name);
+
   const handlePrint = () => {
-    const printContent = document.querySelector('.print-content');
-    if (!printContent) return;
-    const contentHTML = printContent.innerHTML;
+    const html = printHtml();
+    if (!html) return;
     setPrintSettingsOpen(false);
+    printContentHtml(html);
+  };
 
-    // Print via a hidden iframe instead of window.open. This works in the
-    // browser AND the Electron desktop app, where window.open is blocked as a
-    // popup and there's no browser setting the user can toggle to allow it.
-    const iframe = document.createElement('iframe');
-    iframe.setAttribute('aria-hidden', 'true');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      iframe.remove();
-      return;
-    }
+  // Same print engine, titled so the browser's "Save as PDF" destination
+  // pre-fills a sensible filename instead of the page URL.
+  const handleDownloadPdf = () => {
+    const html = printHtml();
+    if (!html) return;
+    setPrintSettingsOpen(false);
+    printContentHtml(html, { title: printTitle() });
+  };
 
-    doc.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Booking Summary</title>
-              <base href="${window.location.origin}/" />
-              <style>
-                * {
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                body {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                  margin: 0;
-                  padding: 0;
-                  background: white;
-                  color: black;
-                }
-                .print-container {
-                  max-width: 210mm;
-                  margin: 0 auto;
-                  padding: 20px;
-                  background: white;
-                }
-                @page {
-                  size: A4;
-                  margin: 15mm;
-                }
-                h1 {
-                  font-size: 24px;
-                  font-weight: bold;
-                  margin-bottom: 16px;
-                  border-bottom: 2px solid #1f2937;
-                  padding-bottom: 16px;
-                }
-                h2 {
-                  font-size: 18px;
-                  font-weight: 600;
-                  margin-bottom: 12px;
-                }
-                h3 {
-                  font-size: 14px;
-                  font-weight: 500;
-                  margin-bottom: 8px;
-                }
-                p {
-                  margin: 4px 0;
-                  font-size: 14px;
-                }
-                .bg-gray-50 {
-                  background-color: #f9fafb;
-                }
-                .p-4 {
-                  padding: 16px;
-                }
-                .rounded-t-lg {
-                  border-top-left-radius: 8px;
-                  border-top-right-radius: 8px;
-                }
-                .border {
-                  border: 1px solid #e5e7eb;
-                }
-                .border-t-0 {
-                  border-top: none;
-                }
-                .rounded-b-lg {
-                  border-bottom-left-radius: 8px;
-                  border-bottom-right-radius: 8px;
-                }
-                .mb-6 {
-                  margin-bottom: 24px;
-                }
-                .mt-2 {
-                  margin-top: 8px;
-                }
-                .mt-3 {
-                  margin-top: 12px;
-                }
-                .text-sm {
-                  font-size: 14px;
-                }
-                .text-xs {
-                  font-size: 12px;
-                }
-                .text-lg {
-                  font-size: 18px;
-                }
-                .text-gray-900 {
-                  color: #111827;
-                }
-                .text-gray-700 {
-                  color: #374151;
-                }
-                .text-gray-600 {
-                  color: #4b5563;
-                }
-                .text-gray-500 {
-                  color: #6b7280;
-                }
-                .text-green-800 {
-                  color: #166534;
-                }
-                .text-green-100 {
-                  background-color: #dcfce7;
-                }
-                .text-yellow-800 {
-                  color: #854d0e;
-                }
-                .text-yellow-100 {
-                  background-color: #fef9c3;
-                }
-                .text-red-800 {
-                  color: #991b1b;
-                }
-                .text-red-100 {
-                  background-color: #fee2e2;
-                }
-                .text-red-700 {
-                  color: #b91c1c;
-                }
-                .text-green-700 {
-                  color: #15803d;
-                }
-                .font-medium {
-                  font-weight: 500;
-                }
-                .font-semibold {
-                  font-weight: 600;
-                }
-                .grid {
-                  display: grid;
-                }
-                .grid-cols-2 {
-                  grid-template-columns: repeat(2, minmax(0, 1fr));
-                }
-                .grid-cols-3 {
-                  grid-template-columns: repeat(3, minmax(0, 1fr));
-                }
-                .gap-4 {
-                  gap: 16px;
-                }
-                .gap-2 {
-                  gap: 8px;
-                }
-                .col-span-2 {
-                  grid-column: span 2 / span 2;
-                }
-                .col-span-1 {
-                  grid-column: span 1 / span 1;
-                }
-                .inline-block {
-                  display: inline-block;
-                }
-                .px-3 {
-                  padding-left: 12px;
-                  padding-right: 12px;
-                }
-                .py-1 {
-                  padding-top: 4px;
-                  padding-bottom: 4px;
-                }
-                .rounded-full {
-                  border-radius: 9999px;
-                }
-                .flex {
-                  display: flex;
-                }
-                .justify-between {
-                  justify-content: space-between;
-                }
-                .items-start {
-                  align-items: flex-start;
-                }
-                .text-right {
-                  text-align: right;
-                }
-                .space-y-2 > * + * {
-                  margin-top: 8px;
-                }
-                .border-b {
-                  border-bottom: 1px solid #e5e7eb;
-                }
-                .border-gray-300 {
-                  border-color: #d1d5db;
-                }
-                .border-gray-200 {
-                  border-color: #e5e7eb;
-                }
-                .last\\:border-0:last-child {
-                  border: none;
-                }
-                .pt-4 {
-                  padding-top: 16px;
-                }
-                .mt-4 {
-                  margin-top: 16px;
-                }
-                .border-collapse {
-                  border-collapse: collapse;
-                }
-                .w-full {
-                  width: 100%;
-                }
-                .text-left {
-                  text-align: left;
-                }
-                .py-2 {
-                  padding-top: 8px;
-                  padding-bottom: 8px;
-                }
-                .px-3 {
-                  padding-left: 12px;
-                  padding-right: 12px;
-                }
-                .list-disc {
-                  list-style-type: disc;
-                }
-                .list-inside {
-                  list-style-position: inside;
-                }
-                .text-center {
-                  text-align: center;
-                }
-                .pt-4 {
-                  padding-top: 16px;
-                }
-                .mt-8 {
-                  margin-top: 32px;
-                }
-                .page-break-inside-avoid {
-                  break-inside: avoid;
-                  page-break-inside: avoid;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="print-container">
-                ${contentHTML}
-              </div>
-            </body>
-            </html>
-          `);
-    doc.close();
-
-    // Print once content (incl. the logo image) has loaded. Guard against
-    // printing twice; fall back to a timeout if images never resolve.
-    let printed = false;
-    const cleanup = () => setTimeout(() => iframe.remove(), 1000);
-    const doPrint = () => {
-      if (printed) return;
-      printed = true;
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } catch {
-        /* printing not available */
-      }
-      cleanup();
-    };
-    const imgs = Array.from(doc.images);
-    if (imgs.length) {
-      let pending = imgs.length;
-      const settle = () => { if (--pending <= 0) doPrint(); };
-      imgs.forEach((img) => {
-        if (img.complete) settle();
-        else { img.onload = settle; img.onerror = settle; }
-      });
-    }
-    setTimeout(doPrint, 1200);
+  // Row action: save a single booking as a PDF, skipping the settings dialog.
+  const downloadPdfFor = (booking: Booking) => {
+    setPrintBookings([booking]);
+    // Let the hidden content re-render with just this booking. The client doc is
+    // already loaded on this page, so no extra wait is needed.
+    setTimeout(() => {
+      const html = printHtml();
+      if (html) printContentHtml(html, { title: pdfTitle('Booking', client?.name) });
+    }, 50);
   };
 
   const isLoading = isLoadingBookings || isLoadingClient;
@@ -661,6 +409,10 @@ export default function ClientBookingsPage() {
                             <Printer className="mr-2 h-4 w-4" />
                             Print
                           </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => downloadPdfFor(booking)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download PDF
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             disabled={!cleared}
                             onSelect={() => cleared && handleArchive(booking)}
@@ -773,6 +525,7 @@ export default function ClientBookingsPage() {
         settings={printSettings}
         onSettingsChange={setPrintSettings}
         onPrint={handlePrint}
+        onDownloadPdf={handleDownloadPdf}
       />
 
       <PaymentsDialog

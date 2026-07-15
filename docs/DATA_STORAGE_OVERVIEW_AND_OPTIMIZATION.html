@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Visa CRM - Data Storage Overview & Optimization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #0ea5e9;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #2563eb;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        h3 {
+            color: #4b5563;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h4 {
+            color: #6b7280;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+        }
+        
+        ul, ol {
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            max-height: 500px;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .collection-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .collection-card h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .field-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .type-string { background: #dbeafe; color: #1e40af; }
+        .type-number { background: #dcfce7; color: #166534; }
+        .type-boolean { background: #fef9c3; color: #854d0e; }
+        .type-timestamp { background: #fce7f3; color: #9d174d; }
+        .type-array { background: #e0e7ff; color: #3730a3; }
+        .type-object { background: #f3e8ff; color: #6b21a8; }
+        .type-enum { background: #ffedd5; color: #9a3412; }
+        
+        .required {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .optional {
+            color: #6b7280;
+        }
+        
+        .toc {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h3 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 8px;
+        }
+        
+        .toc a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .toc .toc-level-2 {
+            padding-left: 20px;
+        }
+        
+        .toc .toc-level-3 {
+            padding-left: 40px;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+<div class="toc"><h3>Contents</h3><ul><li><a href="#how-firestore-actually-bills-you-so-the-advice-makes-sense">How Firestore actually bills you (so the advice makes sense)</a></li><li><a href="#part-1-complete-inventory-of-stored-data-toplevel-collections">Part 1 — Complete inventory of stored data (top-level collections)</a></li><li><a href="#part-2-percollection-storage-readwrite-extra-tech-and-whether-to-change">Part 2 — Per-collection: storage, read/write, extra tech, and whether to change</a></li><li><a href="#part-3-extra-technology-to-add-crosscutting-ranked-by-payoff">Part 3 — Extra technology to add (cross-cutting), ranked by payoff</a></li><li><a href="#part-4-dead-schema-to-prune-documentation-debt">Part 4 — Dead schema to prune (documentation debt)</a></li><li><a href="#part-5-recommended-sequence">Part 5 — Recommended sequence</a></li></ul></div>
+<h1 id="sky-visa-crm-data-storage-overview-optimization-guide">Sky Visa CRM — Data Storage Overview &amp; Optimization Guide</h1>
+<p><strong>Companion to:</strong>  <code>DATABASE_SCHEMA.md</code>  (v1.2) and  <code>SCHEMA_IMPROVEMENT_SUGGESTIONS.md</code>  <strong>Date:</strong> July 13, 2026 <strong>Purpose:</strong> One place that shows <strong>everything actually stored</strong> (every top-level collection + its document form as used by the code), and then — for each collection — concrete ways to <strong>cut storage, cut read/write cost, and what extra tech to add</strong>, plus which collections should change.</p>
+<div class="info-box"><strong>Verified against code, not just docs.</strong> The collections below are the ones the app actually reads/writes ( <code>collection(firestore, '…')</code>  /  <code>FINANCE_COLLECTIONS</code> ). Six collections that appear in older schema docs —  <code>process_tracking</code> ,  <code>customer_statuses</code> ,  <code>roles</code> ,  <code>audit_logs</code> ,  <code>error_logs</code> ,  <code>login_attempts</code>  — are <strong>not used anywhere in the code</strong>. See §4 (Dead schema).</div>
+<hr>
+<h2 id="how-firestore-actually-bills-you-so-the-advice-makes-sense">How Firestore actually bills you (so the advice makes sense)</h2>
+<p>Firestore charges on four axes. Every optimization below targets one of them:</p>
+<table><thead><tr><th>Axis</th><th>You pay per…</th><th>Biggest driver in this app</th></tr></thead><tbody><tr><td><strong>Document reads</strong></td><td>each document returned</td><td>pages that read a <strong>whole collection</strong> to compute one number (finance, dashboard)</td></tr><tr><td><strong>Document writes</strong></td><td>each document written</td><td>rewriting a big  <code>bookings</code>  doc on every small change (arrays)</td></tr><tr><td><strong>Deletes</strong></td><td>each document deleted</td><td>negligible here</td></tr><tr><td><strong>Storage + network</strong></td><td>GB stored / GB egress</td><td>large nested arrays and any file blobs kept in Firestore</td></tr></tbody></table>
+<p><strong>Rule of thumb:</strong> reads dominate cost in a CRM. The single most expensive habit here is *"load the entire collection into the browser and filter/sum in JavaScript."* Most of §2 is about removing that.</p>
+<hr>
+<h2 id="part-1-complete-inventory-of-stored-data-toplevel-collections">Part 1 — Complete inventory of stored data (top-level collections)</h2>
+<h3 id="11-ataglance-map">1.1 At-a-glance map</h3>
+<table><thead><tr><th>#</th><th>Collection</th><th>What it stores</th><th>Doc weight</th><th>Growth rate</th><th>Read pattern today</th></tr></thead><tbody><tr><td>1</td><td> <code>users</code> </td><td>Staff profiles, roles, work config</td><td>Small</td><td>Very slow (staff count)</td><td>Whole collection, often (name lookups)</td></tr><tr><td>2</td><td> <code>clients</code> </td><td>Customer profiles + travel prefs</td><td><strong>Medium–large</strong> (arrays)</td><td>Steady</td><td>Whole collection on list/dashboard/org</td></tr><tr><td>3</td><td> <code>bookings</code> </td><td>Sales orders + payments + itinerary</td><td><strong>Large</strong> (many arrays)</td><td>Fast</td><td><strong>Whole collection in ~9 places</strong> ⚠️</td></tr><tr><td>4</td><td> <code>invoices</code> </td><td>Invoice headers</td><td>Small</td><td>Steady</td><td>Per-client / list</td></tr><tr><td>5</td><td> <code>leads</code> </td><td>Website + manual leads</td><td>Medium (rawPayload)</td><td><strong>Fast</strong> (marketing)</td><td>List / dashboard</td></tr><tr><td>6</td><td> <code>organizations</code> </td><td>Corporate account headers</td><td>Small</td><td>Slow</td><td>Whole collection (small)</td></tr><tr><td>7</td><td> <code>customer_logs</code> </td><td>Activity/audit trail per client</td><td>Small, <strong>many rows</strong></td><td><strong>Fast</strong> (append-only)</td><td>Per-client / recent</td></tr><tr><td>8</td><td> <code>follow_ups</code> </td><td>Scheduled follow-up tasks</td><td>Small</td><td>Steady</td><td>Per-client / due list</td></tr><tr><td>9</td><td> <code>attendance</code> </td><td>Daily punch + breaks per employee</td><td>Medium (breaks[])</td><td><strong>Fast</strong> (1/employee/day)</td><td>Per-user/day</td></tr><tr><td>10</td><td> <code>leaves</code> </td><td>Leave requests</td><td>Small</td><td>Slow</td><td>List</td></tr><tr><td>11</td><td> <code>holidays</code> </td><td>Company holiday calendar</td><td>Tiny</td><td>Very slow</td><td>Whole (tiny)</td></tr><tr><td>12</td><td> <code>accounts</code> </td><td>Finance cash/bank accounts</td><td>Small</td><td>Very slow</td><td>Whole (small)</td></tr><tr><td>13</td><td> <code>finance_transactions</code> </td><td>Real income/expense/transfer rows</td><td>Small, <strong>many rows</strong></td><td>Fast</td><td>Whole collection (finance)</td></tr><tr><td>14</td><td> <code>suppliers</code> </td><td>Payee directory</td><td>Small</td><td>Slow</td><td>Whole (small)</td></tr><tr><td>15</td><td> <code>expense_categories</code> </td><td>Expense category config</td><td>Tiny</td><td>Very slow</td><td>Whole (tiny)</td></tr><tr><td>16</td><td> <code>payment_methods</code> </td><td>Payment method config</td><td>Tiny</td><td>Very slow</td><td>Whole (tiny)</td></tr><tr><td>17</td><td> <code>agent_expenses</code> </td><td>Agent-logged reimbursables</td><td>Small</td><td>Steady</td><td>Whole (finance/agent)</td></tr></tbody></table>
+<p><strong>Legend — doc weight</strong> ≈ average serialized document size: Tiny &lt;1 KB · Small 1–3 KB · Medium 3–10 KB · Large 10 KB+.</p>
+<h3 id="12-the-document-form-of-each-collection">1.2 The document form of each collection</h3>
+<p>Compact field forms (full field-by-field detail lives in  <code>DATABASE_SCHEMA.md</code> ).  <code>?</code>  = optional,  <code>[]</code>  = array,  <code>{}</code>  = nested map.</p>
+<pre><code class="language-">users/{id}
+  name, email, phone?, jobTitle?, avatar?, role(employee|manager|admin|agent|finance),
+  baseSalary?, workStartTime?, workEndTime?, lateGraceMinutes?, monthlyLeaveCap?,
+  dailyBreakCapMinutes?, createdAt, updatedAt, createdBy, updatedBy
+
+clients/{id}
+  name, organizationId?, email?, phone, avatar, preferences, status,
+  dateOfBirth?, gender?, nationality?, preferredDestination?, travelPurpose?,
+  preferredTravelDates{from,to}?, tripDestinations[]?, budget?, hotelPreference?,
+  services[]?, additionalServices[]?, assignedEmployees[]?,
+  visaStatus?, visaHistory[]?, previousTrips[]?, requiredDocuments[]?,
+  followUpDate?, pax?, companions[]?, createdAt, updatedAt, createdBy, updatedBy
+
+bookings/{id}
+  clientId, clientName, agentId?,                       ← sales owner
+  bookingType, destination?,
+  isOneWay?, hasLayover?, layoverAirport?, isMultiCity?, sectors[]?,   ← flight
+  visaApplicants[]?, hotelGuests[]?, bookingPortal?,
+  startDate, endDate, status, progress,
+  total, amountPaid?, balanceAmount?, paymentStatus?, payments[]?,     ← money
+  supplierName?, supplierCost?, supplierReference?, profit?,
+  bookingDetails{}?, documents[]?, remarks?,
+  cancellationReason?, cancelledAt?, cancellationCharges?,             ← refund
+  refundAmount?, refundStatus?, refundedAt?, refundMode?, refundReference?,
+  archived?, archivedAt?, archiveExempt?, timeline[]?,
+  createdAt, updatedAt, createdBy, updatedBy
+
+invoices/{id}         bookingId, clientName, amount, dueDate, status, +audit
+leads/{id}            name, email?, phone, avatar, status, source?, …,
+                      convertedToClientId?, destination?, message?, rawPayload{}?, +audit
+organizations/{id}    name, type('corporate'), contactPerson?, email?, phone?,
+                      gstNumber?, billingAddress?, notes?, +audit
+customer_logs/{id}    clientId, clientName?, userId, userName?, activity, +audit
+follow_ups/{id}       clientId, clientName, clientEmail?, clientPhone?, date,
+                      notes, done, priority, +audit
+attendance/{id}       userId, userName, date, punchIn, punchOut?, workStartTime,
+                      workEndTime, lateGraceMinutes, punchInLate, punchOutEarly,
+                      autoLoggedOut, workMinutes?, status, breaks[]?, breakMinutes?,
+                      activeMinutes?, lastActiveAt?, +audit
+leaves/{id}           userId, userName, type, startDate, endDate, days, reason,
+                      status, approvedBy?/rejectedBy?/…, +audit
+holidays/{id}         date, name, createdAt, createdBy
+
+accounts/{id}             name, type, bankName?, accountNumber?, ifsc?,
+                          openingBalance, status, notes?, +audit
+finance_transactions/{id} type(income|expense|transfer), amount, date, accountId,
+                          toAccountId?, clientId?/bookingId?/invoiceId?/supplierId?,
+                          categoryId?/Name?, paymentMethod?, reference?, remarks?,
+                          status, source?(booking|agent|manual), bookingPaymentId?, +audit
+suppliers/{id}            name, category?, contactPerson?, phone?, email?, gst?,
+                          address?, notes?, status, +audit
+expense_categories/{id}   name, active, +audit
+payment_methods/{id}      name, direction(incoming|outgoing), requiresReference?,
+                          requiresAttachment?, active?, +audit
+agent_expenses/{id}       amount, date, category?, purpose?, payee?, paymentMethod?,
+                          reimbursed?, reimbursedAt?, reimbursedTxnId?, +audit</code></pre>
+<p>**Nested arrays that live *inside* a parent doc (no subcollection today):**  <code>bookings.payments[]</code> ,  <code>bookings.sectors[]</code> ,  <code>bookings.visaApplicants[]</code> ,  <code>bookings.hotelGuests[]</code> ,  <code>bookings.documents[]</code> ,  <code>bookings.timeline[]</code> ,  <code>clients.visaHistory[]</code> ,  <code>clients.previousTrips[]</code> ,  <code>clients.requiredDocuments[]</code> ,  <code>clients.companions[]</code> ,  <code>attendance.breaks[]</code> . These are the main storage-and-write-cost levers (see §2).</p>
+<hr>
+<h2 id="part-2-percollection-storage-readwrite-extra-tech-and-whether-to-change">Part 2 — Per-collection: storage, read/write, extra tech, and whether to change</h2>
+<p>Each card: <strong>Storage</strong> (shrink the bytes) · <strong>Read/Write</strong> (cut operations) · <strong>Extra tech</strong> (what to add) · <strong>Change?</strong> (verdict).</p>
+<h3 id="3-bookings-the-hottest-most-expensive-collection-change-yes">3 ·  <code>bookings</code>  — the hottest, most expensive collection ⚠️ (change: YES)</h3>
+<ul><li><strong>Storage:</strong> heaviest docs (up to ~6 arrays each).  <code>documents[]</code>  must hold <strong>Cloud Storage URLs, never file bytes/base64</strong> — verify none are inlined.  <code>timeline[]</code>  grows unbounded per booking.</li><li><strong>Read/Write:</strong> read as a <strong>whole collection in ~9 places</strong> (finance dashboard/transactions/reports/money-in, agent-performance, dashboard, revenue, bookings list, organizations). Every small edit (add a payment) rewrites the *entire* doc including all arrays → wasted write bytes.</li><li><strong>Extra tech:</strong></li><ul><li><strong>Firestore aggregation queries</strong> ( <code>count()</code> ,  <code>sum()</code> ,  <code>average()</code> ) for the finance/dashboard totals — server computes the sum and bills ~1 read instead of N. <strong>Biggest single win.</strong></li><li><strong>Summary/rollup docs</strong> ( <code>finance_summary/current</code> , per-agent counters) maintained by a <strong>Cloud Function</strong> trigger.</li><li><strong>Move  <code>payments[]</code> ,  <code>timeline[]</code> ,  <code>documents[]</code>  to subcollections</strong> ( <code>bookings/{id}/payments/*</code> , …) so a payment write is a tiny doc, not a full-booking rewrite; keeps parent under the 1 MB ceiling.</li></ul><li><strong>Change?</strong> <strong>Yes</strong> — biggest ROI in the system. Aggregations + a summary doc first (no migration), subcollections for  <code>payments</code> / <code>timeline</code>  next.</li></ul>
+<h3 id="2-clients-change-maybe">2 ·  <code>clients</code>  (change: MAYBE)</h3>
+<ul><li><strong>Storage:</strong> several optional arrays; fine unless a client accumulates long  <code>visaHistory</code> / <code>previousTrips</code> . Ensure  <code>avatar</code>  is a URL (Storage/DiceBear), not embedded image data.</li><li><strong>Read/Write:</strong> whole-collection reads on the Clients list, dashboard, org pages, and finance money-in. Already has date-range filtering + pagination groundwork — push those filters into the <strong>query</strong> ( <code>where</code> / <code>orderBy</code>  +  <code>limit</code>  + cursor) instead of filtering in JS.</li><li><strong>Extra tech:</strong> <strong>Typesense/Algolia/Meilisearch</strong> for client search (name/phone/email) — client-side substring search currently forces loading the whole collection. A search index makes search O(query) and slashes reads.</li><li><strong>Change?</strong> Mostly query-side; schema is fine. Add a search index when the client list gets large.</li></ul>
+<h3 id="1-users-change-no-add-caching">1 ·  <code>users</code>  (change: NO, add caching)</h3>
+<ul><li><strong>Storage:</strong> tiny, slow-growing. Fine.</li><li><strong>Read/Write:</strong> loaded in full repeatedly just to map  <code>userId → name/role</code>  (dashboard, agent-performance, reports, clients). That's re-reading the same ~dozen docs constantly.</li><li><strong>Extra tech:</strong> cache users once in a <strong>React context / IndexedDB</strong> (they change rarely) instead of re-querying per page; or ship as a <strong>Firestore bundle</strong>. Enable <strong>offline persistence</strong> so repeat reads hit local cache for free.</li><li><strong>Change?</strong> No schema change — cache it.</li></ul>
+<h3 id="5-leads-change-small">5 ·  <code>leads</code>  (change: SMALL)</h3>
+<ul><li><strong>Storage:</strong>  <code>rawPayload{}</code>  stores the entire inbound website payload per lead — can bloat. Keep it, but consider trimming to known fields after conversion.</li><li><strong>Read/Write:</strong> append-heavy from marketing. Query by  <code>status</code> /date with indexes; paginate.</li><li><strong>Extra tech:</strong> <strong>TTL policy</strong> to auto-expire  <code>lost</code> /unconverted leads after N months (Firestore native TTL deletes them for you, reclaiming storage). Export to <strong>BigQuery</strong> for funnel analytics instead of pulling into the browser.</li><li><strong>Change?</strong> Add a TTL field (e.g.  <code>expireAt</code> ) for dead leads; otherwise fine.</li></ul>
+<h3 id="7-customerlogs-change-yes-lifecycle">7 ·  <code>customer_logs</code>  (change: YES — lifecycle)</h3>
+<ul><li><strong>Storage:</strong> append-only, <strong>highest row count</strong> over time; each row is small but they never stop growing.</li><li><strong>Read/Write:</strong> read per-client and "recent." Fine if always <strong>queried with  <code>limit</code> </strong> (never whole-collection).</li><li><strong>Extra tech:</strong> <strong>Firestore TTL policy</strong> (e.g. keep 12–24 months) for automatic pruning; <strong>BigQuery export</strong> if long-term history is needed cheaply. This is a textbook fit for TTL.</li><li><strong>Change?</strong> Yes — add  <code>expireAt</code>  + a TTL policy; guarantees the collection can't grow without bound.</li></ul>
+<h3 id="9-attendance-change-maybe">9 ·  <code>attendance</code>  (change: MAYBE)</h3>
+<ul><li><strong>Storage:</strong>  <code>breaks[]</code>  grows within a day;  <code>lastActiveAt</code>  heartbeat rewrites the doc <strong>every minute</strong> while the app is open — that's a lot of writes per employee per day.</li><li><strong>Read/Write:</strong> the per-minute heartbeat is the concern (writes = employees × minutes online).</li><li><strong>Extra tech:</strong> throttle the heartbeat (e.g. every 2–5 min), or move it to <strong>Realtime Database / a presence system</strong> (cheaper for high-frequency presence than Firestore), reconciling into  <code>attendance</code>  less often. <strong>TTL</strong> older-than-N-years rows.</li><li><strong>Change?</strong> Consider splitting live presence from the daily attendance record; reduce heartbeat frequency.</li></ul>
+<h3 id="13-financetransactions-change-no-queryscope">13 ·  <code>finance_transactions</code>  (change: NO, query-scope)</h3>
+<ul><li><strong>Storage:</strong> small rows; fine. Grows steadily.</li><li><strong>Read/Write:</strong> finance pages read the whole collection to sum. Use <strong>aggregation queries</strong> + <strong>scoped queries</strong> ( <code>where('date','&gt;=',monthStart)</code> ,  <code>where('status','==','completed')</code> ) + the <strong>period-snapshot</strong> idea from  <code>SCHEMA_IMPROVEMENT_SUGGESTIONS.md</code>  §1A.</li><li><strong>Change?</strong> Schema fine; change the *access pattern* + add snapshots for old periods.</li></ul>
+<h3 id="4-invoices-8-followups-10-leaves-change-no">4 ·  <code>invoices</code>  · 8 ·  <code>follow_ups</code>  · 10 ·  <code>leaves</code>  (change: NO)</h3>
+<ul><li>Small, well-scoped, queried per-client / per-status. Just ensure every list query carries  <code>where</code> / <code>limit</code>  and has a matching composite index. No schema change.</li></ul>
+<h3 id="6-organizations-11-holidays-12-accounts-14-suppliers-15-expensecategories-16-paymentmethods-change-no">6 ·  <code>organizations</code>  · 11 ·  <code>holidays</code>  · 12 ·  <code>accounts</code>  · 14 ·  <code>suppliers</code>  · 15 ·  <code>expense_categories</code>  · 16 ·  <code>payment_methods</code>  (change: NO)</h3>
+<ul><li>All <strong>small, slow-growing config/reference</strong> collections. Whole-collection reads are cheap because the collections are tiny. Ideal candidates to ship as <strong>Firestore bundles</strong> or cache in context so they load once. No schema change.</li></ul>
+<h3 id="17-agentexpenses-change-no">17 ·  <code>agent_expenses</code>  (change: NO)</h3>
+<ul><li>Small, steady. Already models the pending-reimbursement flow correctly. Query by  <code>createdBy</code>  (agent) or whole (finance, small). Fine.</li></ul>
+<hr>
+<h2 id="part-3-extra-technology-to-add-crosscutting-ranked-by-payoff">Part 3 — Extra technology to add (cross-cutting), ranked by payoff</h2>
+<table><thead><tr><th>Tech</th><th>What it fixes</th><th>Effort</th><th>Cost impact</th></tr></thead><tbody><tr><td><strong>Firestore aggregation queries</strong> ( <code>count</code> / <code>sum</code> / <code>avg</code> )</td><td>Replaces "read whole collection, sum in JS" on finance/dashboard</td><td><strong>S</strong></td><td>⭐⭐⭐ huge read savings</td></tr><tr><td><strong>Cloud Functions</strong> (triggers + scheduled)</td><td>Server-side integrity, summary/rollup docs, month-close snapshots, auto-archive, reimbursement/refund postings</td><td>M</td><td>⭐⭐⭐ correctness + read savings</td></tr><tr><td><strong>Summary / counter docs</strong></td><td>Dashboards read 1 doc, not thousands</td><td>S–M</td><td>⭐⭐⭐</td></tr><tr><td><strong>Scoped queries + composite indexes + cursor pagination</strong></td><td>Stop shipping whole collections to the browser</td><td>S–M</td><td>⭐⭐⭐</td></tr><tr><td><strong>Cloud Storage for files/images</strong> (booking docs, avatars)</td><td>Keeps blobs out of Firestore (cheaper storage, smaller docs, CDN delivery)</td><td>S</td><td>⭐⭐ storage + egress</td></tr><tr><td><strong>Firestore TTL policies</strong></td><td>Auto-prune  <code>customer_logs</code> , dead  <code>leads</code> , old  <code>attendance</code> </td><td>S</td><td>⭐⭐ storage</td></tr><tr><td><strong>Offline persistence + client cache (context/IndexedDB)</strong></td><td>Free repeat reads of  <code>users</code>  and config collections</td><td>S</td><td>⭐⭐ reads</td></tr><tr><td><strong>Search index (Typesense / Algolia / Meilisearch)</strong></td><td>Fast client/lead/booking search without full-collection scans</td><td>M</td><td>⭐⭐ reads at scale</td></tr><tr><td><strong>BigQuery export</strong> (Firestore→BigQuery extension)</td><td>Heavy reporting/forecasting off Firestore; feeds the Reports charts</td><td>M</td><td>⭐⭐ analytics cost</td></tr><tr><td><strong>Firestore bundles</strong> for static reference data</td><td>Config collections load from CDN, 0 reads</td><td>M</td><td>⭐</td></tr><tr><td><strong>Realtime DB / presence service</strong> for the attendance heartbeat</td><td>High-frequency presence off Firestore</td><td>M</td><td>⭐⭐ writes</td></tr><tr><td><strong>CDN + caching headers</strong> (already partly via Next)</td><td>Static asset delivery</td><td>S</td><td>⭐</td></tr><tr><td>Redis / Memorystore cache</td><td>Hot aggregates for very high traffic</td><td>L</td><td>situational — likely overkill now</td></tr></tbody></table>
+<p><strong>If you adopt only three:</strong> aggregation queries, Cloud Functions (summary docs + integrity), and scoped queries/indexes. They attack the dominant cost — reads — and make the money numbers trustworthy at the same time.</p>
+<hr>
+<h2 id="part-4-dead-schema-to-prune-documentation-debt">Part 4 — Dead schema to prune (documentation debt)</h2>
+<p>These are documented in older docs but <strong>have no code path</strong> — no reads, no writes. Either implement or remove them from the schema so the docs reflect reality:</p>
+<ul><li> <code>process_tracking</code> ,  <code>customer_statuses</code> ,  <code>roles</code>  (roles are a TS union, not a collection),  <code>audit_logs</code> ,  <code>error_logs</code> ,  <code>login_attempts</code> .</li></ul>
+<p><strong>Action:</strong> decide per item — e.g.  <code>audit_logs</code> / <code>error_logs</code>  are worth *adding* (write from a Cloud Function) for a real audit trail; the rest can be dropped from the schema doc. Keeping phantom collections in the schema misleads future work.</p>
+<hr>
+<h2 id="part-5-recommended-sequence">Part 5 — Recommended sequence</h2>
+<ul><li><strong>Aggregation queries</strong> on finance/dashboard totals — immediate read-cost drop, no schema change. *(S)*</li><li><strong>Cloud Function +  <code>finance_summary/current</code> </strong> — dashboards read one doc; also host server-side integrity (recompute booking money, guard refunds). *(M)*</li><li><strong>Scoped queries + index audit + cursor pagination</strong> across list pages and finance. *(S–M)*</li><li><strong>Cloud Storage</strong> for booking documents/avatars if any bytes are inlined today. *(S)*</li><li><strong>TTL policies</strong> on  <code>customer_logs</code>  and dead  <code>leads</code> . *(S)*</li><li><strong>Subcollections</strong> for  <code>bookings.payments[]</code>  /  <code>timeline[]</code>  once bookings get busy. *(M)*</li><li><strong>Search index</strong> and <strong>BigQuery export</strong> when data volume makes list-scanning and client-side reporting painful. *(M)*</li><li><strong>Prune/implement</strong> the dead collections in §4. *(S)*</li></ul>
+<p>Steps 1–3 alone remove the great majority of avoidable Firestore read cost while making the finance figures both faster and more correct.</p>
+</div>
+</body>
+</html>

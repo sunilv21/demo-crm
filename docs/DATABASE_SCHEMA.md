@@ -2,8 +2,10 @@
 
 **Database:** Firebase Firestore (NoSQL Document Database)  
 **Project:** Sky Visa CRM  
-**Schema Version:** 1.0  
-**Last Updated:** July 9, 2026
+**Schema Version:** 1.2  
+**Last Updated:** July 12, 2026
+
+> **v1.2 changes:** added the **Finance module** collections (`accounts`, `finance_transactions`, `suppliers`, `expense_categories`, `payment_methods`, `agent_expenses`); added the **`finance`** user role; added booking **cancellation/refund** fields and the **`agentId`** sales-owner field; added `Payment.financeTxnId`. See the new *Finance Module Collections* section and the *Change Log* at the end.
 
 ---
 
@@ -41,7 +43,7 @@
   phone?: string                // Phone number (string, optional, E.164 format)
   jobTitle?: string             // Job title (string, optional)
   avatar?: string               // Avatar URL (string, optional, URL)
-  role: string                  // User role (string, enum: 'employee' | 'manager' | 'admin' | 'agent')
+  role: string                  // User role (string, enum: 'employee' | 'manager' | 'admin' | 'agent' | 'finance')
   baseSalary?: number           // Base salary (number, optional, decimal)
   workStartTime?: string       // Work start time (string, optional, format: "HH:MM")
   workEndTime?: string         // Work end time (string, optional, format: "HH:MM")
@@ -161,6 +163,9 @@
   id: string                              // Booking ID (string, matches document ID)
   clientId: string                       // Client ID (string, required, references clients)
   clientName: string                      // Client name (string, required, denormalized)
+  agentId?: string                        // Owning SALES agent for revenue attribution (string, optional, references users).
+                                          //   Auto-set to the first agent who adds pricing; if unset, attribution falls
+                                          //   back to createdBy when the creator is an agent. Separates who-sold-it from who-typed-it.
   bookingType: string                    // Booking type (string, enum: 'flight' | 'hotel' | 'car' | 'activity' | 'visa' | 'other')
   destination?: string                    // Destination (string, optional)
   
@@ -212,7 +217,19 @@
     createdAt?: Timestamp                // Creation timestamp (Firestore Timestamp, optional)
     createdBy?: string                    // Creator user ID (string, optional)
     createdByName?: string                // Creator name (string, optional)
+    financeTxnId?: string                 // Linked Finance income transaction ID (string, optional) — set if the
+                                          //   payment was mirrored to finance_transactions (legacy; current model derives on read)
   }]
+  
+  // Cancellation & refund (populated when status === 'cancelled')
+  cancellationReason?: string             // Cancellation reason (string, optional)
+  cancelledAt?: string                    // Cancellation date (string, optional, ISO date format)
+  cancellationCharges?: number            // Cancellation fee retained by the agency (number, optional, decimal)
+  refundAmount?: number                   // Amount owed back to the customer (number, optional, decimal)
+  refundStatus?: string                   // Refund status (string, optional, enum: 'pending' | 'processed')
+  refundedAt?: string                     // Refund payout date (string, optional, ISO date format)
+  refundMode?: string                     // Refund payment mode (string, optional, enum: 'cash' | 'card' | 'upi' | 'bank' | 'cheque' | 'other')
+  refundReference?: string                // Refund reference (string, optional)
   
   // Supplier information
   supplierName?: string                   // Supplier name (string, optional)
@@ -757,6 +774,127 @@
 
 ---
 
+## Finance Module Collections
+
+> Company cash-flow module. Visible to the **`finance`** role only (and to `admin` at the data/rules level as a break-glass). Account **balances are computed on read** by summing transactions — no stored running balance is mutated. Booking collections and agent expenses are **derived on read** into finance views (they are not duplicated as transactions), except reimbursements, which post a real transaction.
+
+### 18. Accounts Collection
+
+**Collection Path:** `accounts/{accountId}`
+**Purpose:** Cash / bank / wallet accounts that hold company money
+
+```typescript
+{
+  id: string                    // Account ID (string, matches document ID)
+  name: string                  // Account name (string, required)
+  type: string                  // Account type (string, enum: 'cash' | 'petty-cash' | 'current' | 'savings' | 'wallet')
+  bankName?: string             // Bank name (string, optional)
+  accountNumber?: string        // Account number (string, optional)
+  ifsc?: string                 // IFSC code (string, optional)
+  openingBalance: number        // Opening balance (number, required, decimal)
+  status: string                // Status (string, enum: 'active' | 'inactive')
+  notes?: string                // Notes (string, optional)
+  createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string
+}
+```
+- **Current balance** = openingBalance + Σ(income to account) − Σ(expense from account) + Σ(transfer in) − Σ(transfer out) — computed on read, not stored.
+- **Security:** Read/Create/Update: finance or admin. Delete: admin only.
+
+### 19. Finance Transactions Collection
+
+**Collection Path:** `finance_transactions/{txnId}`
+**Purpose:** The transaction engine — one doc per income / expense / transfer
+
+```typescript
+{
+  id: string                    // Transaction ID (string, matches document ID)
+  type: string                  // Type (string, enum: 'income' | 'expense' | 'transfer')
+  amount: number                // Amount (number, required, decimal)
+  date: string                  // Date (string, required, ISO date format)
+  accountId: string             // Account: income → destination; expense → source; transfer → source. '' = unassigned
+  toAccountId?: string          // Transfer destination account (string, optional)
+  clientId?: string             // Linked client (string, optional, references clients)
+  clientName?: string           // Client name (string, optional, denormalized)
+  bookingId?: string            // Linked booking (string, optional, references bookings)
+  invoiceId?: string            // Linked invoice (string, optional)
+  supplierId?: string           // Linked supplier (string, optional, references suppliers)
+  supplierName?: string         // Supplier name (string, optional, denormalized)
+  categoryId?: string           // Expense category ID (string, optional)
+  categoryName?: string         // Expense category name (string, optional, denormalized)
+  paymentMethod?: string        // Payment method label (string, optional)
+  reference?: string            // Reference (string, optional)
+  remarks?: string              // Remarks (string, optional)
+  status: string                // Status (string, enum: 'completed' | 'cancelled')
+  source?: string               // Origin (string, optional, enum: 'booking' | 'agent' | 'manual')
+  bookingPaymentId?: string     // Linked booking Payment id (string, optional)
+  createdAt: Timestamp; createdBy: string; createdByName?: string; updatedAt: Timestamp; updatedBy: string
+}
+```
+- **Security:** Read: finance/admin. Create: finance/admin (or any signed-in user for a booking-sourced income entry). Update: finance/admin (or the creator of a booking-sourced entry). Delete: admin only. *Prefer cancelling (status='cancelled') over deleting.*
+
+### 20. Suppliers Collection
+
+**Collection Path:** `suppliers/{supplierId}`
+**Purpose:** Payee directory (VFS, BLS, embassy, DMC, B2B portals, airlines, hotels, courier, employees, utilities…)
+
+```typescript
+{
+  id: string; name: string      // required
+  category?: string             // e.g. VFS, BLS, Embassy, DMC, B2B Portal, Airline, Hotel, Transport, Courier, Utility…
+  contactPerson?: string; phone?: string; email?: string; gst?: string; address?: string; notes?: string
+  status: string                // enum: 'active' | 'inactive'
+  createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string
+}
+```
+- **Security:** Read/Create/Update: finance/admin. Delete: admin only.
+
+### 21. Expense Categories Collection
+
+**Collection Path:** `expense_categories/{categoryId}`
+**Purpose:** Configurable expense categories (falls back to defaults until customized)
+
+```typescript
+{ id: string; name: string; active: boolean; createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string }
+```
+- **Security:** Read/Create/Update: finance/admin. Delete: admin only.
+
+### 22. Payment Methods Collection
+
+**Collection Path:** `payment_methods/{methodId}`
+**Purpose:** Configurable incoming/outgoing payment methods (falls back to the booking PaymentMode labels until customized)
+
+```typescript
+{
+  id: string; name: string      // required
+  direction: string             // enum: 'incoming' | 'outgoing'
+  requiresReference?: boolean; requiresAttachment?: boolean; active?: boolean
+  createdAt: Timestamp; updatedAt: Timestamp; createdBy: string; updatedBy: string
+}
+```
+- **Security:** Read/Create/Update: finance/admin. Delete: admin only.
+
+### 23. Agent Expenses Collection
+
+**Collection Path:** `agent_expenses/{expenseId}`
+**Purpose:** Expenses an agent logs (money spent on the business). A **PENDING REIMBURSEMENT** — NOT a company expense until finance reimburses the agent (which posts a real `finance_transactions` expense).
+
+```typescript
+{
+  id: string; amount: number; date: string    // required (date ISO)
+  category?: string             // what kind of spend
+  purpose?: string              // what it was for (description)
+  payee?: string                // where / to whom
+  paymentMethod?: string        // how the agent paid (Cash / UPI / …)
+  reimbursed?: boolean          // set by finance when the company pays the agent back
+  reimbursedAt?: string         // reimbursement date (ISO)
+  reimbursedTxnId?: string      // the finance_transactions expense created on payout
+  createdAt: Timestamp; createdBy: string; createdByName?: string; updatedAt: Timestamp; updatedBy: string
+}
+```
+- **Security:** an agent owns the ones they created (read/create/update/delete own); finance/admin can read all and manage (reimburse). Agents list theirs via `where('createdBy','==',uid)`.
+
+---
+
 ## Data Type Reference
 
 ### Firestore Data Types Used
@@ -781,7 +919,8 @@
 - `employee` - Regular employee
 - `manager` - Manager with elevated permissions
 - `admin` - Administrator with full access
-- `agent` - Agent with limited permissions
+- `agent` - Agent; only role that sees per-booking revenue/profit margin (`canViewRevenue`)
+- `finance` - Finance/accountant; sees the Finance module + Agent Performance (`canViewFinance`), scoped to those pages only
 
 **Client Status:**
 - `active` - Active client
@@ -833,6 +972,21 @@
 - `completed` - Completed
 - `travelling` - Travelling
 
+**Refund Status (booking):**
+- `pending` - Refund owed, not yet paid to the customer
+- `processed` - Refund paid back
+
+**Finance Account Type:**
+- `cash` · `petty-cash` · `current` · `savings` · `wallet`
+
+**Finance Transaction Type / Status / Source:**
+- Type: `income` · `expense` · `transfer`
+- Status: `completed` · `cancelled`
+- Source: `booking` (derived from a booking payment) · `agent` (derived from an agent expense) · `manual` (entered in Finance)
+
+**Payment Method Direction:**
+- `incoming` (Money In) · `outgoing` (Money Out)
+
 ### Date/Time Formats
 
 **ISO 8601 Format:**
@@ -864,11 +1018,17 @@
 - User → Attendance (userId)
 - User → Leaves (userId)
 - User → Bookings (createdBy)
+- Agent (User) → Bookings (agentId) — sales-ownership for revenue attribution
+- Agent (User) → Agent Expenses (createdBy)
 - Client → Bookings (clientId)
 - Client → Customer Logs (clientId)
 - Client → Follow Ups (clientId)
 - Organization → Clients (organizationId)
 - Booking → Invoices (bookingId)
+- Account → Finance Transactions (accountId / toAccountId)
+- Supplier → Finance Transactions (supplierId)
+- Booking → Finance Transactions (bookingId) — for reimbursement/reconciliation links
+- Finance Transaction → Agent Expenses (reimbursedTxnId) — a reimbursement covers 1..n agent expenses
 
 **Many-to-Many:**
 - Client ↔ User (assignedEmployees array)
@@ -876,6 +1036,10 @@
 
 **Self-Referential:**
 - Lead → Client (convertedToClientId)
+
+**Derived-on-read (not stored as rows):**
+- Booking Payments → Finance income (shown in Money In / Transactions / Dashboard)
+- Agent Expenses → shown as pending reimbursements; become a company expense only when reimbursed (a real Finance transaction)
 
 ---
 
@@ -921,8 +1085,8 @@
 | Collection | Read | Create | Update | Delete |
 |------------|------|--------|--------|--------|
 | users | Signed-in | Self | Self/Admin | Admin |
-| clients | Assigned/Created | Signed-in/Public | Assigned/Created/Admin | Admin/Manager |
-| bookings | Created/Assigned | Signed-in | Created/Assigned/Admin | Admin/Manager |
+| clients | Assigned/Created/Finance | Signed-in/Public | Assigned/Created/Admin | Admin/Manager |
+| bookings | Created/Assigned/Finance | Signed-in | Created/Assigned/Admin | Admin/Manager |
 | invoices | Admin/Manager | Admin | Admin | Admin |
 | leads | Signed-in | Signed-in/Public | Signed-in | Admin/Manager |
 | organizations | Signed-in | Signed-in | Signed-in | Admin/Manager |
@@ -932,6 +1096,12 @@
 | leaves | Signed-in | Self (pending) | Self/Admin | Self/Admin |
 | holidays | Signed-in | Admin | Admin | Admin |
 | process_tracking | Signed-in | Signed-in | Signed-in | Admin/Manager |
+| accounts | Finance/Admin | Finance/Admin | Finance/Admin | Admin |
+| finance_transactions | Finance/Admin | Finance/Admin (+any: booking-sourced) | Finance/Admin (+creator: booking-sourced) | Admin |
+| suppliers | Finance/Admin | Finance/Admin | Finance/Admin | Admin |
+| expense_categories | Finance/Admin | Finance/Admin | Finance/Admin | Admin |
+| payment_methods | Finance/Admin | Finance/Admin | Finance/Admin | Admin |
+| agent_expenses | Finance/Admin/Owner | Owner | Finance/Admin/Owner | Finance/Admin/Owner |
 | audit_logs | Admin | System | System | System |
 | error_logs | Admin | System | System | System |
 
@@ -1047,6 +1217,24 @@
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** July 9, 2026  
+## Change Log
+
+### v1.2 — July 12, 2026
+- Added the **Finance role** (`finance`) — sees the Finance module + Agent Performance only.
+- Added **Finance module collections**: `accounts`, `finance_transactions`, `suppliers`, `expense_categories`, `payment_methods`, `agent_expenses` (§18–23).
+- **Booking** gained `agentId` (sales-owner for revenue attribution) and a **cancellation & refund** block (`cancellationReason`, `cancelledAt`, `cancellationCharges`, `refundAmount`, `refundStatus`, `refundedAt`, `refundMode`, `refundReference`); **Payment** gained `financeTxnId`.
+- New enums documented: finance account type, transaction type/status/source, payment-method direction, booking refund status.
+- Access Control Matrix + Relationships extended for finance collections and agent attribution.
+- **Derived-on-read** money model documented: booking payments surface as Finance income, and agent expenses surface as *pending reimbursements* that become a company expense only when finance reimburses them.
+
+### v1.1 — earlier
+- Booking **archival** fields (`archived`, `archivedAt`, `archiveExempt`); Organizations collection and `Client.organizationId`.
+
+### v1.0 — July 9, 2026
+- Initial schema documentation.
+
+---
+
+**Document Version:** 1.2  
+**Last Updated:** July 12, 2026  
 **Maintained By:** Development Team
