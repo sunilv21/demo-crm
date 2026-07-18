@@ -173,20 +173,31 @@ export default function BookingsPage() {
 
   useEffect(() => {
     if (!generatingVoucher || !voucherBooking || isVoucherClientLoading) return;
+    // Strict Mode double-invokes effects in dev (mount -> cleanup -> mount);
+    // without this guard both invocations' async work completes and the
+    // download fires twice. The cleanup flips `cancelled` before the second
+    // mount's copy of this closure ever gets a chance to run.
+    let cancelled = false;
     (async () => {
       try {
         const input = buildVoucherInput(voucherBooking, voucherClient ?? null);
         const result = await generateBookingVoucherDocx(input);
+        if (cancelled) return;
         if ('error' in result) {
           toast({ variant: 'destructive', title: 'Could not generate voucher', description: result.error });
         } else {
           downloadBase64File(result.base64, result.filename, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         }
       } finally {
-        setGeneratingVoucher(false);
-        setVoucherBooking(null);
+        if (!cancelled) {
+          setGeneratingVoucher(false);
+          setVoucherBooking(null);
+        }
       }
     })();
+    return () => {
+      cancelled = true;
+    };
     // voucherClient deliberately omitted: it's a live onSnapshot listener, so a
     // second emission (even for identical data) while this effect's async work
     // is still in flight would re-run it and trigger a duplicate download —
