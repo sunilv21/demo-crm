@@ -1,9 +1,18 @@
+import path from 'node:path';
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // Pin the workspace root explicitly. Without this, Turbopack scans upward
+  // for lockfiles and can pick the wrong one if an unrelated package-lock.json
+  // exists higher up (e.g. an ad-hoc `npm install` run in the user's home
+  // directory) — it then resolves modules from the wrong node_modules.
+  // https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory
+  turbopack: {
+    root: __dirname,
   },
   // Security headers (addresses Lighthouse "Best Practices": clickjacking,
   // origin isolation, MIME sniffing, referrer leakage). A strict CSP /

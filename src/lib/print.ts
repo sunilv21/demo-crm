@@ -30,10 +30,11 @@ function wrapDocument(contentHTML: string, title: string, origin: string) {
 }
 
 /**
- * Build a safe, descriptive PDF filename, e.g.
+ * Build a safe, descriptive filename with a given extension, e.g.
  *   SkyVisa-Booking-Ravi-Kumar-2026-07-15.pdf
+ * Shared by pdfFilename() below and the Other Format .docx export.
  */
-export function pdfFilename(label: string, subject?: string): string {
+export function safeFilename(label: string, subject: string | undefined, ext: string): string {
   // Fold accents to ASCII first (José → Jose) so names stay readable rather
   // than losing the letter entirely, then reduce to filesystem-safe characters.
   const clean = (s: string) =>
@@ -43,7 +44,15 @@ export function pdfFilename(label: string, subject?: string): string {
       .replace(/^-+|-+$/g, '');
   const date = new Date().toISOString().slice(0, 10);
   const parts = ['SkyVisa', clean(label), subject ? clean(subject) : '', date].filter(Boolean);
-  return `${parts.join('-')}.pdf`;
+  return `${parts.join('-')}.${ext}`;
+}
+
+/**
+ * Build a safe, descriptive PDF filename, e.g.
+ *   SkyVisa-Booking-Ravi-Kumar-2026-07-15.pdf
+ */
+export function pdfFilename(label: string, subject?: string): string {
+  return safeFilename(label, subject, 'pdf');
 }
 
 /** The `title` form of a filename — no .pdf suffix (the browser appends it). */

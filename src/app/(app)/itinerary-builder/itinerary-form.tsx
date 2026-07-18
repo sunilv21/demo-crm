@@ -24,7 +24,9 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Wand2, Printer, Plus, Trash2, Star } from 'lucide-react';
+import { OtherFormatPanel } from './other-format-panel';
 
 // ============================================================================
 // Print constants — A4 ISO 216
@@ -72,6 +74,48 @@ function tripDurationLabel(start?: string, end?: string): string {
   return `${nights} Nights · ${days} Days`;
 }
 
+// Treat an activity's `time` as a real logistical clock time (e.g. "10:45")
+// only when it looks like one — never a vague label like "Morning". Shared
+// between the brochure's DayCard and the Other Format table rows.
+function isHardTime(t?: string): boolean {
+  return !!t && /^\d{1,2}[:.]\d{2}/.test(t.trim());
+}
+
+// Inclusions/exclusions/policy copy shown on the brochure's final page AND the
+// Other Format document — kept as one source so the two formats can't drift.
+const DEFAULT_INCLUSIONS = [
+  'Hotel accommodation with daily breakfast',
+  'Private arrival & departure transfers',
+  'Private tour transfers per the programme',
+  'All sightseeing & entrance fees as listed',
+  'Applicable government taxes & service charges',
+];
+const DEFAULT_EXCLUSIONS = [
+  'International airfare (unless mentioned)',
+  'Visa fees and travel insurance',
+  'Personal expenses — laundry, mini-bar, calls',
+  'Optional activities not listed in inclusions',
+  'Anything not specified in the inclusions list',
+];
+const DEFAULT_POLICIES = [
+  {
+    t: 'Pricing &amp; Exchange Rate',
+    b: 'Quotation reflects current rates. Subject to revision before final payment based on currency fluctuations.',
+  },
+  {
+    t: 'Itinerary Amendments',
+    b: 'Any change must be requested at least 96 hours before travel start. No changes once the sequence has commenced.',
+  },
+  {
+    t: 'Check-In · Check-Out',
+    b: 'Early check-in or late check-out is subject to hotel availability and discretion at arrival.',
+  },
+  {
+    t: 'Cancellation Policy',
+    b: 'Cancellation charges apply as per agency policy and supplier-specific terms in your confirmation.',
+  },
+];
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -95,7 +139,45 @@ function SubmitButton() {
 // Form panel + document orchestrator
 // ============================================================================
 
+// The two tabs are entirely independent generators with entirely different
+// data models — Brochure is the AI-narrative A4 document below; Other Format
+// (OtherFormatPanel, in other-format-panel.tsx) is a separate paste-and/or-
+// fill structured quotation document with its own .docx export. Nothing is
+// shared between them; switching tabs does not carry data across.
+//
+// Both panels stay mounted at all times (plain wrapper divs, not Radix
+// TabsContent's Presence/unmount behaviour) so that switching tabs to peek at
+// the other format never discards a generated itinerary — the AI call that
+// produced it isn't free to redo. A `hidden` wrapper on the inactive panel
+// does double duty: it hides that panel on screen AND, because plain Tailwind
+// `hidden` applies in every media (not just screen), it also keeps that
+// panel's own print container from printing — so printing always outputs
+// only the currently-visible tab, with no extra prop needed to track that.
 export function ItineraryForm() {
+  const [activeTab, setActiveTab] = useState<'brochure' | 'other'>('brochure');
+  return (
+    <>
+      <ItineraryStyles />
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+        <TabsList className="mb-4 print-hide print:hidden">
+          <TabsTrigger value="brochure">Brochure</TabsTrigger>
+          <TabsTrigger value="other">Other Format</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className={activeTab === 'brochure' ? '' : 'hidden'}>
+        <BrochurePanel />
+      </div>
+      <div className={activeTab === 'other' ? '' : 'hidden'}>
+        <OtherFormatPanel />
+      </div>
+    </>
+  );
+}
+
+// The AI-narrative A4 brochure generator: destination/preferences in, a full
+// cover + day-by-day + package-details document out.
+function BrochurePanel() {
   const [state, formAction] = useActionState<ItineraryState, FormData>(
     getItinerary,
     initialItineraryState,
@@ -116,140 +198,141 @@ export function ItineraryForm() {
 
   return (
     <>
-      <ItineraryStyles />
-
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)] gap-6 print-hide lg:h-[calc(100vh-8rem)]">
-        <Card className="h-fit lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
-          <CardHeader>
-            <CardTitle>Create a Custom Itinerary</CardTitle>
-            <CardDescription>
-              Generates a print-ready A4 brochure with a cover page, day-by-day editorial pages,
-              and a dedicated package-details page (hotels, inclusions, policies).
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={formAction} className="space-y-4">
-              <div>
-                <Label htmlFor="destination">Destination</Label>
-                <Input
-                  id="destination"
-                  name="destination"
-                  placeholder="e.g., Kuala Lumpur, Malaysia"
-                  defaultValue={state.form.destination}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="preferences">Preferences</Label>
-                <Textarea
-                  id="preferences"
-                  name="preferences"
-                  placeholder="e.g., Interested in city tours, theme parks, Indian-friendly food, mid-range hotel."
-                  defaultValue={state.form.preferences}
-                  required
-                  className="min-h-[110px]"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label htmlFor="travellerName">Traveller Name</Label>
-                  <Input
-                    id="travellerName"
-                    name="travellerName"
-                    placeholder="Ms. Tisha"
-                    defaultValue={state.form.travellerName}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    name="startDate"
-                    type="date"
-                    defaultValue={state.form.startDate}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    id="endDate"
-                    name="endDate"
-                    type="date"
-                    defaultValue={state.form.endDate}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="partySize">Party Size</Label>
-                  <Input
-                    id="partySize"
-                    name="partySize"
-                    placeholder="2 Adults"
-                    defaultValue={state.form.partySize}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="referenceCode">Reference</Label>
-                  <Input
-                    id="referenceCode"
-                    name="referenceCode"
-                    placeholder="175037/IYC"
-                    defaultValue={state.form.referenceCode}
-                  />
-                </div>
-              </div>
-
-              {state.error && (
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{state.error}</AlertDescription>
-                </Alert>
-              )}
-              <SubmitButton />
-              {state.itinerary && (
-                <Button
-                  type="button"
-                  onClick={handlePrint}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Download as PDF
-                </Button>
-              )}
-            </form>
-
-            {state.itinerary && (
-              <HotelEditor
-                hotels={hotels}
-                onAdd={addHotel}
-                onUpdate={updateHotel}
-                onRemove={removeHotel}
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)] gap-6 print-hide lg:h-[calc(100vh-10rem)]">
+      <Card className="h-fit lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
+        <CardHeader>
+          <CardTitle>Create a Custom Itinerary</CardTitle>
+          <CardDescription>
+            Generates a print-ready A4 brochure with a cover page, day-by-day editorial pages,
+            and a dedicated package-details page (hotels, inclusions, policies).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={formAction} className="space-y-4">
+            <div>
+              <Label htmlFor="destination">Destination</Label>
+              <Input
+                id="destination"
+                name="destination"
+                placeholder="e.g., Kuala Lumpur, Malaysia"
+                defaultValue={state.form.destination}
+                required
               />
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-col items-center lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
-          {!state.itinerary && (
-            <div className="flex items-center justify-center h-full text-muted-foreground bg-muted/50 rounded-lg p-8 w-full lg:min-h-[60vh]">
-              <p>Your A4 travel brochure will render here once generated.</p>
             </div>
-          )}
+            <div>
+              <Label htmlFor="preferences">Preferences</Label>
+              <Textarea
+                id="preferences"
+                name="preferences"
+                placeholder="e.g., Interested in city tours, theme parks, Indian-friendly food, mid-range hotel."
+                defaultValue={state.form.preferences}
+                required
+                className="min-h-[110px]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label htmlFor="travellerName">Traveller Name</Label>
+                <Input
+                  id="travellerName"
+                  name="travellerName"
+                  placeholder="Ms. Tisha"
+                  defaultValue={state.form.travellerName}
+                />
+              </div>
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  defaultValue={state.form.startDate}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  id="endDate"
+                  name="endDate"
+                  type="date"
+                  defaultValue={state.form.endDate}
+                />
+              </div>
+              <div>
+                <Label htmlFor="partySize">Party Size</Label>
+                <Input
+                  id="partySize"
+                  name="partySize"
+                  placeholder="2 Adults"
+                  defaultValue={state.form.partySize}
+                />
+              </div>
+              <div>
+                <Label htmlFor="referenceCode">Reference</Label>
+                <Input
+                  id="referenceCode"
+                  name="referenceCode"
+                  placeholder="175037/IYC"
+                  defaultValue={state.form.referenceCode}
+                />
+              </div>
+            </div>
+
+            {state.error && (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{state.error}</AlertDescription>
+              </Alert>
+            )}
+            <SubmitButton />
+            {state.itinerary && (
+              <Button
+                type="button"
+                onClick={handlePrint}
+                variant="outline"
+                className="w-full"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Download as PDF
+              </Button>
+            )}
+          </form>
+
           {state.itinerary && (
-            <ItineraryDocument
-              state={state}
+            <HotelEditor
               hotels={hotels}
-              className="origin-top scale-[0.9] lg:scale-[0.72] xl:scale-[0.83]"
+              onAdd={addHotel}
+              onUpdate={updateHotel}
+              onRemove={removeHotel}
             />
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {state.itinerary && (
-        <div className="hidden print:block">
-          <ItineraryDocument state={state} hotels={hotels} />
-        </div>
-      )}
+      <div className="flex flex-col items-center lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
+        {!state.itinerary && (
+          <div className="flex items-center justify-center h-full text-muted-foreground bg-muted/50 rounded-lg p-8 w-full lg:min-h-[60vh]">
+            <p>Your A4 travel brochure will render here once generated.</p>
+          </div>
+        )}
+        {state.itinerary && (
+          <ItineraryDocument
+            state={state}
+            hotels={hotels}
+            className="origin-top scale-[0.9] lg:scale-[0.72] xl:scale-[0.83]"
+          />
+        )}
+      </div>
+    </div>
+
+    {/* Sibling of the print-hidden grid above, NOT nested inside it — an
+        ancestor's display:none suppresses descendants regardless of their own
+        display value, which would prevent this from ever showing in print. */}
+    {state.itinerary && (
+      <div className="hidden print:block">
+        <ItineraryDocument state={state} hotels={hotels} />
+      </div>
+    )}
     </>
   );
 }
@@ -580,11 +663,8 @@ function DaysPage({
 
 function DayCard({ day, totalDays }: { day: DayPlan; totalDays: number }) {
   // We render the day as a continuous narrative (summary) + a short bulleted
-  // highlights list — no time column. Treat any incoming `time` value as a
-  // hard logistical label (only shown when it is a real clock time like
-  // "10:45" or "14:00"); otherwise we suppress it entirely.
-  const isHardTime = (t?: string) => !!t && /^\d{1,2}[:.]\d{2}/.test(t.trim());
-
+  // highlights list — no time column. isHardTime (module scope) suppresses
+  // any incoming `time` value unless it's a real clock time like "10:45".
   return (
     <article className="itin-day">
       <header className="itin-day-head">
@@ -667,51 +747,14 @@ function FinalPage({
 
         <FinalSection numeral="III" overline="What Is &amp; Isn't Included" title="Inclusions &amp; Exclusions">
           <div className="itin-inc-grid">
-            <IECard
-              mode="inc"
-              heading="Included in Package"
-              items={[
-                'Hotel accommodation with daily breakfast',
-                'Private arrival & departure transfers',
-                'Private tour transfers per the programme',
-                'All sightseeing & entrance fees as listed',
-                'Applicable government taxes & service charges',
-              ]}
-            />
-            <IECard
-              mode="exc"
-              heading="Not Included"
-              items={[
-                'International airfare (unless mentioned)',
-                'Visa fees and travel insurance',
-                'Personal expenses — laundry, mini-bar, calls',
-                'Optional activities not listed in inclusions',
-                'Anything not specified in the inclusions list',
-              ]}
-            />
+            <IECard mode="inc" heading="Included in Package" items={DEFAULT_INCLUSIONS} />
+            <IECard mode="exc" heading="Not Included" items={DEFAULT_EXCLUSIONS} />
           </div>
         </FinalSection>
 
         <FinalSection numeral="IV" overline="Booking Policies" title="Terms &amp; Important Notes">
           <div className="itin-policy-grid">
-            {[
-              {
-                t: 'Pricing &amp; Exchange Rate',
-                b: 'Quotation reflects current rates. Subject to revision before final payment based on currency fluctuations.',
-              },
-              {
-                t: 'Itinerary Amendments',
-                b: 'Any change must be requested at least 96 hours before travel start. No changes once the sequence has commenced.',
-              },
-              {
-                t: 'Check-In · Check-Out',
-                b: 'Early check-in or late check-out is subject to hotel availability and discretion at arrival.',
-              },
-              {
-                t: 'Cancellation Policy',
-                b: 'Cancellation charges apply as per agency policy and supplier-specific terms in your confirmation.',
-              },
-            ].map((p) => (
+            {DEFAULT_POLICIES.map((p) => (
               <div key={p.t} className="itin-policy">
                 <div className="itin-policy-title" dangerouslySetInnerHTML={{ __html: p.t }} />
                 <div className="itin-policy-body" dangerouslySetInnerHTML={{ __html: p.b }} />
