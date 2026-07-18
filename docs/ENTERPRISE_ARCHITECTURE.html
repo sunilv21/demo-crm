@@ -201,14 +201,18 @@
         <h1>Sky Visa CRM - Enterprise Architecture Document</h1>
         
         <div class="info-box">
-            <p><strong>Document Version:</strong> 1.0</p>
+            <p><strong>Document Version:</strong> 1.1</p>
             <p><strong>Project:</strong> Sky Visa CRM</p>
             <p><strong>Document Type:</strong> Enterprise Architecture</p>
             <p><strong>Target Audience:</strong> Architects, Senior Developers, DevOps Engineers, Technical Leadership</p>
-            <p><strong>Last Updated:</strong> July 9, 2026</p>
+            <p><strong>Last Updated:</strong> July 19, 2026</p>
             <p><strong>Document Length:</strong> Comprehensive (80-120 pages equivalent)</p>
         </div>
-        
+
+        <div class="info-box">
+            <p><strong>v1.1 changes:</strong> added <strong>Module 6: Document Generation &amp; AI Extraction</strong> — the Hotel Voucher and Itinerary "Other Format" .docx generators, their shared rendering primitives, and the Gemini/NVIDIA AI paste-and-extract subsystem. This module owns no new Firestore collections. See <em>Module-by-Module Database Schemas → Module 6</em>.</p>
+        </div>
+
         <div class="toc">
             <h3>Table of Contents</h3>
             <ul>
@@ -494,7 +498,13 @@
         
         <p><strong>AI/ML:</strong></p>
         <ul>
-            <li><strong>Google Genkit</strong> - AI framework for Firebase</li>
+            <li><strong>Google Genkit</strong> (Gemini) - AI framework for Firebase; primary extraction path for structured itinerary parsing</li>
+            <li><strong>NVIDIA NIM</strong> - OpenAI-compatible chat completions endpoint (integrate.api.nvidia.com), used via the <code>openai</code> SDK; default provider for the Itinerary "Other Format" paste-and-extract flow</li>
+        </ul>
+
+        <p><strong>Document Generation:</strong></p>
+        <ul>
+            <li><strong><code>docx</code></strong> (npm) - Generates real Word (.docx) files server-side (hotel booking vouchers, Itinerary "Other Format" exports) — see <em>Module 6: Document Generation &amp; AI Extraction</em></li>
         </ul>
         
         <h3>Development Tools</h3>
@@ -1488,7 +1498,7 @@ firestore/
   timestamp: Timestamp
 }</code></pre>
         
-        <h4>Indexes:</strong> 
+        <h4>Indexes:</strong>
         <ul>
             <li>audit_logs: userId + timestamp</li>
             <li>audit_logs: action + timestamp</li>
@@ -1496,9 +1506,22 @@ firestore/
             <li>error_logs: resolved + timestamp</li>
             <li>error_logs: code + timestamp</li>
         </ul>
-        
+
+        <h3>Module 6: Document Generation &amp; AI Extraction</h3>
+        <p><strong>Collections:</strong> none. Unlike Modules 1–5, this module owns no Firestore collections — it is a stateless generation layer that reads existing Booking/Client documents (or, for the Other Format itinerary, purely client-local draft state) and returns a file at request time. Nothing it produces is persisted server-side.</p>
+
+        <p><strong>Shared rendering primitives</strong> — <code>src/app/actions/docx-helpers.ts</code>: the navy/gold visual system, a <code>fixedTable()</code> wrapper (Word's default "autofit" table layout otherwise shrinks single-cell banner tables to their text width), and a <code>PAGE_WIDTH = 11000</code> DXA constant — the true printable width for both documents' US Letter / 620-twip-margin page setup, so every table aligns with the letterhead's gold rule.</p>
+
+        <p><strong>Hotel Voucher Generator</strong> — <code>src/app/actions/voucher-docx.ts</code> (Server Action <code>generateBookingVoucherDocx</code>): produces a real Word (.docx) hotel booking voucher matching the agency's reference layout. <strong>Hotel bookings only</strong> — rejects any other <code>bookingType</code>. Uses the <code>COMPANY</code> identity (same as existing receipts/printables). Reads <code>bookingDetails.hotelAddress</code> / <code>bookingDetails.hotelTel</code> from the booking form, rendering "—" when blank rather than omitting the line.</p>
+
+        <p><strong>Itinerary "Other Format" Generator</strong> — <code>src/app/actions/itinerary-docx.ts</code> (Server Action <code>generateOtherFormatDocx</code>): a second, freeform itinerary layout — distinct from the structured Itinerary Builder that persists to <code>clients/{clientId}/itineraries/{itineraryId}</code> — for hotel/tour package quotes. Uses a separate <code>AGENCY</code> identity by design.</p>
+
+        <p><strong>AI Paste-and-Extract</strong> — <code>src/app/actions/itinerary-format.ts</code> (Server Action <code>extractOtherFormatItinerary</code>): takes raw pasted itinerary text and an <code>ExtractionProvider</code> (<code>'gemini' | 'nvidia'</code>, defaults to <code>'nvidia'</code>), returning the same shape regardless of provider. Both providers are extractive (not generative) and share one Zod output schema, so unmentioned fields come back blank rather than fabricated. Transient provider errors (429/503/504) surface as a retry-friendly message.</p>
+
+        <p><strong>Client-local persistence</strong> — <code>src/hooks/use-persisted-state.ts</code>: a <code>localStorage</code>-backed hook keeps the Other Format editor's draft state alive across navigation, so an in-progress or AI-extracted draft isn't lost and reopening the tab doesn't force a second (paid) AI extraction call.</p>
+
         <div class="section-divider"></div>
-        
+
         <h2 id="security-rules-architecture">Security Rules Architecture</h2>
         
         <h3>Security Principles</h3>
@@ -2372,8 +2395,8 @@ firestore/
         <hr>
         
         <p style="text-align: center; color: #6b7280; margin-top: 40px;">
-            <strong>Document Version:</strong> 1.0<br>
-            <strong>Last Updated:</strong> July 9, 2026<br>
+            <strong>Document Version:</strong> 1.1<br>
+            <strong>Last Updated:</strong> July 19, 2026<br>
             <strong>Next Review:</strong> October 9, 2026<br>
             <strong>Maintained By:</strong> Architecture Team
         </p>

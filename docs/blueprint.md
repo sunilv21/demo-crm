@@ -13,6 +13,8 @@
 - Follow-up Marked: Marked the Follow-up done for each costumer
 - Customer Status: Define and track the status of each customer (e.g., active, inactive, lead, prospect).
 - Report Section: Analyze performance metrics and generate reports on key business activities.
+- Hotel Booking Vouchers: Generate a real Word (.docx) confirmation voucher, formatted to match the agency's reference layout, directly from a booking's Guest/Room/Stay details — available for hotel bookings only.
+- Itinerary "Other Format" Export: A second, freeform itinerary layout (separate from the structured flight/hotel/activity builder) that can be filled in by hand or auto-filled by pasting a raw itinerary and extracting it with AI (NVIDIA NIM by default, Google Gemini as an alternate provider), then exported as a polished .docx; in-progress work is kept in the browser's local storage so it survives navigation without re-spending AI calls.
 
 ## Style Guidelines:
 

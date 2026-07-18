@@ -34,6 +34,7 @@ import { ImportClientsDialog } from '@/components/clients/import-clients-dialog'
 import { useToast } from '@/hooks/use-toast';
 import {
   useCollection,
+  useCollectionOnce,
   useDoc,
   useFirestore,
   useMemoFirebase,
@@ -82,7 +83,7 @@ export default function OrganizationDetailPage() {
     }
     return collection(firestore, 'clients');
   }, [firestore, isAdminOrManager, user]);
-  const { data: allClients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: allClients, isLoading: isLoadingClients } = useCollectionOnce<Client>(clientsQuery);
 
   const orgClients = useMemo(
     () => (allClients || []).filter((c) => c.organizationId === orgId),
@@ -154,7 +155,7 @@ export default function OrganizationDetailPage() {
     }
     return collection(firestore, 'bookings');
   }, [firestore, isAdminOrManager, user]);
-  const { data: allBookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
+  const { data: allBookings, isLoading: isLoadingBookings } = useCollectionOnce<Booking>(bookingsQuery);
 
   // Group each org client's live bookings and roll up their money.
   const rows = useMemo(() => {

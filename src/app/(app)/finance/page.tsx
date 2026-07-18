@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { collection } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useCollectionOnce, useMemoFirebase } from '@/firebase';
 import type { FinanceAccount, FinanceTransaction, Booking } from '@/lib/types';
 import {
   FINANCE_COLLECTIONS, accountBalance, totalBalance, isCashAccount,
@@ -27,7 +27,7 @@ export default function FinanceDashboardPage() {
   const txnsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.transactions) : null), [firestore]);
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
-  const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings } = useCollectionOnce<Booking>(bookingsQuery);
   // Manual finance transactions + income derived from client-booking payments.
   // NOTE: agent-logged expenses are intentionally NOT included — they are pending
   // reimbursements and only become a company expense when finance reimburses the

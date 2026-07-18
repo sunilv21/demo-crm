@@ -1,11 +1,13 @@
 # Sky Visa CRM - Enterprise Architecture Document
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Project:** Sky Visa CRM  
 **Document Type:** Enterprise Architecture  
 **Target Audience:** Architects, Senior Developers, DevOps Engineers, Technical Leadership  
-**Last Updated:** July 9, 2026  
+**Last Updated:** July 19, 2026  
 **Document Length:** Comprehensive (80-120 pages equivalent)
+
+> **v1.1 changes:** added **Module 6: Document Generation & AI Extraction** — the Hotel Voucher and Itinerary "Other Format" `.docx` generators, their shared rendering primitives, and the Gemini/NVIDIA AI paste-and-extract subsystem. This module owns no new Firestore collections. See *Module-by-Module Database Schemas → Module 6*.
 
 ---
 
@@ -315,7 +317,11 @@ Sky Visa CRM serves travel agencies by providing a unified platform to manage:
 - **Firebase Authentication** - User authentication
 
 **AI/ML:**
-- **Google Genkit** - AI framework for Firebase
+- **Google Genkit** (Gemini) - AI framework for Firebase; primary extraction path for structured itinerary parsing
+- **NVIDIA NIM** - OpenAI-compatible chat completions endpoint (`integrate.api.nvidia.com`), used via the `openai` SDK; default provider for the Itinerary "Other Format" paste-and-extract flow
+
+**Document Generation:**
+- **`docx`** (npm) - Generates real Word (.docx) files server-side (hotel booking vouchers, Itinerary "Other Format" exports) — see *Module 6: Document Generation & AI Extraction*
 
 ### Development Tools
 
@@ -1641,6 +1647,41 @@ match /users/{userId} {
 - audit_logs: resourceType + resourceId + timestamp
 - error_logs: resolved + timestamp
 - error_logs: code + timestamp
+
+---
+
+### Module 6: Document Generation & AI Extraction
+
+**Collections:** none. Unlike Modules 1–5, this module owns **no Firestore collections** — it is a stateless generation layer that reads existing Booking/Client documents (or, for the Other Format itinerary, purely client-local draft state) and returns a file at request time. Nothing it produces is persisted server-side.
+
+**Shared rendering primitives — `src/app/actions/docx-helpers.ts`:**
+A plain (non-`'use server'`) module of low-level `docx`-library building blocks shared by both generators below, so neither duplicates table/paragraph plumbing:
+- The navy/gold visual system (palette constants, `sectionHeading`, `navyBar`).
+- `fixedTable()` — wraps `new Table()` to force `TableLayoutType.FIXED`; Word's default "autofit" layout otherwise shrinks single-cell tables (banners) to their text width regardless of the declared `width`.
+- `PAGE_WIDTH = 11000` (DXA/twips) — the true printable width for both documents' page setup (US Letter, 12240 twips wide, minus 620-twip margins each side). Every table width array in both generators is sized against this constant so tables align with the letterhead's gold rule (a paragraph border, which always spans the full printable width automatically).
+- `buildLetterhead()` / `buildFooter()` / `buildRunningHeader()`, parameterized by a `CompanyIdentity` rather than importing one fixed company constant — the two generators intentionally use different identities (see below).
+
+**Hotel Voucher Generator — `src/app/actions/voucher-docx.ts` (Server Action `generateBookingVoucherDocx`):**
+- Produces a real Word (`.docx`) hotel booking voucher, laid out to match the agency's reference sample field-for-field (status banner, Booking Reference/Date/Status box, Hotel Details/Room Type/No of Rooms table, Check-in/Duration/Check-out row, Guest Details table, two-column Terms & Conditions).
+- **Hotel bookings only** — rejects any other `bookingType` with `{ error: 'Vouchers are currently available for hotel bookings only.' }`; the "Voucher" action is hidden in the UI for non-hotel bookings.
+- Company identity: `COMPANY` (`src/lib/company.ts`), the same identity used for existing receipts/printables.
+- Input (`VoucherInput`, `src/lib/voucher-types.ts`) is built from the booking's existing fields — `bookingDetails.hotelAddress` / `bookingDetails.hotelTel` (captured in the booking form) render on the voucher's Address/Tel lines, falling back to "—" when blank rather than being omitted.
+
+**Itinerary "Other Format" Generator — `src/app/actions/itinerary-docx.ts` (Server Action `generateOtherFormatDocx`):**
+- A second, freeform itinerary layout — distinct from the structured flight/hotel/activity Itinerary Builder that persists to `clients/{clientId}/itineraries/{itineraryId}` — aimed at hotel/tour package quotes (trip summary, hotel options, tours/transfers, cost comparison, inclusions/exclusions).
+- Company identity: `AGENCY` (`src/app/(app)/itinerary-builder/other-format-types.ts`), a separate constant from `COMPANY` by design (different letterhead contact details for this document type).
+- Can be filled in entirely by hand, or auto-filled via the AI paste-and-extract flow below.
+
+**AI Paste-and-Extract — `src/app/actions/itinerary-format.ts` (Server Action `extractOtherFormatItinerary`):**
+- Takes raw pasted itinerary text and an `ExtractionProvider` (`'gemini' | 'nvidia'`, **defaults to `'nvidia'`**), and returns the same `OFItinerary` shape regardless of which provider answered.
+- Both providers are *extractive, not generative* — held to identical extraction rules and an identical Zod output schema (`itinerary-format-schema.ts`), so fields the source text doesn't mention come back blank rather than fabricated.
+  - **Gemini** (`src/ai/flows/itinerary-format-extract.ts`) — via Genkit (Google AI).
+  - **NVIDIA NIM** (`src/ai/flows/itinerary-format-extract-nvidia.ts`) — via the `openai` SDK pointed at `https://integrate.api.nvidia.com/v1` (an OpenAI-compatible endpoint); model from `process.env.NVIDIA_MODEL`, API key from `process.env.NVIDIA_API_KEY`.
+- Transient provider errors (HTTP 429/503/504/`RESOURCE_EXHAUSTED`) surface as a retry-friendly message rather than a hard failure.
+
+**Client-local persistence — `src/hooks/use-persisted-state.ts`:**
+- A generic `usePersistedState<T>(key, initial, debounceMs)` hook backs the Other Format editor's draft state with `localStorage` (debounced writes; restoration deferred to a `useEffect` rather than the `useState` initializer, to avoid SSR hydration mismatches).
+- Purpose: navigating away from the Itinerary Builder no longer discards an in-progress or AI-extracted draft, and re-opening the tab doesn't force a second (paid) AI extraction call.
 
 ---
 
@@ -4857,7 +4898,7 @@ This Enterprise Architecture Document provides a comprehensive blueprint for the
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** July 9, 2026  
+**Document Version:** 1.1  
+**Last Updated:** July 19, 2026  
 **Next Review:** October 9, 2026  
 **Maintained By:** Architecture Team

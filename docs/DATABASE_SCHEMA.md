@@ -2,9 +2,11 @@
 
 **Database:** Firebase Firestore (NoSQL Document Database)  
 **Project:** Sky Visa CRM  
-**Schema Version:** 1.2  
-**Last Updated:** July 12, 2026
+**Schema Version:** 1.3  
+**Last Updated:** July 19, 2026
 
+> **v1.3 changes:** no new collections. Documented the hotel-voucher-related `bookingDetails` keys (`hotelAddress`, `hotelTel`) now captured by the booking form; noted that `remarks` (already in the schema) is now surfaced as a "Notes" field in the booking form UI. The Hotel Voucher (.docx) and Itinerary Builder "Other Format" (.docx, AI-assisted) generators are **document-generation features, not new storage** — they read existing Booking/Client fields (or, for Other Format, entirely client-local draft state) and produce a file at request time; nothing new is written to Firestore. See *Change Log* at the end.
+>
 > **v1.2 changes:** added the **Finance module** collections (`accounts`, `finance_transactions`, `suppliers`, `expense_categories`, `payment_methods`, `agent_expenses`); added the **`finance`** user role; added booking **cancellation/refund** fields and the **`agentId`** sales-owner field; added `Payment.financeTxnId`. See the new *Finance Module Collections* section and the *Change Log* at the end.
 
 ---
@@ -237,8 +239,11 @@
   supplierReference?: string              // Supplier reference (string, optional)
   profit?: number                         // Profit (number, optional, decimal, calculated: total - supplierCost)
   
-  // Generic data
+  // Generic data (flexible per bookingType — form fields under `details.*` land here verbatim)
   bookingDetails?: Record<string, any>    // Additional booking details (object, optional, flexible schema)
+                                          //   Hotel bookings commonly include: hotelName, hotelBookingId, city, country,
+                                          //   hotelAddress, hotelTel, roomType, rooms, guests, breakfast/lunch/dinner (booleans) —
+                                          //   hotelAddress/hotelTel feed the hotel voucher's Address/Tel lines (blank renders as "—").
   
   // Documents
   documents?: [{                          // Documents (array of objects, optional)
@@ -247,7 +252,7 @@
     uploadedAt?: Timestamp                // Upload timestamp (Firestore Timestamp, optional)
   }]
   
-  remarks?: string                        // Remarks (string, optional)
+  remarks?: string                        // Remarks / Notes (string, optional) — entered via the "Notes" field in the booking form
   
   // Archival
   archived?: boolean                      // Archived flag (boolean, optional)
@@ -1219,6 +1224,12 @@
 
 ## Change Log
 
+### v1.3 — July 19, 2026
+- No new collections or top-level fields — this release is document-generation UI, not new storage.
+- Documented common **hotel `bookingDetails`** keys, including the new `hotelAddress` / `hotelTel` captured by the booking form and consumed by the hotel voucher generator (blank renders as "—" on the voucher rather than being hidden).
+- Noted that `remarks` (already in the schema since v1.0) is now exposed in the booking form UI as a "Notes" field — no schema change, just newly reachable from the UI.
+- New capability (out of Firestore's scope, documented for completeness): a **Hotel Voucher** Server Action generates a real `.docx` from a booking's existing fields, restricted to `bookingType === 'hotel'`. A separate **Itinerary "Other Format"** Server Action generates a freeform itinerary `.docx`, optionally auto-filled by an AI paste-and-extract step (NVIDIA NIM by default, Gemini as an alternate provider); its draft state lives in the browser's `localStorage`, not Firestore.
+
 ### v1.2 — July 12, 2026
 - Added the **Finance role** (`finance`) — sees the Finance module + Agent Performance only.
 - Added **Finance module collections**: `accounts`, `finance_transactions`, `suppliers`, `expense_categories`, `payment_methods`, `agent_expenses` (§18–23).
@@ -1235,6 +1246,6 @@
 
 ---
 
-**Document Version:** 1.2  
-**Last Updated:** July 12, 2026  
+**Document Version:** 1.3  
+**Last Updated:** July 19, 2026  
 **Maintained By:** Development Team

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { collection } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useCollectionOnce, useMemoFirebase } from '@/firebase';
 import type { FinanceAccount, FinanceTransaction, Booking, User as StaffUser } from '@/lib/types';
 import { FINANCE_COLLECTIONS, accountBalance, sumIncome, sumExpense, inMonth, thisMonthISO, bookingPaymentsAsTransactions, bookingAgentId } from '@/lib/finance';
 import { formatINR, formatINRCompact } from '@/lib/utils';
@@ -40,7 +40,7 @@ export default function FinanceReportsPage() {
   const txnsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.transactions) : null), [firestore]);
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
-  const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings } = useCollectionOnce<Booking>(bookingsQuery);
   const txns = useMemo(
     () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
     [transactions, bookings]

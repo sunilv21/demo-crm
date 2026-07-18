@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, useCollection, useCollectionOnce, useMemoFirebase } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 import type { FinanceAccount, FinanceTransaction, FinanceTxnType, Booking } from '@/lib/types';
@@ -35,7 +35,7 @@ export default function TransactionsPage() {
   const txnsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.transactions) : null), [firestore]);
   const { data: transactions, isLoading } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
-  const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings } = useCollectionOnce<Booking>(bookingsQuery);
   const allTxns = useMemo(
     () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
     [transactions, bookings]

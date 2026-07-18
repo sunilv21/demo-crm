@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { collection, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, useCollection, useCollectionOnce, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import type { FinanceAccount, Client, PaymentMethodDoc, FinanceTransaction, Booking } from '@/lib/types';
 import { FINANCE_COLLECTIONS, DEFAULT_IN_METHODS, todayISO, bookingPaymentsAsTransactions, isDerivedTxn } from '@/lib/finance';
@@ -29,13 +29,13 @@ export default function MoneyInPage() {
   const accountsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.accounts) : null), [firestore]);
   const { data: accounts } = useCollection<FinanceAccount>(accountsQuery);
   const clientsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'clients') : null), [firestore]);
-  const { data: clients } = useCollection<Client>(clientsQuery);
+  const { data: clients } = useCollectionOnce<Client>(clientsQuery);
   const methodsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.methods) : null), [firestore]);
   const { data: methodDocs } = useCollection<PaymentMethodDoc>(methodsQuery);
   const txnsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.transactions) : null), [firestore]);
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
-  const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings } = useCollectionOnce<Booking>(bookingsQuery);
 
   // All money received: manual finance income + collections derived from bookings.
   const receipts = useMemo(() => {

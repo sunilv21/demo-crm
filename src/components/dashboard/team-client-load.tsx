@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useCollectionOnce, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Client, User } from '@/lib/types';
 import { User as UserIcon } from 'lucide-react';
@@ -22,7 +22,7 @@ export function TeamClientLoad() {
   );
 
   const { data: users, isLoading: loadingUsers } = useCollection<User>(usersQuery);
-  const { data: clients, isLoading: loadingClients } = useCollection<Client>(clientsQuery);
+  const { data: clients, isLoading: loadingClients } = useCollectionOnce<Client>(clientsQuery);
   const isLoading = loadingUsers || loadingClients;
 
   // Count clients assigned to each staff member.
