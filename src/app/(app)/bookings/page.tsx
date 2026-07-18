@@ -25,6 +25,7 @@ import {
   Pencil,
   Printer,
   Download,
+  FileText,
   XCircle,
   RotateCcw,
 } from 'lucide-react';
@@ -44,6 +45,9 @@ import { BookingForm } from '@/components/forms/booking-form';
 import { PrintableBookings } from '@/components/bookings/printable-bookings';
 import { PrintSettingsDialog, defaultSettings, type PrintSettings } from '@/components/bookings/print-settings-dialog';
 import { printContentHtml, pdfTitle } from '@/lib/print';
+import { downloadBase64File } from '@/lib/download-file';
+import { buildVoucherInput } from '@/lib/voucher-types';
+import { generateBookingVoucherDocx } from '@/app/actions/voucher-docx';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
 import { query, doc, collection, where, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -150,6 +154,45 @@ export default function BookingsPage() {
     }, 50);
     return () => clearTimeout(t);
   }, [pendingPdf, printBooking, isPrintClientLoading]);
+
+  // Voucher generation: a real .docx via the server action, auto-formatted by
+  // the booking's type (Hotel/Flight/Visa/Service). Reuses the same
+  // wait-for-client-doc pattern as the PDF download above.
+  const [voucherBooking, setVoucherBooking] = useState<Booking | null>(null);
+  const [generatingVoucher, setGeneratingVoucher] = useState(false);
+  const voucherClientRef = useMemoFirebase(
+    () => (firestore && voucherBooking?.clientId ? doc(firestore, 'clients', voucherBooking.clientId) : null),
+    [firestore, voucherBooking?.clientId]
+  );
+  const { data: voucherClient, isLoading: isVoucherClientLoading } = useDoc<Client>(voucherClientRef);
+
+  const downloadVoucherFor = (booking: Booking) => {
+    setVoucherBooking(booking);
+    setGeneratingVoucher(true);
+  };
+
+  useEffect(() => {
+    if (!generatingVoucher || !voucherBooking || isVoucherClientLoading) return;
+    (async () => {
+      try {
+        const input = buildVoucherInput(voucherBooking, voucherClient ?? null);
+        const result = await generateBookingVoucherDocx(input);
+        if ('error' in result) {
+          toast({ variant: 'destructive', title: 'Could not generate voucher', description: result.error });
+        } else {
+          downloadBase64File(result.base64, result.filename, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        }
+      } finally {
+        setGeneratingVoucher(false);
+        setVoucherBooking(null);
+      }
+    })();
+    // voucherClient deliberately omitted: it's a live onSnapshot listener, so a
+    // second emission (even for identical data) while this effect's async work
+    // is still in flight would re-run it and trigger a duplicate download —
+    // same reasoning as the PDF effect above, which omits printClient too.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatingVoucher, voucherBooking, isVoucherClientLoading]);
 
   // Server-side bounded loading: fetch the newest N bookings, "Load more" raises
   // the cap. Search/status filters run over the loaded set.
@@ -434,6 +477,15 @@ export default function BookingsPage() {
                       <DropdownMenuItem onSelect={() => downloadPdfFor(booking)}>
                         <Download className="mr-2 h-4 w-4" />Download PDF
                       </DropdownMenuItem>
+                      {booking.bookingType === 'hotel' && (
+                        <DropdownMenuItem
+                          onSelect={() => downloadVoucherFor(booking)}
+                          disabled={generatingVoucher && voucherBooking?.id === booking.id}
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          {generatingVoucher && voucherBooking?.id === booking.id ? 'Generating…' : 'Voucher'}
+                        </DropdownMenuItem>
+                      )}
                       {booking.status === 'cancelled' ? (
                         <DropdownMenuItem onSelect={() => setBookingToCancel(booking)}>
                           <RotateCcw className="mr-2 h-4 w-4" />Refund
