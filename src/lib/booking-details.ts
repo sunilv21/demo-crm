@@ -40,6 +40,8 @@ export const DETAIL_LABELS: Record<string, string> = {
   hotelBookingId: "Booking ID",
   city: "City",
   country: "Country",
+  hotelAddress: "Address",
+  hotelTel: "Tel",
   roomType: "Room",
   rooms: "Rooms",
   guests: "Guests",

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   CalendarIcon,
@@ -576,6 +577,8 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
               <Input placeholder="Hotel Booking ID" {...form.register('details.hotelBookingId')} />
               <Input placeholder="City" {...form.register('details.city')} />
               <Input placeholder="Country" {...form.register('details.country')} />
+              <Input placeholder="Hotel Address" {...form.register('details.hotelAddress')} />
+              <Input placeholder="Hotel Telephone No." {...form.register('details.hotelTel')} />
               <Input placeholder="Room Type" {...form.register('details.roomType')} />
               <Input type="number" placeholder="Number Of Rooms" {...form.register('details.rooms')} />
               <Input type="number" placeholder="Number Of Guests" {...form.register('details.guests')} />
@@ -618,6 +621,11 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Add Guest
               </Button>
+            </div>
+
+            <div className="pt-1 space-y-1">
+              <FormLabel className="text-sm">Notes</FormLabel>
+              <Textarea placeholder="Any additional notes for this booking" rows={3} {...form.register('remarks')} />
             </div>
           </div>
         )}
