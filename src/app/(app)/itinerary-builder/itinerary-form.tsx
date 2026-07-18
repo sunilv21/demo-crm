@@ -1,9 +1,10 @@
 'use client';
 
 import { useFormStatus } from 'react-dom';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { getItinerary } from '@/app/actions/itinerary';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import {
   initialItineraryState,
   emptyHotel,
@@ -183,11 +184,45 @@ function BrochurePanel() {
     initialItineraryState,
   );
 
-  const [hotels, setHotels] = useState<HotelRow[]>([]);
-  const itineraryId = state.itinerary?.destination ?? '';
+  // useActionState's `state` has no external setter (only a form submission
+  // can change it), so a generated brochure can't be written back into it
+  // directly on restore. Instead: persist a copy on every successful
+  // generation, and fall back to that copy — via `effectiveState` below —
+  // whenever this mount hasn't produced a fresh result yet (e.g. the user
+  // navigated away and back). Saves both the itinerary and the AI call that
+  // would otherwise have to be repeated to see it again.
+  const [persisted, setPersisted] = usePersistedState<ItineraryState>(
+    'skyvisa:itinerary-brochure:state',
+    initialItineraryState
+  );
+  const [hotels, setHotels] = usePersistedState<HotelRow[]>('skyvisa:itinerary-brochure:hotels', []);
+  const [restored, setRestored] = useState(false);
+
   useEffect(() => {
-    setHotels([]);
-  }, [itineraryId]);
+    if (!restored && !state.itinerary && persisted.itinerary) setRestored(true);
+  }, [restored, state.itinerary, persisted.itinerary]);
+
+  useEffect(() => {
+    if (state.itinerary) setPersisted(state);
+    // setPersisted is stable (useCallback identity from usePersistedState).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  const effectiveState = state.itinerary ? state : restored ? persisted : state;
+
+  // Reset the hotel list only when a FRESH generation (this mount, via the
+  // form) lands on a different destination than the previous fresh one —
+  // never on the initial restore-from-storage, which would otherwise wipe
+  // the very hotels list that restore just brought back.
+  const prevLiveDestRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!state.itinerary) return;
+    if (prevLiveDestRef.current !== undefined && prevLiveDestRef.current !== state.itinerary.destination) {
+      setHotels([]);
+    }
+    prevLiveDestRef.current = state.itinerary.destination;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.itinerary]);
 
   const addHotel = () => setHotels((h) => [...h, emptyHotel()]);
   const removeHotel = (id: string) => setHotels((h) => h.filter((x) => x.id !== id));
@@ -204,18 +239,24 @@ function BrochurePanel() {
           <CardTitle>Create a Custom Itinerary</CardTitle>
           <CardDescription>
             Generates a print-ready A4 brochure with a cover page, day-by-day editorial pages,
-            and a dedicated package-details page (hotels, inclusions, policies).
+            and a dedicated package-details page (hotels, inclusions, policies). Your progress here
+            is saved automatically — switching pages and coming back won&apos;t lose it or burn
+            another AI call.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="space-y-4">
+          {/* Keyed so a restored itinerary's form values (destination,
+              preferences, etc.) actually apply — an uncontrolled input's
+              defaultValue only takes effect on mount, and `restored` flips
+              true a moment after this panel first mounts. */}
+          <form key={restored ? 'restored' : 'fresh'} action={formAction} className="space-y-4">
             <div>
               <Label htmlFor="destination">Destination</Label>
               <Input
                 id="destination"
                 name="destination"
                 placeholder="e.g., Kuala Lumpur, Malaysia"
-                defaultValue={state.form.destination}
+                defaultValue={effectiveState.form.destination}
                 required
               />
             </div>
@@ -225,7 +266,7 @@ function BrochurePanel() {
                 id="preferences"
                 name="preferences"
                 placeholder="e.g., Interested in city tours, theme parks, Indian-friendly food, mid-range hotel."
-                defaultValue={state.form.preferences}
+                defaultValue={effectiveState.form.preferences}
                 required
                 className="min-h-[110px]"
               />
@@ -237,7 +278,7 @@ function BrochurePanel() {
                   id="travellerName"
                   name="travellerName"
                   placeholder="Ms. Tisha"
-                  defaultValue={state.form.travellerName}
+                  defaultValue={effectiveState.form.travellerName}
                 />
               </div>
               <div>
@@ -246,7 +287,7 @@ function BrochurePanel() {
                   id="startDate"
                   name="startDate"
                   type="date"
-                  defaultValue={state.form.startDate}
+                  defaultValue={effectiveState.form.startDate}
                 />
               </div>
               <div>
@@ -255,7 +296,7 @@ function BrochurePanel() {
                   id="endDate"
                   name="endDate"
                   type="date"
-                  defaultValue={state.form.endDate}
+                  defaultValue={effectiveState.form.endDate}
                 />
               </div>
               <div>
@@ -264,7 +305,7 @@ function BrochurePanel() {
                   id="partySize"
                   name="partySize"
                   placeholder="2 Adults"
-                  defaultValue={state.form.partySize}
+                  defaultValue={effectiveState.form.partySize}
                 />
               </div>
               <div>
@@ -273,7 +314,7 @@ function BrochurePanel() {
                   id="referenceCode"
                   name="referenceCode"
                   placeholder="175037/IYC"
-                  defaultValue={state.form.referenceCode}
+                  defaultValue={effectiveState.form.referenceCode}
                 />
               </div>
             </div>
@@ -285,7 +326,7 @@ function BrochurePanel() {
               </Alert>
             )}
             <SubmitButton />
-            {state.itinerary && (
+            {effectiveState.itinerary && (
               <Button
                 type="button"
                 onClick={handlePrint}
@@ -298,7 +339,7 @@ function BrochurePanel() {
             )}
           </form>
 
-          {state.itinerary && (
+          {effectiveState.itinerary && (
             <HotelEditor
               hotels={hotels}
               onAdd={addHotel}
@@ -310,14 +351,14 @@ function BrochurePanel() {
       </Card>
 
       <div className="flex flex-col items-center lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
-        {!state.itinerary && (
+        {!effectiveState.itinerary && (
           <div className="flex items-center justify-center h-full text-muted-foreground bg-muted/50 rounded-lg p-8 w-full lg:min-h-[60vh]">
             <p>Your A4 travel brochure will render here once generated.</p>
           </div>
         )}
-        {state.itinerary && (
+        {effectiveState.itinerary && (
           <ItineraryDocument
-            state={state}
+            state={effectiveState}
             hotels={hotels}
             className="origin-top scale-[0.9] lg:scale-[0.72] xl:scale-[0.83]"
           />
@@ -328,9 +369,9 @@ function BrochurePanel() {
     {/* Sibling of the print-hidden grid above, NOT nested inside it — an
         ancestor's display:none suppresses descendants regardless of their own
         display value, which would prevent this from ever showing in print. */}
-    {state.itinerary && (
+    {effectiveState.itinerary && (
       <div className="hidden print:block">
-        <ItineraryDocument state={state} hotels={hotels} />
+        <ItineraryDocument state={effectiveState} hotels={hotels} />
       </div>
     )}
     </>

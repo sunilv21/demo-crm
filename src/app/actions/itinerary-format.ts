@@ -1,25 +1,35 @@
 'use server';
 
 import { extractItineraryFormat } from '@/ai/flows/itinerary-format-extract';
+import { extractItineraryFormatViaNvidia } from '@/ai/flows/itinerary-format-extract-nvidia';
 import { newId, type OFItinerary } from '@/app/(app)/itinerary-builder/other-format-types';
+
+export type ExtractionProvider = 'gemini' | 'nvidia';
 
 export type ExtractOtherFormatResult = { data: OFItinerary } | { error: string };
 
 /**
  * Paste-and-extract entry point for the Other Format tab: sends raw pasted
- * itinerary text through itineraryFormatExtractFlow and maps the AI's
+ * itinerary text through either provider's extraction flow and maps the AI's
  * (id-less) output onto OFItinerary, assigning fresh ids for the editable
- * form's row keys. The AI is instructed to extract, not invent — see
- * itinerary-format-extract.ts for why fields come back blank rather than
- * fabricated when the source doesn't mention them.
+ * form's row keys. Both providers are extractive, not generative — see
+ * itinerary-format-extract.ts's EXTRACTION_RULES for why fields come back
+ * blank rather than fabricated when the source doesn't mention them; both
+ * paths are held to the exact same rules and the exact same output schema,
+ * so which model answered shouldn't change how the result behaves downstream.
  */
-export async function extractOtherFormatItinerary(rawText: string): Promise<ExtractOtherFormatResult> {
+export async function extractOtherFormatItinerary(
+  rawText: string,
+  provider: ExtractionProvider = 'nvidia'
+): Promise<ExtractOtherFormatResult> {
   if (!rawText || rawText.trim().length < 20) {
     return { error: 'Paste some itinerary text first — at least a couple of sentences.' };
   }
 
   try {
-    const out = await extractItineraryFormat({ rawText });
+    const out = provider === 'nvidia'
+      ? await extractItineraryFormatViaNvidia({ rawText })
+      : await extractItineraryFormat({ rawText });
 
     // The schema allows 1 or 2 hotel options (the AI shouldn't invent a
     // second one that doesn't exist in the source); the form and the cost

@@ -9,7 +9,8 @@
 // `docx` library, ported from build_itinerary_skytours.js) — see
 // src/app/actions/itinerary-docx.ts.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Loader2, Wand2, Download, Plus, Trash2 } from 'lucide-react';
-import { extractOtherFormatItinerary } from '@/app/actions/itinerary-format';
+import { extractOtherFormatItinerary, type ExtractionProvider } from '@/app/actions/itinerary-format';
 import { generateOtherFormatDocx } from '@/app/actions/itinerary-docx';
 import { downloadBase64File } from '@/lib/download-file';
 import {
@@ -41,8 +42,14 @@ import {
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 export function OtherFormatPanel() {
-  const [data, setData] = useState<OFItinerary>(emptyOtherFormatItinerary);
-  const [rawText, setRawText] = useState('');
+  // Persisted to localStorage (debounced) and restored on mount — so
+  // navigating to another page and back, or a refresh, doesn't lose an
+  // extracted/edited itinerary and doesn't force burning another AI call
+  // just to get back to where the agent left off.
+  const emptyData = useMemo(() => emptyOtherFormatItinerary(), []);
+  const [data, setData, clearPersistedData] = usePersistedState<OFItinerary>('skyvisa:itinerary-other-format:data', emptyData);
+  const [rawText, setRawText] = usePersistedState('skyvisa:itinerary-other-format:raw-text', '');
+  const [provider, setProvider] = usePersistedState<ExtractionProvider>('skyvisa:itinerary-other-format:provider', 'nvidia');
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -61,7 +68,7 @@ export function OtherFormatPanel() {
     setExtracting(true);
     setExtractError(null);
     try {
-      const result = await extractOtherFormatItinerary(rawText);
+      const result = await extractOtherFormatItinerary(rawText, provider);
       if ('error' in result) {
         setExtractError(result.error);
       } else {
@@ -90,14 +97,28 @@ export function OtherFormatPanel() {
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-6 lg:h-[calc(100vh-10rem)]">
       <Card className="h-fit lg:h-full lg:overflow-y-auto lg:overflow-x-hidden">
-        <CardHeader>
-          <CardTitle>Create an Itinerary (Other Format)</CardTitle>
-          <CardDescription>
-            A structured travel quotation — trip summary, two hotel options, tours &amp; transfers, a
-            day-by-day programme, inclusions/exclusions, notes and a cost comparison. Paste raw
-            itinerary text to extract it automatically, then fill in or adjust anything by hand.
-            Downloads as a real Word (.docx) document.
-          </CardDescription>
+        <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle>Create an Itinerary (Other Format)</CardTitle>
+            <CardDescription>
+              A structured travel quotation — trip summary, two hotel options, tours &amp; transfers, a
+              day-by-day programme, inclusions/exclusions, notes and a cost comparison. Paste raw
+              itinerary text to extract it automatically, then fill in or adjust anything by hand.
+              Downloads as a real Word (.docx) document. Your progress here is saved automatically —
+              switching pages and coming back won't lose it or burn another AI call.
+            </CardDescription>
+          </div>
+          {hasContent && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="flex-shrink-0 text-muted-foreground"
+              onClick={() => { clearPersistedData(); setRawText(''); }}
+            >
+              Start Over
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -109,6 +130,21 @@ export function OtherFormatPanel() {
               placeholder="Paste a supplier email, WhatsApp message, or draft itinerary here — destination, hotels, day-by-day plan, pricing, inclusions, whatever you have."
               className="min-h-[140px]"
             />
+            <div className="flex items-center gap-2 mt-2">
+              <Label htmlFor="of-provider" className="text-xs text-muted-foreground whitespace-nowrap">
+                Model
+              </Label>
+              <select
+                id="of-provider"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as ExtractionProvider)}
+                disabled={extracting}
+                className="h-8 flex-1 rounded border border-input bg-background px-2 text-sm"
+              >
+                <option value="nvidia">NVIDIA (Llama 3.1)</option>
+                <option value="gemini">Gemini (Google)</option>
+              </select>
+            </div>
             <Button
               type="button"
               onClick={handleExtract}
