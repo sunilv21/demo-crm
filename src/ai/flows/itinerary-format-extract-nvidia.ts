@@ -20,9 +20,11 @@ import OpenAI from 'openai';
 import {
   ExtractOutputSchema,
   EXTRACTION_RULES,
+  REFINEMENT_RULES,
   type ItineraryFormatExtractInput,
   type ItineraryFormatExtractOutput,
 } from './itinerary-format-schema';
+import { looksLikeSparseExtraction, normalizeItineraryText } from './itinerary-format-utils';
 
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const DEFAULT_MODEL = 'meta/llama-3.1-8b-instruct';
@@ -56,6 +58,11 @@ const JSON_SHAPE = `{
 // "emphasis" is genuinely optional (omit it rather than guess false); every
 // other field must be present, using "" / [] / 0 when the source doesn't say.
 const SYSTEM_PROMPT = `${EXTRACTION_RULES}
+
+Respond with ONLY a single valid JSON object matching this exact shape — no markdown code fences, no commentary, no extra keys, no trailing text before or after the JSON:
+${JSON_SHAPE}`;
+
+const REFINEMENT_SYSTEM_PROMPT = `${REFINEMENT_RULES}
 
 Respond with ONLY a single valid JSON object matching this exact shape — no markdown code fences, no commentary, no extra keys, no trailing text before or after the JSON:
 ${JSON_SHAPE}`;
@@ -114,7 +121,15 @@ export async function extractItineraryFormatViaNvidia(
   let lastErr: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      return await callNvidiaOnce(input.rawText, model, apiKey);
+      const normalized = normalizeItineraryText(input.rawText);
+      const extracted = await callNvidiaOnce(normalized, model, apiKey);
+      if (looksLikeSparseExtraction(extracted)) {
+        const refinement = await callNvidiaOnceWithPrompt(normalized, model, apiKey, JSON.stringify(extracted, null, 2), REFINEMENT_SYSTEM_PROMPT);
+        if (refinement) {
+          return refinement;
+        }
+      }
+      return extracted;
     } catch (err: any) {
       lastErr = err;
       const status = err?.status ?? err?.code;
@@ -125,4 +140,38 @@ export async function extractItineraryFormatViaNvidia(
     }
   }
   throw lastErr;
+}
+
+async function callNvidiaOnceWithPrompt(
+  rawText: string,
+  model: string,
+  apiKey: string,
+  structuredJson: string,
+  systemPrompt: string
+): Promise<ItineraryFormatExtractOutput | null> {
+  const client = new OpenAI({ apiKey, baseURL: NVIDIA_BASE_URL });
+
+  const completion = await client.chat.completions.create({
+    model,
+    temperature: 0.2,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Source itinerary text:\n${rawText}\n\nCurrent structured extraction:\n${structuredJson}` },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripCodeFence(content));
+  } catch {
+    return null;
+  }
+
+  const validated = ExtractOutputSchema.safeParse(parsed);
+  if (!validated.success) return null;
+  return validated.data;
 }

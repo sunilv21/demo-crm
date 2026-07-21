@@ -6,7 +6,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { PendingFollowUps } from '@/components/dashboard/pending-follow-ups';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { TeamClientLoad } from '@/components/dashboard/team-client-load';
-import { useAppUser, useCollection, useCollectionOnce, useFirestore, useMemoFirebase } from '@/firebase';
+import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, where } from 'firebase/firestore';
 import type { Booking, Lead, Client } from '@/lib/types';
 import { IndianRupee, Users, Activity, CreditCard, UserCheck, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
@@ -47,9 +47,9 @@ export default function DashboardPage() {
     return collection(firestore, 'bookings');
   }, [firestore, isAdminOrManager, authUser]);
 
-  const { data: clients, isLoading: isLoadingClients } = useCollectionOnce<Client>(clientsQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: leads, isLoading: isLoadingLeads } = useCollection<Lead>(leadsQuery);
-  const { data: bookings, isLoading: isLoadingBookings } = useCollectionOnce<Booking>(bookingsQuery);
+  const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
 
   useEffect(() => {
     if (bookings) {

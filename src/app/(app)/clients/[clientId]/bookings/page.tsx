@@ -35,7 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Booking, Client } from '@/lib/types';
+import type { Booking, Client, Hotel } from '@/lib/types';
 import { buildDetailEntries, bookingReference, formatBookingDates } from '@/lib/booking-details';
 import { Fragment, useState, useRef, useEffect } from 'react';
 import { differenceInDays } from 'date-fns';
@@ -51,7 +51,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { BookingForm } from '@/components/forms/booking-form';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -205,7 +205,21 @@ export default function ClientBookingsPage() {
   const downloadVoucherFor = async (booking: Booking) => {
     setGeneratingVoucherId(booking.id);
     try {
+      console.log("booking.startDate =", booking.startDate);
+      console.log("booking.endDate =", booking.endDate);
+      console.log("booking.createdAt =", booking.createdAt?.toDate?.());
       const input = buildVoucherInput(booking, client ?? null);
+      // Hotel Master: if this booking is linked to a saved hotel, pull its own
+      // Terms & Conditions onto the voucher.
+      const hotelId = booking.bookingDetails?.hotelId;
+      if (firestore && hotelId) {
+        const hotelSnap = await getDoc(doc(firestore, 'hotels', String(hotelId)));
+        if (hotelSnap.exists()) {
+          const hotel = hotelSnap.data() as Hotel;
+          input.hotelTermsAndConditions = hotel.termsAndConditions;
+          input.hotelNotes = hotel.notes;
+        }
+      }
       const result = await generateBookingVoucherDocx(input);
       if ('error' in result) {
         toast({ variant: 'destructive', title: 'Could not generate voucher', description: result.error });

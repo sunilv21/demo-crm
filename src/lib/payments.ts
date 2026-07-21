@@ -56,3 +56,20 @@ export function withRemovedPayment(b: PaymentSource, id: string) {
   const payments = (b.payments || []).filter((p) => p.id !== id);
   return { payments, ...computeTotals(payments, b.total || 0) };
 }
+
+/** Fields to write when correcting a ledger row (amount, date, mode, reference). */
+export function withEditedPayment(
+  b: PaymentSource,
+  id: string,
+  changes: Partial<Pick<Payment, 'amount' | 'date' | 'mode' | 'reference'>>
+) {
+  let payments: Payment[];
+  if (b.payments && b.payments.length) {
+    payments = b.payments.map((p) => (p.id === id ? { ...p, ...changes } : p));
+  } else {
+    // Synthetic single-row ledger (cached amountPaid, no real ledger yet) —
+    // materialise it with a real id so the correction persists.
+    payments = ledgerFor(b).map((p) => ({ ...p, id: newPaymentId(), ...changes }));
+  }
+  return { payments, ...computeTotals(payments, b.total || 0) };
+}

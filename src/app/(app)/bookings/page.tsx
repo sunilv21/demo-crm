@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Booking, Client } from '@/lib/types';
+import type { Booking, Client, Hotel } from '@/lib/types';
 import { formatBookingDates } from '@/lib/booking-details';
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -49,7 +49,7 @@ import { downloadBase64File } from '@/lib/download-file';
 import { buildVoucherInput } from '@/lib/voucher-types';
 import { generateBookingVoucherDocx } from '@/app/actions/voucher-docx';
 import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser } from '@/firebase';
-import { query, doc, collection, where, orderBy, limit } from 'firebase/firestore';
+import { query, doc, collection, where, orderBy, limit, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { CancelRefundDialog } from '@/components/bookings/cancel-refund-dialog';
@@ -181,6 +181,18 @@ export default function BookingsPage() {
     (async () => {
       try {
         const input = buildVoucherInput(voucherBooking, voucherClient ?? null);
+        // Hotel Master: if this booking is linked to a saved hotel, pull its
+        // own Terms & Conditions onto the voucher.
+        const hotelId = voucherBooking.bookingDetails?.hotelId;
+        if (firestore && hotelId) {
+          const hotelSnap = await getDoc(doc(firestore, 'hotels', String(hotelId)));
+          if (hotelSnap.exists()) {
+            const hotel = hotelSnap.data() as Hotel;
+            input.hotelTermsAndConditions = hotel.termsAndConditions;
+            input.hotelNotes = hotel.notes;
+          }
+        }
+        if (cancelled) return;
         const result = await generateBookingVoucherDocx(input);
         if (cancelled) return;
         if ('error' in result) {

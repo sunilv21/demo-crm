@@ -34,6 +34,12 @@ export type VoucherInput = {
   hotelGuests?: { name?: string }[];
   bookingDetails?: Record<string, string | number | boolean | null>;
   reference: { label: string; value: string } | null;
+  // Sourced from the linked Hotel Master record (booking.bookingDetails.hotelId)
+  // at generation time, if any — replaces the generic hardcoded terms on the
+  // voucher, and adds a Notes section when set. Set by the caller after
+  // buildVoucherInput(); see voucher-docx.ts.
+  hotelTermsAndConditions?: string;
+  hotelNotes?: string;
 };
 
 // NOTE: intentionally excludes supplierCost and profit — a voucher is a

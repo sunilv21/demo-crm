@@ -115,6 +115,8 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
   const d = (booking.bookingDetails || {}) as Record<string, any>;
 
   const MEAL_KEYS = ['breakfast', 'lunch', 'dinner'];
+  // Internal linkage keys, not meant for display.
+  const HIDDEN_KEYS = ['hotelId'];
 
   Object.keys(d).forEach((key) => {
     const v = d[key];
@@ -123,6 +125,7 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
     if (booking.isMultiCity && (key === 'departureAirport' || key === 'arrivalAirport')) return;
     // Meals are combined into a single "Meals" entry below.
     if (MEAL_KEYS.includes(key)) return;
+    if (HIDDEN_KEYS.includes(key)) return;
     entries.push({ label: DETAIL_LABELS[key] || key, value: String(v) });
   });
 
@@ -168,6 +171,22 @@ export function buildDetailEntries(booking: Booking): DetailEntry[] {
           { key: 'name', label: 'Guest Name' },
         ],
         value: named.map((g, i) => ({ no: String(i + 1), name: g.name })),
+      });
+    }
+  }
+
+  // Flight: passenger names the ticket is booked for.
+  if (booking.bookingType === 'flight' && booking.flightPassengers?.length) {
+    const namedPassengers = booking.flightPassengers.filter((g) => g.name && g.name.trim());
+    if (namedPassengers.length) {
+      entries.push({
+        label: "Passenger Names",
+        isTable: true,
+        columns: [
+          { key: 'no', label: '#' },
+          { key: 'name', label: 'Passenger Name' },
+        ],
+        value: namedPassengers.map((g, i) => ({ no: String(i + 1), name: g.name })),
       });
     }
   }

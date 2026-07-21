@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { collection } from 'firebase/firestore';
-import { useFirestore, useCollection, useCollectionOnce, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Booking, User as StaffUser } from '@/lib/types';
 import { formatINR } from '@/lib/utils';
 import { bookingAgentId } from '@/lib/finance';
@@ -27,7 +27,7 @@ type Row = {
 export default function AgentPerformancePage() {
   const firestore = useFirestore();
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
-  const { data: bookings, isLoading } = useCollectionOnce<Booking>(bookingsQuery);
+  const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
   const usersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'users') : null), [firestore]);
   const { data: users } = useCollection<StaffUser>(usersQuery);
 

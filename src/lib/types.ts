@@ -143,6 +143,25 @@ export type Organization = {
   updatedBy: string;
 };
 
+// Hotel Master — created once, then reused across bookings (auto-filling the
+// booking form) and vouchers (Terms & Conditions are fetched from here
+// instead of being retyped per booking).
+export type Hotel = {
+  id: string;
+  name: string;
+  city?: string;
+  country?: string;
+  address?: string;
+  phone?: string;
+  termsAndConditions?: string; // free text, one bullet per line — printed on this hotel's vouchers
+  notes?: string; // anything else worth recording about this hotel
+  active: boolean;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
 export type Client = {
   id:string;
   name: string;
@@ -287,6 +306,9 @@ export type Booking = {
     flightNumber?: string;
     airportCode?: string;
   }[];
+
+  // Flight passenger names (the traveller(s) the ticket is booked for)
+  flightPassengers?: { name?: string }[];
 
   // Visa applicants (one row per person on a visa booking)
   visaApplicants?: {

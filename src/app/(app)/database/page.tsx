@@ -11,9 +11,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { ArchiveRestore, MoreHorizontal, Search, Eye, FilePlus2, Pencil, Trash2, User } from 'lucide-react';
+import { ArchiveRestore, MoreHorizontal, Search, Eye, FilePlus2, Pencil, Trash2, User, Lock } from 'lucide-react';
 import type { Client, CustomerLog } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, useUser, useAppUser } from '@/firebase';
 import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -47,6 +47,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ClientForm } from '@/components/forms/client-form';
 import { CustomerLogForm } from '@/components/forms/customer-log-form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { HotelsTab } from '@/components/database/hotels-tab';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 const ArchivedClientRowSkeleton = () => (
@@ -62,18 +65,23 @@ const ArchivedClientRowSkeleton = () => (
 export default function DatabasePage() {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { isAdminOrManager } = useAppUser();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const { toast } = useToast();
-  
+
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [logClient, setLogClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
+  // Archived Clients lists every inactive client with no ownership filter,
+  // which only admin/manager are allowed to read (see firestore.rules) — so
+  // the query only runs for them. Everyone else still gets the Hotels tab
+  // below, which has no such restriction.
   const archivedClientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !isAdminOrManager) return null;
     return query(collection(firestore, 'clients'), where('status', '==', 'inactive'));
-  }, [firestore]);
+  }, [firestore, isAdminOrManager]);
 
   const { data: clients, isLoading } = useCollection<Client>(archivedClientsQuery);
 
@@ -151,18 +159,37 @@ export default function DatabasePage() {
 
   return (
     <>
-      <PageHeader title="Archived Clients" description="A database of clients you are not actively working with.">
-         <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-            placeholder="Search by name or email..."
-            className="pl-10 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      <PageHeader title="Database" description="Archived clients and hotel master data." />
+
+      <Tabs defaultValue={isAdminOrManager ? 'archived-clients' : 'hotels'} className="mt-2">
+        <TabsList>
+          <TabsTrigger value="archived-clients">Archived Clients</TabsTrigger>
+          <TabsTrigger value="hotels">Hotels</TabsTrigger>
+        </TabsList>
+        <TabsContent value="archived-clients" className="mt-4 space-y-4">
+      {!isAdminOrManager ? (
+        <div className="flex items-center justify-center py-12">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><Lock className="h-4 w-4" />Restricted</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Archived clients are only visible to admins/managers.
+            </CardContent>
+          </Card>
         </div>
-      </PageHeader>
-      
+      ) : (
+      <>
+      <div className="relative flex-1 max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+        placeholder="Search by name or email..."
+        className="pl-10 w-full"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <Dialog open={!!editingClient} onOpenChange={(open) => !open && setEditingClient(null)}>
         <DialogContent className="md:max-w-2xl">
           <DialogHeader>
@@ -271,6 +298,13 @@ export default function DatabasePage() {
           }
         />
       </div>
+      </>
+      )}
+        </TabsContent>
+        <TabsContent value="hotels" className="mt-4">
+          <HotelsTab />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

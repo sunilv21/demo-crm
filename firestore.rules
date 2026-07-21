@@ -176,6 +176,14 @@ service cloud.firestore {
       allow delete: if isAdminOrManager();
     }
 
+    // Hotel Master: created once, then reused across bookings and vouchers.
+    // Same access shape as organizations — any signed-in user may read/create/
+    // update, only admin/manager may delete.
+    match /hotels/{id} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdminOrManager();
+    }
+
     match /customer_logs/{id} {
       allow read, create, update: if isSignedIn();
       allow delete: if isAdminOrManager();

@@ -37,7 +37,7 @@ import { collection, doc, query, serverTimestamp, where } from 'firebase/firesto
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, Payment, PaymentMode } from '@/lib/types';
 import { cn, formatINR, toDateSafe, bookingPaid, PAYMENT_MODE_LABELS } from '@/lib/utils';
-import { ledgerFor, newPaymentId, withAddedPayment, computeTotals } from '@/lib/payments';
+import { ledgerFor, newPaymentId, withAddedPayment, withEditedPayment } from '@/lib/payments';
 import { AgentExpenses } from '@/components/finance/agent-expenses';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -50,6 +50,7 @@ import {
   ArrowDownRight,
   Lock,
   CheckCircle2,
+  Pencil,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -218,26 +219,72 @@ export default function RevenuePage() {
     setCollectTarget(null);
   };
 
-  // Correct how a recorded collection was received (cash / upi / bank / …).
-  // This also drives the Finance cash-vs-bank split, so keeping it accurate matters.
-  const changeMethod = (bookingId: string, paymentId: string, newMode: PaymentMode) => {
-    if (!firestore || !authUser) return;
-    const b = (bookings ?? []).find((x) => x.id === bookingId);
+  // Correct a recorded collection (amount / date / method / reference) after
+  // the fact — covers fat-finger entry mistakes on the collect flow.
+  const [editTarget, setEditTarget] = useState<{
+    bookingId: string;
+    paymentId: string;
+    clientName: string;
+    amount: string;
+    date: string;
+    mode: PaymentMode;
+    reference: string;
+    maxAmount: number;
+  } | null>(null);
+
+  const openEditPayment = (p: {
+    bookingId: string;
+    paymentId: string;
+    clientName: string;
+    date: string;
+    mode: PaymentMode;
+    amount: number;
+    reference: string;
+  }) => {
+    const b = (bookings ?? []).find((x) => x.id === p.bookingId);
+    const balance = b ? bookingBalance(b) : 0;
+    setEditTarget({
+      bookingId: p.bookingId,
+      paymentId: p.paymentId,
+      clientName: p.clientName,
+      amount: String(p.amount),
+      date: p.date || new Date().toISOString().slice(0, 10),
+      mode: p.mode,
+      reference: p.reference,
+      // Room to increase the amount: current value plus whatever's still outstanding.
+      maxAmount: balance + p.amount,
+    });
+  };
+
+  const saveEditPayment = () => {
+    if (!firestore || !authUser || !editTarget) return;
+    const b = (bookings ?? []).find((x) => x.id === editTarget.bookingId);
     if (!b) return;
-    let payments: Payment[];
-    if (b.payments && b.payments.length) {
-      payments = b.payments.map((p) => (p.id === paymentId ? { ...p, mode: newMode } : p));
-    } else {
-      // Materialise the synthetic "recorded earlier" entry with the chosen method.
-      payments = ledgerFor(b).map((p) => ({ ...p, id: p.id === 'opening' ? newPaymentId() : p.id, mode: newMode }));
+    const amt = Math.round(Number(editTarget.amount) || 0);
+    if (amt <= 0) {
+      toast({ variant: 'destructive', title: 'Enter a valid amount', description: 'Amount must be greater than zero.' });
+      return;
     }
-    updateDocumentNonBlocking(doc(firestore, 'bookings', bookingId), {
-      payments,
-      ...computeTotals(payments, b.total || 0),
+    if (amt > editTarget.maxAmount) {
+      toast({
+        variant: 'destructive',
+        title: 'Amount too high',
+        description: `Cannot exceed ${formatINR(editTarget.maxAmount)} for this booking.`,
+      });
+      return;
+    }
+    updateDocumentNonBlocking(doc(firestore, 'bookings', b.id), {
+      ...withEditedPayment(b, editTarget.paymentId, {
+        amount: amt,
+        date: editTarget.date || undefined,
+        mode: editTarget.mode,
+        reference: editTarget.reference.trim() || undefined,
+      }),
       updatedAt: serverTimestamp(),
       updatedBy: authUser.uid,
     });
-    toast({ title: 'Method updated', description: `Marked as received via ${PAYMENT_MODE_LABELS[newMode]}.` });
+    toast({ title: 'Collection updated', description: `${formatINR(amt)} recorded for ${editTarget.clientName}.` });
+    setEditTarget(null);
   };
 
   // Revenue is private to each agent — only ever read the bookings they own.
@@ -300,6 +347,7 @@ export default function RevenuePage() {
           date: p.date,
           mode: p.mode,
           amount: p.amount,
+          reference: p.reference || '',
         }))
       )
       .filter((r) => r.amount > 0)
@@ -322,6 +370,48 @@ export default function RevenuePage() {
       }
     }
     const pendingClients = [...clientMap.values()].sort((a, b) => b.balance - a.balance);
+
+    // Per-client revenue roll-up: our cost, customer price and profit, plus
+    // outstanding balance so a collection can be triggered from the same row.
+    const clientRevenueMap = new Map<
+      string,
+      {
+        clientName: string;
+        bookings: Booking[];
+        ourCost: number;
+        customerPrice: number;
+        profit: number;
+        balance: number;
+        date: Date | null;
+      }
+    >();
+    for (const { b, date } of forYear) {
+      const key = b.clientId || b.clientName || b.id;
+      const ourCost = b.supplierCost || 0;
+      const customerPrice = bookingRevenue(b);
+      const profit = bookingProfit(b);
+      const balance = bookingBalance(b);
+      const existing = clientRevenueMap.get(key);
+      if (existing) {
+        existing.bookings.push(b);
+        existing.ourCost += ourCost;
+        existing.customerPrice += customerPrice;
+        existing.profit += profit;
+        existing.balance += balance;
+        if (date && (!existing.date || date > existing.date)) existing.date = date;
+      } else {
+        clientRevenueMap.set(key, {
+          clientName: b.clientName || '—',
+          bookings: [b],
+          ourCost,
+          customerPrice,
+          profit,
+          balance,
+          date,
+        });
+      }
+    }
+    const clientRevenue = [...clientRevenueMap.values()].sort((a, b) => b.customerPrice - a.customerPrice);
 
     // Monthly chart for the selected year.
     const monthly: MonthlyRevenue[] = MONTHS.map((name, i) => {
@@ -377,6 +467,7 @@ export default function RevenuePage() {
       lastMonthLabel,
       pendingCollections,
       pendingClients,
+      clientRevenue,
       totalCollected,
       recentPayments,
       monthly,
@@ -433,6 +524,7 @@ export default function RevenuePage() {
         <TabsList>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="expenses">My Expenses</TabsTrigger>
+          <TabsTrigger value="clients">Revenue by Clients</TabsTrigger>
         </TabsList>
         <TabsContent value="revenue" className="mt-4">
 
@@ -610,7 +702,7 @@ export default function RevenuePage() {
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>Recent Collections</CardTitle>
-          <CardDescription>Latest payments received in {year}. Change the method dropdown to correct how a payment was received.</CardDescription>
+          <CardDescription>Latest payments received in {year}. Use Edit to fix a wrongly entered amount, date, method or reference.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -621,12 +713,13 @@ export default function RevenuePage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Mode</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stats.recentPayments.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No collections recorded in {year}.
                     </TableCell>
                   </TableRow>
@@ -639,19 +732,13 @@ export default function RevenuePage() {
                         ? new Date(p.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
                         : '—'}
                     </TableCell>
-                    <TableCell>
-                      <Select value={p.mode} onValueChange={(v) => changeMethod(p.bookingId, p.paymentId, v as PaymentMode)}>
-                        <SelectTrigger className="h-8 w-[130px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(['cash', 'upi', 'card', 'bank', 'cheque', 'other'] as PaymentMode[]).map((m) => (
-                            <SelectItem key={m} value={m}>{PAYMENT_MODE_LABELS[m]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
+                    <TableCell className="text-muted-foreground">{PAYMENT_MODE_LABELS[p.mode] || p.mode}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums text-green-600">{formatINR(p.amount)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => openEditPayment(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -721,6 +808,91 @@ export default function RevenuePage() {
         </TabsContent>
         <TabsContent value="expenses" className="mt-4">
           <AgentExpenses />
+        </TabsContent>
+        <TabsContent value="clients" className="mt-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Revenue by Clients</CardTitle>
+                <CardDescription>Total cost, customer price and profit per client in {year}</CardDescription>
+              </div>
+              <Badge variant="outline" className="text-sm">
+                {stats.clientRevenue.length} client{stats.clientRevenue.length === 1 ? '' : 's'}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Bookings</TableHead>
+                      <TableHead className="text-right">Total (Our Cost)</TableHead>
+                      <TableHead className="text-right">Customer Price</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.clientRevenue.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                          No client revenue recorded in {year}.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {stats.clientRevenue.map((row) => (
+                      <TableRow key={row.clientName + row.bookings[0].id}>
+                        <TableCell className="font-medium">{row.clientName}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {row.bookings.length} booking{row.bookings.length === 1 ? '' : 's'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">{formatINR(row.ourCost)}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">{formatINR(row.customerPrice)}</TableCell>
+                        <TableCell
+                          className={cn(
+                            'text-right font-mono tabular-nums',
+                            row.profit >= 0 ? 'text-green-600' : 'text-red-600'
+                          )}
+                        >
+                          {formatINR(row.profit)}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            'text-right font-mono tabular-nums',
+                            row.balance > 0 ? 'font-semibold text-red-600' : 'text-muted-foreground'
+                          )}
+                        >
+                          {formatINR(row.balance)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.balance > 0 ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                openCollect({
+                                  clientName: row.clientName,
+                                  balance: row.balance,
+                                  bookings: row.bookings,
+                                })
+                              }
+                            >
+                              <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                              Collect
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Settled</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -812,6 +984,76 @@ export default function RevenuePage() {
             <Button onClick={saveCollection} disabled={collectingTotal <= 0}>
               Record collection
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit collection — {editTarget?.clientName}</DialogTitle>
+            <DialogDescription>Correct the amount, date, method or reference for this payment.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-amount" className="text-xs text-muted-foreground">
+                  Amount received
+                </Label>
+                <Input
+                  id="edit-amount"
+                  type="number"
+                  min={0}
+                  max={editTarget?.maxAmount ?? 0}
+                  value={editTarget?.amount ?? ''}
+                  onChange={(e) => setEditTarget((t) => (t ? { ...t, amount: e.target.value } : t))}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-date" className="text-xs text-muted-foreground">Date</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={editTarget?.date ?? ''}
+                  onChange={(e) => setEditTarget((t) => (t ? { ...t, date: e.target.value } : t))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Mode</Label>
+                <Select
+                  value={editTarget?.mode ?? 'cash'}
+                  onValueChange={(v) => setEditTarget((t) => (t ? { ...t, mode: v as PaymentMode } : t))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(['cash', 'upi', 'card', 'bank', 'cheque', 'other'] as PaymentMode[]).map((m) => (
+                      <SelectItem key={m} value={m}>{PAYMENT_MODE_LABELS[m]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-ref" className="text-xs text-muted-foreground">Reference (optional)</Label>
+                <Input
+                  id="edit-ref"
+                  value={editTarget?.reference ?? ''}
+                  placeholder="Txn / cheque no."
+                  onChange={(e) => setEditTarget((t) => (t ? { ...t, reference: e.target.value } : t))}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Max {formatINR(editTarget?.maxAmount ?? 0)} — the booking's balance won't go negative.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEditPayment}>Save changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

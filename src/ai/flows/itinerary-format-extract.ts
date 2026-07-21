@@ -20,8 +20,9 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { ExtractInputSchema, ExtractOutputSchema, EXTRACTION_RULES } from './itinerary-format-schema';
+import { ExtractInputSchema, ExtractOutputSchema, EXTRACTION_RULES, REFINEMENT_RULES } from './itinerary-format-schema';
 import type { ItineraryFormatExtractInput, ItineraryFormatExtractOutput } from './itinerary-format-schema';
+import { looksLikeSparseExtraction, normalizeItineraryText } from './itinerary-format-utils';
 
 export async function extractItineraryFormat(input: ItineraryFormatExtractInput): Promise<ItineraryFormatExtractOutput> {
   return itineraryFormatExtractFlow(input);
@@ -38,6 +39,20 @@ Raw itinerary text:
 `,
 });
 
+const refinementPrompt = ai.definePrompt({
+  name: 'itineraryFormatRefinementPrompt',
+  input: { schema: ExtractInputSchema },
+  output: { schema: ExtractOutputSchema },
+  prompt: `${REFINEMENT_RULES}
+
+Source itinerary text:
+{{{rawText}}}
+
+Current structured extraction:
+{{{structuredJson}}}
+`,
+});
+
 // Same transient-error retry as itinerarySuggestionsFlow (503/429/504 from a
 // rate-limited Gemini backend usually clear within a couple of attempts).
 async function callPromptWithRetry(input: ItineraryFormatExtractInput) {
@@ -46,8 +61,21 @@ async function callPromptWithRetry(input: ItineraryFormatExtractInput) {
   let lastErr: any;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const { output } = await prompt(input);
-      return output!;
+      const normalized = normalizeItineraryText(input.rawText);
+      const { output } = await prompt({ ...input, rawText: normalized });
+      if (!output) throw new Error('The extraction model returned no structured output.');
+
+      if (looksLikeSparseExtraction(output)) {
+        const refined = await refinementPrompt({
+          rawText: normalized,
+          structuredJson: JSON.stringify(output, null, 2),
+        } as ItineraryFormatExtractInput & { structuredJson: string });
+        if (refined.output) {
+          return refined.output;
+        }
+      }
+
+      return output;
     } catch (err: any) {
       lastErr = err;
       const status = err?.status ?? err?.code ?? err?.detail?.error?.code;

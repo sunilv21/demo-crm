@@ -104,4 +104,11 @@ CRITICAL RULES — this is EXTRACTION, not creative writing:
 2. Preserve numbers and currency exactly as written (e.g. if the source says "USD 767", output "USD 767", not a converted or rounded value).
 3. Keep the day-by-day items in the same order they appear in the source, one item per distinct sentence/bullet/line.
 4. If the source describes only ONE hotel/pricing option (no "Option 1 / Option 2" style alternative), return exactly one entry in hotelOptions — do not fabricate a second option.
-5. If information genuinely isn't in the text, prefer leaving a field blank over guessing.`;
+5. If information genuinely isn't in the text, prefer leaving a field blank over guessing.
+6. If the source is messy, normalize obvious formatting issues (line breaks, bullet markers, repeated whitespace) before extracting, and preserve the meaning rather than discarding it.`;
+
+export const REFINEMENT_RULES = `You are a travel-agency operations assistant. Refine an already-extracted travel quotation so it reads more naturally and completely without inventing facts.
+
+Use the source text as the only truth. Improve wording, split long descriptions into clearer bullets, add concise but accurate day titles and summaries, and fill obvious gaps only when the information is strongly implied by the source.
+
+Do not add new hotels, dates, prices, or destinations that are not supported by the source. Keep the original structure and preserve all existing fields. Return the same JSON shape, but polished and more complete.`;

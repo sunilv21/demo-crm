@@ -38,7 +38,6 @@ import {
 import type { Organization, Client } from '@/lib/types';
 import {
   useCollection,
-  useCollectionOnce,
   useFirestore,
   useMemoFirebase,
   useUser,
@@ -79,7 +78,7 @@ export default function OrganizationsPage() {
     }
     return collection(firestore, 'clients');
   }, [firestore, isAdminOrManager, user]);
-  const { data: clients } = useCollectionOnce<Client>(clientsQuery);
+  const { data: clients } = useCollection<Client>(clientsQuery);
 
   const memberCounts = useMemo(() => {
     const counts = new Map<string, number>();

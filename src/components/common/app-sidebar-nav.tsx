@@ -87,7 +87,7 @@ const topNavItems: NavItem[] = [
   { href: '/invoices', icon: FileText, label: 'Invoices', allow: ADMIN_MANAGER },
   { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder', allow: ALL_ROLES },
   { href: '/activity', icon: Activity, label: 'Activity', allow: ALL_ROLES },
-  { href: '/database', icon: Database, label: 'Database', allow: ADMIN_MANAGER },
+  { href: '/database', icon: Database, label: 'Database', allow: ALL_ROLES },
 ];
 
 const employeeMgmtItems: NavItem[] = [

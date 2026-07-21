@@ -56,28 +56,58 @@ function str(v: unknown): string {
   return v === null || v === undefined || v === '' ? '' : String(v);
 }
 
+
 function fmtDate(iso?: string): string {
   if (!iso) return '—';
+
   const d = new Date(iso);
   if (isNaN(d.getTime()) || d.getFullYear() <= 1970) return '—';
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  return d.toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 // "Fri, 28 Aug 2026" — matches the sample's CHECK-IN/CHECK-OUT date style.
 function fmtDateLong(iso?: string): string {
   if (!iso) return '—';
+
   const d = new Date(iso);
   if (isNaN(d.getTime()) || d.getFullYear() <= 1970) return '—';
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+
+  return d.toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function computeNights(start?: string, end?: string): number | null {
   if (!start || !end) return null;
+
   const s = new Date(start);
   const e = new Date(end);
+
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
-  const diff = Math.round((e.getTime() - s.getTime()) / 86400000);
-  return diff >= 0 ? diff : null;
+
+  const startUtc = Date.UTC(
+    s.getFullYear(),
+    s.getMonth(),
+    s.getDate()
+  );
+
+  const endUtc = Date.UTC(
+    e.getFullYear(),
+    e.getMonth(),
+    e.getDate()
+  );
+
+  return Math.round((endUtc - startUtc) / 86400000);
 }
 
 // ---------- Status banner ----------
@@ -236,16 +266,90 @@ function guestDetailsSection(data: VoucherInput) {
 }
 
 // ---------- Terms & Conditions ----------
-function termsSection() {
+// Turns free text into a bullet array without requiring the agent to
+// manually break it into one point per line — real pasted T&C text (e.g.
+// straight from a hotel's email/PDF) arrives as one giant paragraph, often
+// using inline bullet markers glued to the next word rather than real line
+// breaks. Priority: explicit line breaks > inline bullet markers (tried in
+// order below) > sentence boundaries — each tried only if the previous one
+// didn't find real structure.
+function linesToBullets(text?: string): string[] {
+  const raw = (text || '').trim();
+  if (!raw) return [];
+  const byLine = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (byLine.length > 1) return byLine.flatMap(splitOneLine);
+  return splitOneLine(raw);
+}
+
+// Candidate inline bullet markers, most to least distinctive. Each requires
+// the character right after the marker to start a real word (a capital
+// letter, for the dash/numbered/lettered forms) so ordinary prose —
+// hyphenated words ("check-in"), decimals ("3.5"), times ("12.30") — never
+// gets mistaken for a list.
+const INLINE_MARKERS: RegExp[] = [
+  // "*Point", "* Point", "•Point" — asterisk/bullet-dot markers.
+  /(?:^|\s)[*•]\s*(?=\S)/,
+  // "- Point", "– Point", "— Point" — dash markers (needs a space after,
+  // unlike the hyphen in "check-in").
+  /(?:^|\s)[-–—]\s+(?=[A-Z0-9])/,
+  // "1. Point", "2) Point", "a. Point", "b) Point" — numbered/lettered lists.
+  /(?:^|\s)(?:\d{1,2}|[a-zA-Z])[.)]\s*(?=[A-Za-z])/,
+];
+
+function splitOneLine(text: string): string[] {
+  // Only treat a marker as real list structure once it shows up at least
+  // twice — a single "*" or "-" is more likely emphasis/a stray dash.
+  for (const marker of INLINE_MARKERS) {
+    const hits = text.match(new RegExp(marker.source, 'g')) || [];
+    if (hits.length >= 2) {
+      return text.split(marker).map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  // Otherwise fall back to sentence boundaries.
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function termsSection(data: VoucherInput) {
   const bullet = (text: string) => p([{ text: '•  ', color: MUTED, size: 15 }, { text, color: TEXT, size: 15 }], { spacing: { after: 50 } });
   const width = PAGE_WIDTH / 2;
+  // A linked hotel's own Terms & Conditions (Hotel Master) fully replace the
+  // generic hardcoded copy — split across both columns to keep the same
+  // two-column layout. Only bookings with no linked hotel (or a hotel with
+  // no T&C entered) fall back to the generic default text.
+  const hotelLines = linesToBullets(data.hotelTermsAndConditions);
+  let leftBullets, rightBullets;
+  if (hotelLines.length) {
+    const mid = Math.ceil(hotelLines.length / 2);
+    leftBullets = hotelLines.slice(0, mid).map(bullet);
+    rightBullets = hotelLines.slice(mid).map(bullet);
+  } else {
+    leftBullets = TERMS_LEFT.map(bullet);
+    rightBullets = TERMS_RIGHT.map(bullet);
+  }
   // Pale-tinted background, matching the reference sample's shaded terms box
   // (rather than plain white, as the earlier draft had it).
-  const leftCell = cell(TERMS_LEFT.map(bullet), { width, shade: PALEBLUE, valign: VerticalAlignTable.TOP, margins: { top: 90, bottom: 90, left: 140, right: 120 } });
-  const rightCell = cell(TERMS_RIGHT.map(bullet), { width, shade: PALEBLUE, valign: VerticalAlignTable.TOP, margins: { top: 90, bottom: 90, left: 140, right: 120 } });
+  const leftCell = cell(leftBullets, { width, shade: PALEBLUE, valign: VerticalAlignTable.TOP, margins: { top: 90, bottom: 90, left: 140, right: 120 } });
+  const rightCell = cell(rightBullets, { width, shade: PALEBLUE, valign: VerticalAlignTable.TOP, margins: { top: 90, bottom: 90, left: 140, right: 120 } });
   return [
     navyBar([{ text: 'Terms & Conditions', bold: true, color: 'FFFFFF' }], { size: 20 }),
     fixedTable({ width: { size: PAGE_WIDTH, type: WidthType.DXA }, columnWidths: [width, width], rows: [new TableRow({ children: [leftCell, rightCell] })] }),
+  ];
+}
+
+// ---------- Notes (from the linked hotel's Hotel Master record) ----------
+// Omitted entirely when the hotel has no notes — unlike Terms & Conditions,
+// there's no generic fallback copy for this section.
+function notesSection(data: VoucherInput) {
+  const lines = linesToBullets(data.hotelNotes);
+  if (!lines.length) return [];
+  const bullet = (text: string) => p([{ text: '•  ', color: MUTED, size: 15 }, { text, color: TEXT, size: 15 }], { spacing: { after: 50 } });
+  const noteCell = cell(lines.map(bullet), { width: PAGE_WIDTH, shade: PALEBLUE, valign: VerticalAlignTable.TOP, margins: { top: 90, bottom: 90, left: 140, right: 120 } });
+  return [
+    navyBar([{ text: 'Notes', bold: true, color: 'FFFFFF' }], { size: 20 }),
+    fixedTable({ width: { size: PAGE_WIDTH, type: WidthType.DXA }, columnWidths: [PAGE_WIDTH], rows: [new TableRow({ children: [noteCell] })] }),
   ];
 }
 
@@ -268,7 +372,9 @@ export async function generateBookingVoucherDocx(
       new Paragraph({ spacing: { after: 110 } }),
       ...guestDetailsSection(data),
       new Paragraph({ spacing: { after: 110 } }),
-      ...termsSection(),
+      ...termsSection(data),
+      new Paragraph({ spacing: { after: 110 } }),
+      ...notesSection(data),
     ];
 
     const doc = new Document({

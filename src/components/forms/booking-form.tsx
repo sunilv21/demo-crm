@@ -41,10 +41,18 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import type { Booking, Client } from '@/lib/types';
-import { useAppUser, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import type { Booking, Client, Hotel } from '@/lib/types';
+import { useAppUser, useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking } from '@/firebase';
 import { addDoc, collection, query, serverTimestamp, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
+import { HotelPicker } from '@/components/bookings/hotel-picker';
+import { HotelForm } from '@/components/forms/hotel-form';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const formSchema = z.object({
   clientId: z.string().optional(),
@@ -104,12 +112,26 @@ const formSchema = z.object({
   hotelGuests: z
     .array(z.object({ name: z.string().optional() }))
     .optional(),
+  flightPassengers: z
+    .array(z.object({ name: z.string().optional() }))
+    .optional(),
   details: z.record(z.any()).optional(),
 }).refine(
   (data) => !!data.clientId || !!data.newClientName?.trim(),
   { message: 'Select an existing customer or add a new one.', path: ['clientId'] }
 ).refine(
-  (data) => !data.endDate || !data.startDate || data.endDate >= data.startDate,
+  (data) => {
+    if (!data.endDate || !data.startDate) return true;
+    // Compared as plain year/month/day triples (not raw Date instants) so a
+    // same-day end date (e.g. a same-day transfer pickup & drop) always
+    // passes, even if either Date object happens to carry a non-midnight
+    // time-of-day.
+    const e = data.endDate;
+    const s = data.startDate;
+    const end = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+    const start = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+    return end >= start;
+  },
   { message: 'End date must be on or after the start date.', path: ['endDate'] }
 );
 
@@ -174,6 +196,7 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
       sectors: booking?.sectors || [],
       visaApplicants: booking?.visaApplicants || [],
       hotelGuests: booking?.hotelGuests || [],
+      flightPassengers: booking?.flightPassengers || [],
       details: booking?.bookingDetails || {},
     },
   });
@@ -205,8 +228,42 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
     name: 'hotelGuests',
   });
 
+  const {
+    fields: passengerFields,
+    append: appendPassenger,
+    remove: removePassenger,
+  } = useFieldArray({
+    control: form.control,
+    name: 'flightPassengers',
+  });
+
   const selectedBookingType = form.watch('bookingType');
   const isOneWay = form.watch('isOneWay');
+
+  // Saved hotels (Hotel Master) — loaded only while the Hotel tab is active,
+  // so a selection can auto-fill the manual fields below instead of retyping.
+  const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
+  const hotelsQuery = useMemoFirebase(() => {
+    if (!firestore || selectedBookingType !== 'hotel') return null;
+    return query(collection(firestore, 'hotels'), where('active', '==', true));
+  }, [firestore, selectedBookingType]);
+  const { data: savedHotels, isLoading: isLoadingHotels } = useCollection<Hotel>(hotelsQuery);
+
+  const applyHotel = (hotel: Hotel) => {
+    form.setValue('details.hotelId', hotel.id);
+    form.setValue('details.hotelName', hotel.name);
+    form.setValue('details.hotelAddress', hotel.address || '');
+    form.setValue('details.hotelTel', hotel.phone || '');
+    form.setValue('details.city', hotel.city || '');
+    form.setValue('details.country', hotel.country || '');
+  };
+
+  const handleAddHotel = async (data: Partial<Hotel>) => {
+    if (!firestore) return;
+    const ref = await addDocumentNonBlocking(collection(firestore, 'hotels'), data);
+    setIsAddHotelOpen(false);
+    if (ref) applyHotel({ id: ref.id, ...data } as Hotel);
+  };
 
   // When Visa is chosen, ensure at least one applicant row is present.
   useEffect(() => {
@@ -564,6 +621,26 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                 </Button>
               </div>
             )}
+
+            {/* Passenger names — the traveller(s) the ticket is booked for */}
+            <div className="pt-1 space-y-2">
+              <FormLabel className="text-sm">Passenger Names ({passengerFields.length})</FormLabel>
+              {passengerFields.map((f, index) => (
+                <div key={f.id} className="flex items-center gap-2">
+                  <Input
+                    placeholder={`Passenger ${index + 1} full name`}
+                    {...form.register(`flightPassengers.${index}.name`)}
+                  />
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removePassenger(index)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => appendPassenger({ name: '' })}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Passenger
+              </Button>
+            </div>
           </div>
         )}
 
@@ -572,6 +649,28 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
             <h3 className="font-semibold text-lg">
               Hotel Details
             </h3>
+
+            <div className="space-y-1">
+              <FormLabel className="text-sm">Select Saved Hotel</FormLabel>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <HotelPicker
+                    hotels={savedHotels || []}
+                    value={form.watch('details.hotelId')}
+                    onSelect={applyHotel}
+                    isLoading={isLoadingHotels}
+                  />
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsAddHotelOpen(true)}>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add New Hotel
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Fills in the fields below, which stay editable for one-off changes.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input placeholder="Hotel Name" {...form.register('details.hotelName')} />
               <Input placeholder="Hotel Booking ID" {...form.register('details.hotelBookingId')} />
@@ -904,10 +1003,17 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
                           field.onChange(date);
                           setIsEndDatePickerOpen(false);
                         }}
-                        // Can't check out / return before the start date.
+                        // Can't check out / return before the start date — same day is
+                        // fine (e.g. a same-day transfer pickup & drop), so this only
+                        // blocks dates strictly earlier. Compared as plain
+                        // year/month/day triples (not raw Date instants) so it can never
+                        // be thrown off by either date carrying a non-midnight time.
                         disabled={(date) => {
                           const start = form.getValues('startDate');
-                          return start ? date < new Date(new Date(start).setHours(0, 0, 0, 0)) : false;
+                          if (!start) return false;
+                          const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                          const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                          return d < s;
                         }}
                         defaultMonth={form.getValues('startDate') || field.value}
                         initialFocus
@@ -996,6 +1102,15 @@ export function BookingForm({ onSubmit, booking, clientId, clientName: initialCl
           )}
         />
       </form>
+
+      <Dialog open={isAddHotelOpen} onOpenChange={setIsAddHotelOpen}>
+        <DialogContent className="md:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Add New Hotel</DialogTitle>
+          </DialogHeader>
+          <HotelForm onSubmit={handleAddHotel} onCancel={() => setIsAddHotelOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }
