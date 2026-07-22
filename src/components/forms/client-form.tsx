@@ -113,6 +113,7 @@ const formSchema = z.object({
   })).optional(),
   assignedEmployees: z.array(z.string()).optional(),
   organizationId: z.string().optional(),
+  doNotEmail: z.boolean().optional(),
 }).refine(data => !data.phone || !data.country || isValidPhoneNumber(data.phone, data.country as CountryCode), {
   message: "Invalid phone number for the selected country.",
   path: ["phone"],
@@ -305,6 +306,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
       companions: client?.companions || [],
       assignedEmployees: client?.assignedEmployees || [],
       organizationId: client?.organizationId || defaultOrganizationId || '',
+      doNotEmail: client?.doNotEmail || false,
     },
   });
   
@@ -616,6 +618,21 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         )}
                     />
                 </div>
+
+                {!isPublicForm && (
+                    <FormField
+                        control={form.control}
+                        name="doNotEmail"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                                <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <FormLabel className={`${formLabelClass} !mt-0`}>Do Not Email (exclude from bulk email campaigns)</FormLabel>
+                            </FormItem>
+                        )}
+                    />
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <FormField

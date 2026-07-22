@@ -5,6 +5,7 @@ import { AppSidebarNav } from '@/components/common/app-sidebar-nav';
 import { AutoLogoutWatcher } from '@/components/attendance/auto-logout-watcher';
 import { NetworkStatusListener } from '@/components/common/network-status';
 import { FinanceRoleGuard } from '@/components/common/finance-role-guard';
+import { NotificationProvider } from '@/components/notifications/notification-provider';
 import {
   SidebarProvider,
   Sidebar,
@@ -77,20 +78,22 @@ export default function AppLayout({
 
   return (
     <AppUserProvider>
-      <AutoLogoutWatcher />
-      <NetworkStatusListener />
-      <FinanceRoleGuard />
-      <SidebarProvider>
-        <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
-            <AppSidebarNav />
-        </Sidebar>
-        <SidebarInset className="flex flex-col min-w-0">
-          <AppHeader />
-          <main id="main-content" className="flex-1 overflow-auto min-w-0 p-4 lg:p-6">
-            {children}
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      <NotificationProvider>
+        <AutoLogoutWatcher />
+        <NetworkStatusListener />
+        <FinanceRoleGuard />
+        <SidebarProvider>
+          <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
+              <AppSidebarNav />
+          </Sidebar>
+          <SidebarInset className="flex flex-col min-w-0">
+            <AppHeader />
+            <main id="main-content" className="flex-1 overflow-auto min-w-0 p-4 lg:p-6">
+              {children}
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </NotificationProvider>
     </AppUserProvider>
   );
 }

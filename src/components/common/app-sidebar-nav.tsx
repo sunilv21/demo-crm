@@ -31,6 +31,7 @@ import {
   Settings,
   Truck,
   Trophy,
+  Mail,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
@@ -63,6 +64,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useAppUser, type Role } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { useNotifications } from '@/components/notifications/notification-provider';
+import { NotificationDot } from '@/components/notifications/notification-dot';
 
 // General CRM/management nav — everyone EXCEPT the finance role, which is scoped
 // to the Finance module only (see FINANCE_ROLES + the finance redirect guard).
@@ -71,6 +74,7 @@ const ADMIN_MANAGER: Role[] = ['admin', 'manager'];
 const ADMIN_ONLY: Role[] = ['admin'];
 // Revenue/pricing-margin details are private to agents only (see canViewRevenue).
 const AGENT_ONLY: Role[] = ['agent'];
+const EMAIL_ROLES: Role[] = ['admin', 'manager', 'agent'];
 // Company cash-flow (Finance module) + agent performance — the dedicated
 // finance role ONLY (intentionally not shown to admin).
 const FINANCE_ROLES: Role[] = ['finance'];
@@ -87,6 +91,7 @@ const topNavItems: NavItem[] = [
   { href: '/invoices', icon: FileText, label: 'Invoices', allow: ADMIN_MANAGER },
   { href: '/itinerary-builder', icon: Map, label: 'Itinerary Builder', allow: ALL_ROLES },
   { href: '/activity', icon: Activity, label: 'Activity', allow: ALL_ROLES },
+  { href: '/inbox', icon: Mail, label: 'Inbox', allow: EMAIL_ROLES },
   { href: '/database', icon: Database, label: 'Database', allow: ALL_ROLES },
 ];
 
@@ -96,6 +101,7 @@ const employeeMgmtItems: NavItem[] = [
   { href: '/holidays', icon: CalendarDays, label: 'Holidays', allow: ALL_ROLES },
   { href: '/payroll', icon: Wallet, label: 'Payroll', allow: ADMIN_ONLY },
   { href: '/users', icon: Users, label: 'Users', allow: ADMIN_ONLY },
+  { href: '/settings', icon: Settings, label: 'Settings', allow: ADMIN_ONLY },
 ];
 
 const financeItems: NavItem[] = [
@@ -117,6 +123,7 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   const { role, isLoading: isRoleLoading } = useAppUser();
   const auth = useAuth();
   const { theme, setTheme } = useTheme();
+  const { unseenInbox, unseenCampaigns, unseenMailboxAlerts } = useNotifications();
 
   const visibleTop = isRoleLoading ? [] : topNavItems.filter((i) => i.allow.includes(role));
   const visibleEmpMgmt = isRoleLoading
@@ -178,7 +185,12 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
                   isActive={pathname.startsWith(item.href)}
                   tooltip={item.label}
                 >
-                  <item.icon />
+                  <span className="relative inline-flex">
+                    <item.icon />
+                    {item.href === '/inbox' && (unseenInbox || unseenCampaigns || unseenMailboxAlerts) && (
+                      <NotificationDot className="absolute -right-1 -top-1" />
+                    )}
+                  </span>
                   <span>{item.label}</span>
                 </SidebarMenuButton>
               </Link>

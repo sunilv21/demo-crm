@@ -49,6 +49,12 @@ service cloud.firestore {
     function isFinance() {
       return userRole() == 'finance';
     }
+    // Roles that use the Inbox (read/send email) day-to-day — admin, manager,
+    // agent. Mailbox *credentials* stay admin-only regardless; this only
+    // covers reading the mailbox list/inbox messages and toggling isRead.
+    function canUseEmail() {
+      return userRole() == 'admin' || userRole() == 'manager' || userRole() == 'agent';
+    }
     // True when the given client is assigned to the requesting user. Uses get()
     // (which bypasses read rules), guarded by exists() so a missing client
     // doesn't throw and poison the whole rule expression.
@@ -182,6 +188,62 @@ service cloud.firestore {
     match /hotels/{id} {
       allow read, create, update: if isSignedIn();
       allow delete: if isAdminOrManager();
+    }
+
+    // Email Communication module (Phase 1). Mailbox credentials are
+    // encrypted at rest, so admin-reading the doc is safe, but every write
+    // must go through the src/app/api/settings/mailboxes/* and
+    // src/app/api/email/send routes (Admin SDK, bypasses these rules) so
+    // passwords are always encrypted server-side before they reach Firestore.
+    match /mailboxes/{id} {
+      allow read: if canUseEmail();
+      allow write: if false;
+    }
+
+    match /email_logs/{id} {
+      allow read: if canUseEmail();
+      allow write: if false;
+    }
+
+    match /inbox_messages/{id} {
+      allow read: if canUseEmail();
+      // Only the isRead flag may be toggled directly from the browser
+      // (clicking a message to read it) — every other field is written by
+      // the sync path (Admin SDK) only.
+      allow update: if canUseEmail()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow create, delete: if false;
+    }
+
+    // Canned email text with {{variable}} tokens — not a secret, so unlike
+    // mailboxes this is plain client-side CRUD, open to the same roles that
+    // can use email at all.
+    match /email_templates/{id} {
+      allow read, create, update, delete: if canUseEmail();
+    }
+
+    // Bulk email campaigns (Phase 3). No secrets held here — the actual send
+    // (mailbox password decryption) happens server-side in
+    // src/lib/campaign-queue-core.ts / functions/src/campaign-queue.ts,
+    // which use the Admin SDK and bypass these rules.
+    match /campaigns/{id} {
+      allow read, create, update, delete: if canUseEmail();
+    }
+    match /campaign_recipients/{id} {
+      allow read, create, delete: if canUseEmail();
+      // Status transitions during send (processing/sent/failed/retrying)
+      // happen server-side (Admin SDK); clients only ever set 'cancelled'
+      // when the owning campaign is cancelled.
+      allow update: if canUseEmail()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+
+    // Append-only audit trail (Phase 4). Written both server-side (mailbox
+    // API routes, Admin SDK) and client-side (campaign/template actions).
+    match /audit_logs/{id} {
+      allow read: if isAdmin();
+      allow create: if canUseEmail();
+      allow update, delete: if false;
     }
 
     match /customer_logs/{id} {

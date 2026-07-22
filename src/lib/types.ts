@@ -194,6 +194,10 @@ export type Client = {
   followUpDate?: string;
   pax?: number;
   companions?: Companion[];
+  // Opt-out of bulk email campaigns (Phase 3). Excluded from campaign
+  // recipient pickers regardless of other filters. Set manually here or
+  // automatically via the campaign email's unsubscribe link.
+  doNotEmail?: boolean;
   createdAt: any;
   updatedAt: any;
   createdBy: string;
@@ -231,6 +235,9 @@ export type Lead = {
   sourceWebsite?: string;
   phoneDigits?: string;
   phoneSuffix10?: string;
+  // See Client.doNotEmail — same opt-out concept, respected by campaign
+  // recipient pickers.
+  doNotEmail?: boolean;
   createdAt: any;
   updatedAt: any;
   createdBy: string;
@@ -522,6 +529,185 @@ export type AgentExpense = {
   createdByName?: string;
   updatedAt: any;
   updatedBy: string;
+};
+
+// ---------------------------------------------------------------------------
+// Email Communication module (Phase 1) — admin-only mailbox connections,
+// sending, and inbox reading. Credentials are never plaintext in Firestore;
+// see src/lib/mailbox-crypto.ts. See mailboxes/{id} rules in firestore.rules
+// — clients may only read this collection, all writes go through the
+// src/app/api/settings/mailboxes/* API routes.
+// ---------------------------------------------------------------------------
+
+export type MailboxProvider = 'gmail' | 'outlook' | 'custom';
+
+export type Mailbox = {
+  id: string;
+  email: string;
+  displayName: string;
+  provider: MailboxProvider;
+  imapHost: string;
+  imapPort: number;
+  imapSecure: boolean;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  username: string;
+  // Encrypted (AES-256-GCM) — never plaintext. See src/lib/mailbox-crypto.ts.
+  passwordCiphertext: string;
+  passwordIv: string;
+  passwordAuthTag: string;
+  passwordKeyVersion: number;
+  isDefault: boolean;
+  isEnabled: boolean;
+  lastTestedAt?: any;
+  lastTestStatus?: 'success' | 'failed' | null;
+  lastTestError?: string | null;
+  lastSyncedAt?: any;
+  lastSeenUid?: number | null;
+  lastSeenUidValidity?: number | null;
+  syncState: 'idle' | 'syncing' | 'error';
+  syncError?: string | null;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type EmailLogStatus = 'sent' | 'failed';
+
+export type EmailLog = {
+  id: string;
+  mailboxId: string;
+  mailboxEmail: string;
+  to: string[];
+  cc?: string[] | null;
+  bcc?: string[] | null;
+  subject: string;
+  bodyPreview: string;
+  bodyHtml?: string | null;
+  bodyText?: string | null;
+  bodyTruncated?: boolean;
+  status: EmailLogStatus;
+  errorMessage?: string | null;
+  messageId?: string | null;
+  sentBy: string;
+  sentByName: string;
+  relatedClientId?: string | null;
+  relatedBookingId?: string | null;
+  createdAt: any;
+};
+
+// Canned email text with {{variable}} tokens — see src/lib/email-template.ts.
+// Not a secret, so (unlike Mailbox) this is plain client-side Firestore CRUD.
+export type EmailTemplate = {
+  id: string;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+// Bulk email campaigns (Phase 3). Sending itself is server-only (mailbox
+// password decryption), but the campaign/recipient docs themselves hold no
+// secrets, so unlike Mailbox this is plain client-side Firestore CRUD.
+export type CampaignStatus = 'paused' | 'running' | 'completed' | 'cancelled';
+
+export type Campaign = {
+  id: string;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  mailboxId: string;
+  minDelaySeconds: number;
+  maxDelaySeconds: number;
+  scheduledStartAt: any;
+  status: CampaignStatus;
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type CampaignRecipientStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'retrying' | 'cancelled';
+
+export type CampaignRecipient = {
+  id: string;
+  campaignId: string;
+  recipientType: 'client' | 'lead';
+  recipientId: string;
+  email: string;
+  name: string;
+  status: CampaignRecipientStatus;
+  attempts: number;
+  scheduledSendAt: any;
+  lastError?: string | null;
+  messageId?: string | null;
+  // Rendered per-recipient content at the moment it was sent — captured so
+  // the Sent tab can show exactly what went out (campaign.subject/bodyHtml
+  // hold the raw {{token}} template, not what any one recipient received).
+  sentSubject?: string | null;
+  sentBodyHtml?: string | null;
+  unsubscribeToken: string;
+  sentAt?: any;
+  createdAt: any;
+};
+
+// Append-only audit trail for higher-signal admin/email actions (Phase 4).
+// Written both server-side (mailbox API routes, via adminDb) and
+// client-side (campaign/template actions — see firestore.rules, immutable
+// after create).
+export type AuditAction =
+  | 'mailbox.created'
+  | 'mailbox.deleted'
+  | 'mailbox.enabled'
+  | 'mailbox.disabled'
+  | 'campaign.started'
+  | 'campaign.paused'
+  | 'campaign.cancelled'
+  | 'campaign.deleted'
+  | 'template.created'
+  | 'template.updated'
+  | 'template.deleted';
+
+export type AuditLog = {
+  id: string;
+  action: AuditAction;
+  targetType: 'mailbox' | 'campaign' | 'template';
+  targetId: string;
+  targetLabel: string;
+  actorId: string;
+  actorName: string;
+  metadata?: Record<string, any> | null;
+  createdAt: any;
+};
+
+export type InboxMessage = {
+  id: string;
+  mailboxId: string;
+  mailboxEmail: string;
+  folder: string;
+  uid: number;
+  uidValidity: number;
+  messageIdHeader?: string;
+  from: { name: string; address: string };
+  to: { name: string; address: string }[];
+  subject: string;
+  snippet: string;
+  bodyText: string;
+  bodyHtml?: string | null;
+  bodyTruncated?: boolean;
+  hasAttachments: boolean;
+  attachmentsMeta?: { filename: string; size: number; contentType: string }[];
+  date: any;
+  isRead: boolean;
+  syncedAt: any;
 };
 
 export type FinanceTxnType = 'income' | 'expense' | 'transfer';

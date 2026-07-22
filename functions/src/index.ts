@@ -7,6 +7,9 @@ import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 initializeApp();
 
+export { syncInboxes } from './inbox-sync';
+export { processCampaigns } from './campaign-queue';
+
 interface AdminResetPasswordData {
   uid: string;
   newPassword: string;

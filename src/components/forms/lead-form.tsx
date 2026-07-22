@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import type { Lead } from '@/lib/types';
@@ -47,6 +48,7 @@ const formSchema = z.object({
   budget: z.coerce.number().optional(),
   pax: z.coerce.number().int().min(1, 'PAX must be at least 1.').optional(),
   notes: z.string().optional(),
+  doNotEmail: z.boolean().optional(),
 });
 
 type LeadFormValues = z.infer<typeof formSchema>;
@@ -77,6 +79,7 @@ export const LeadForm = React.forwardRef<HTMLFormElement, LeadFormProps>(
       budget: lead?.budget || undefined,
       pax: lead?.pax || 1,
       notes: lead?.notes || '',
+      doNotEmail: lead?.doNotEmail || false,
     },
   });
 
@@ -291,6 +294,21 @@ export const LeadForm = React.forwardRef<HTMLFormElement, LeadFormProps>(
                   </SelectContent>
                 </Select>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {!isPublicForm && (
+          <FormField
+            control={form.control}
+            name="doNotEmail"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <FormLabel className="!mt-0">Do Not Email (exclude from bulk email campaigns)</FormLabel>
               </FormItem>
             )}
           />

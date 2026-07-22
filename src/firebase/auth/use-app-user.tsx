@@ -32,6 +32,8 @@ export interface AppUserContextValue {
   // Company cash-flow (Finance module) — admin + finance role only. Kept
   // separate from canViewRevenue so per-booking margin stays agent-only.
   canViewFinance: boolean;
+  // Settings > integrations (mailbox connections, etc.) — admin-only for now.
+  canManageIntegrations: boolean;
 }
 
 const AppUserContext = createContext<AppUserContextValue | undefined>(undefined);
@@ -116,6 +118,7 @@ export const AppUserProvider: React.FC<{ children: ReactNode }> = ({ children })
       canViewRevenue: isAgent,
       // Company cash flow + agent performance: the dedicated finance role only.
       canViewFinance: isFinance,
+      canManageIntegrations: isAdmin,
     };
   }, [authUser, appUser, isUserLoading, isDocLoading]);
 

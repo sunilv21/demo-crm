@@ -28,6 +28,7 @@ import {
   FileText,
   XCircle,
   RotateCcw,
+  Mail,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ import { query, doc, collection, where, orderBy, limit, getDoc } from 'firebase/
 import { Skeleton } from '@/components/ui/skeleton';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { CancelRefundDialog } from '@/components/bookings/cancel-refund-dialog';
+import { EmailVoucherDialog } from '@/components/bookings/email-voucher-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -160,6 +162,16 @@ export default function BookingsPage() {
   // wait-for-client-doc pattern as the PDF download above.
   const [voucherBooking, setVoucherBooking] = useState<Booking | null>(null);
   const [generatingVoucher, setGeneratingVoucher] = useState(false);
+  // 'download' (existing behavior) or 'email' — Email Voucher reuses the
+  // exact same generation flow (incl. the hotel-terms lookup below) and just
+  // routes the resulting attachment into EmailVoucherDialog instead of
+  // triggering a browser download.
+  const [voucherMode, setVoucherMode] = useState<'download' | 'email'>('download');
+  const [emailVoucherState, setEmailVoucherState] = useState<{
+    booking: Booking;
+    client: Client | null;
+    attachment: { base64: string; filename: string };
+  } | null>(null);
   const voucherClientRef = useMemoFirebase(
     () => (firestore && voucherBooking?.clientId ? doc(firestore, 'clients', voucherBooking.clientId) : null),
     [firestore, voucherBooking?.clientId]
@@ -167,6 +179,13 @@ export default function BookingsPage() {
   const { data: voucherClient, isLoading: isVoucherClientLoading } = useDoc<Client>(voucherClientRef);
 
   const downloadVoucherFor = (booking: Booking) => {
+    setVoucherMode('download');
+    setVoucherBooking(booking);
+    setGeneratingVoucher(true);
+  };
+
+  const emailVoucherFor = (booking: Booking) => {
+    setVoucherMode('email');
     setVoucherBooking(booking);
     setGeneratingVoucher(true);
   };
@@ -197,6 +216,12 @@ export default function BookingsPage() {
         if (cancelled) return;
         if ('error' in result) {
           toast({ variant: 'destructive', title: 'Could not generate voucher', description: result.error });
+        } else if (voucherMode === 'email') {
+          setEmailVoucherState({
+            booking: voucherBooking,
+            client: voucherClient ?? null,
+            attachment: { base64: result.base64, filename: result.filename },
+          });
         } else {
           downloadBase64File(result.base64, result.filename, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         }
@@ -215,7 +240,7 @@ export default function BookingsPage() {
     // is still in flight would re-run it and trigger a duplicate download —
     // same reasoning as the PDF effect above, which omits printClient too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatingVoucher, voucherBooking, isVoucherClientLoading]);
+  }, [generatingVoucher, voucherBooking, isVoucherClientLoading, voucherMode]);
 
   // Server-side bounded loading: fetch the newest N bookings, "Load more" raises
   // the cap. Search/status filters run over the loaded set.
@@ -509,6 +534,15 @@ export default function BookingsPage() {
                           {generatingVoucher && voucherBooking?.id === booking.id ? 'Generating…' : 'Voucher'}
                         </DropdownMenuItem>
                       )}
+                      {booking.bookingType === 'hotel' && (
+                        <DropdownMenuItem
+                          onSelect={() => emailVoucherFor(booking)}
+                          disabled={generatingVoucher && voucherBooking?.id === booking.id}
+                        >
+                          <Mail className="mr-2 h-4 w-4" />
+                          {generatingVoucher && voucherBooking?.id === booking.id && voucherMode === 'email' ? 'Generating…' : 'Email Voucher'}
+                        </DropdownMenuItem>
+                      )}
                       {booking.status === 'cancelled' ? (
                         <DropdownMenuItem onSelect={() => setBookingToCancel(booking)}>
                           <RotateCcw className="mr-2 h-4 w-4" />Refund
@@ -582,6 +616,16 @@ export default function BookingsPage() {
         booking={bookingToCancel ? (bookings?.find((b) => b.id === bookingToCancel.id) ?? bookingToCancel) : null}
         onOpenChange={(open) => { if (!open) setBookingToCancel(null); }}
       />
+
+      {emailVoucherState && (
+        <EmailVoucherDialog
+          booking={emailVoucherState.booking}
+          client={emailVoucherState.client}
+          attachment={emailVoucherState.attachment}
+          open={!!emailVoucherState}
+          onOpenChange={(open) => !open && setEmailVoucherState(null)}
+        />
+      )}
 
       <PrintSettingsDialog
         open={printSettingsOpen}
