@@ -42,8 +42,8 @@ function AppLayoutSkeleton() {
         </div>
       </div>
       <div className="flex-1 flex flex-col">
-        <header className="sticky top-0 z-40 flex h-10 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
-          <Skeleton className="h-5 w-32" />
+        <header className="sticky top-0 z-40 flex h-8 items-center gap-2 border-b bg-background/80 backdrop-blur-sm px-3">
+          <Skeleton className="h-4 w-32" />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           <Skeleton className="h-8 w-48 mb-8" />

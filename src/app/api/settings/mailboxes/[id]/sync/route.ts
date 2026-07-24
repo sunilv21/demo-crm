@@ -22,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const result = await syncOneMailbox(id);
 
   if (!result.ok) {
+    console.error(`[Mailbox Sync Error] Mailbox ID: ${id}, Error: ${result.error}`);
     return NextResponse.json({ error: result.error || 'Sync failed.' }, { status: 500 });
   }
   return NextResponse.json({ success: true, newCount: result.newCount });

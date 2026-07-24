@@ -10,7 +10,7 @@ import type { AuditAction } from '@/lib/types';
 
 export async function logAudit(entry: {
   action: AuditAction;
-  targetType: 'mailbox' | 'campaign' | 'template';
+  targetType: 'mailbox' | 'campaign' | 'template' | 'whatsapp_account';
   targetId: string;
   targetLabel: string;
   actorId: string;

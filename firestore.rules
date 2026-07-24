@@ -215,6 +215,36 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    // WhatsApp (Phase 1: whatsapp-web.js/QR-linked). Same shape as mailboxes/
+    // inbox_messages — the whatsapp-web.js bridge (Admin SDK) is the only
+    // writer for everything except the isRead toggle; sending/pairing go
+    // through src/app/api/whatsapp/* (Admin SDK) which forwards to the bridge.
+    match /whatsapp_accounts/{id} {
+      allow read: if canUseEmail();
+      allow write: if false;
+    }
+    match /whatsapp_messages/{id} {
+      allow read: if canUseEmail();
+      allow update: if canUseEmail()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow create, delete: if false;
+    }
+    // Reserved for a future Firestore-backed whatsapp-web.js session store —
+    // currently unused (sessions live on the bridge's local disk instead).
+    // Never exposed to the browser, not even to admins; only the bridge
+    // (Admin SDK) would ever read/write this.
+    match /whatsapp_auth_state/{document=**} {
+      allow read, write: if false;
+    }
+    // Global Meta Cloud API settings (App Secret + webhook verify token) —
+    // configured from the UI (src/app/api/whatsapp/meta-settings), not env
+    // vars. Same access shape as whatsapp_accounts: readable by the roles
+    // that use messaging, written only via the Admin SDK.
+    match /whatsapp_settings/{id} {
+      allow read: if canUseEmail();
+      allow write: if false;
+    }
+
     // Canned email text with {{variable}} tokens — not a secret, so unlike
     // mailboxes this is plain client-side CRUD, open to the same roles that
     // can use email at all.
@@ -236,6 +266,23 @@ service cloud.firestore {
       // when the owning campaign is cancelled.
       allow update: if canUseEmail()
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+
+    // Bulk WhatsApp campaigns — same shape as campaigns/campaign_recipients
+    // above. Sending happens server-side in
+    // src/lib/whatsapp-campaign-queue-core.ts (Admin SDK).
+    match /whatsapp_campaigns/{id} {
+      allow read, create, update, delete: if canUseEmail();
+    }
+    match /whatsapp_campaign_recipients/{id} {
+      allow read, create, delete: if canUseEmail();
+      allow update: if canUseEmail()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+
+    // Canned WhatsApp text — same shape as email_templates above.
+    match /whatsapp_templates/{id} {
+      allow read, create, update, delete: if canUseEmail();
     }
 
     // Append-only audit trail (Phase 4). Written both server-side (mailbox

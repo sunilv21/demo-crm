@@ -113,6 +113,10 @@ temp/
 .firebase/
 firestore-debug.log
 
+# whatsapp-web.js session/cache data (whatsapp-bridge/)
+.wwebjs_auth/
+.wwebjs_cache/
+
 # TypeScript
 *.tsbuildinfo
 

@@ -72,3 +72,11 @@ export function playMailboxAlertChime() {
     { freq: 392, start: 0.14, duration: 0.24, gain: 0.22 },
   ]);
 }
+
+/** Quick double-pop for a newly arrived WhatsApp message — distinct from the mail chime. */
+export function playNewWhatsAppChime() {
+  playNotes([
+    { freq: 880, start: 0, duration: 0.09, gain: 0.22 },
+    { freq: 880, start: 0.11, duration: 0.12, gain: 0.22 },
+  ]);
+}

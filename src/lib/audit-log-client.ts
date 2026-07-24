@@ -5,13 +5,13 @@
 // shouldn't block the action it's describing.
 
 import { addDoc, collection, serverTimestamp, type Firestore } from 'firebase/firestore';
-import type { AuditAction } from '@/lib/types';
+import type { AuditAction, AuditLog } from '@/lib/types';
 
 export function logAuditClient(
   firestore: Firestore,
   entry: {
     action: AuditAction;
-    targetType: 'mailbox' | 'campaign' | 'template';
+    targetType: AuditLog['targetType'];
     targetId: string;
     targetLabel: string;
     actorId: string;

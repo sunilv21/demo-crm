@@ -28,6 +28,15 @@ const ACTION_LABEL: Record<AuditLog['action'], string> = {
   'template.created': 'Template created',
   'template.updated': 'Template updated',
   'template.deleted': 'Template deleted',
+  'whatsapp_account.created': 'WhatsApp number connected',
+  'whatsapp_account.deleted': 'WhatsApp number deleted',
+  'whatsapp_campaign.started': 'WhatsApp campaign started',
+  'whatsapp_campaign.paused': 'WhatsApp campaign paused',
+  'whatsapp_campaign.cancelled': 'WhatsApp campaign cancelled',
+  'whatsapp_campaign.deleted': 'WhatsApp campaign deleted',
+  'whatsapp_template.created': 'WhatsApp template created',
+  'whatsapp_template.updated': 'WhatsApp template updated',
+  'whatsapp_template.deleted': 'WhatsApp template deleted',
 };
 
 const LOAD_STEP = 200;

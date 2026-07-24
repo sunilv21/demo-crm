@@ -568,10 +568,108 @@ export type Mailbox = {
   lastSeenUidValidity?: number | null;
   syncState: 'idle' | 'syncing' | 'error';
   syncError?: string | null;
+  // Set when syncState flips to 'syncing', cleared on completion — lets a
+  // sync run detect and reclaim a prior run that died mid-flight instead of
+  // staying permanently blocked. See STUCK_SYNC_TIMEOUT_MS.
+  syncStartedAt?: any;
   createdAt: any;
   updatedAt: any;
   createdBy: string;
   updatedBy: string;
+};
+
+// WhatsApp — 'whatsapp_web' is the unofficial, QR-linked personal/business number
+// via a persistent whatsapp-web.js bridge process. 'twilio'/'meta_cloud' are the
+// official REST+webhook APIs — no persistent process needed, so they work on the
+// free (Spark) plan.
+export type WhatsAppProvider = 'whatsapp_web' | 'twilio' | 'meta_cloud';
+export type WhatsAppAccountStatus = 'pending_qr' | 'connected' | 'disconnected' | 'error';
+
+export type WhatsAppAccount = {
+  id: string;
+  label: string;
+  provider: WhatsAppProvider;
+  phoneNumber?: string; // populated once connected
+  status: WhatsAppAccountStatus;
+  qr?: string | null; // whatsapp_web only — transient data-URL QR, cleared once connected
+  connectionError?: string | null;
+  isDefault: boolean;
+  isEnabled: boolean;
+  lastConnectedAt?: any;
+
+  // Meta Cloud API (provider: 'meta_cloud')
+  metaPhoneNumberId?: string;
+  metaWabaId?: string;
+  // Encrypted (AES-256-GCM) — see src/lib/mailbox-crypto.ts.
+  metaAccessTokenCiphertext?: string;
+  metaAccessTokenIv?: string;
+  metaAccessTokenAuthTag?: string;
+
+  // Twilio (provider: 'twilio')
+  twilioAccountSid?: string;
+  twilioAuthTokenCiphertext?: string;
+  twilioAuthTokenIv?: string;
+  twilioAuthTokenAuthTag?: string;
+  twilioWhatsAppFrom?: string; // e.g. "whatsapp:+14155238886"
+
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+// Global Meta Cloud API settings — one Meta App backs every connected
+// WABA/number, so this is a single doc (id 'meta_cloud'), not per-account.
+// Configured from the UI (Accounts tab), not env vars, so it can change
+// without a redeploy.
+export type WhatsAppMetaSettings = {
+  id: string;
+  // Encrypted (AES-256-GCM) — verifies X-Hub-Signature-256 on webhook calls.
+  appSecretCiphertext?: string;
+  appSecretIv?: string;
+  appSecretAuthTag?: string;
+  // Not a high-value secret (only used for the one-time GET handshake, and
+  // POST payloads are still signature-checked with appSecret) — kept in
+  // plain text so the admin UI can display it for copy-pasting into Meta's
+  // webhook config screen.
+  verifyToken: string;
+  updatedAt: any;
+  updatedBy: string;
+};
+
+export type WhatsAppMessageStatus = 'sent' | 'delivered' | 'read' | 'failed';
+
+export type WhatsAppMessage = {
+  id: string;
+  accountId: string;
+  chatId: string; // WhatsApp JID, e.g. "9198xxxxxxx@c.us" or "<lid>@lid"
+  direction: 'inbound' | 'outbound';
+  from: string;
+  to: string;
+  body: string;
+  // Best-effort contact info resolved at message time (whatsapp_web only) —
+  // chatId itself isn't a readable phone number for LID-based contacts, so
+  // the chat UI needs these to show something better than a raw id.
+  contactName?: string | null;
+  contactPhone?: string | null;
+  status?: WhatsAppMessageStatus; // outbound only
+  // The provider's own message id (Twilio MessageSid / Meta wamid) — outbound
+  // only, captured at send time so a later delivery/read status callback can
+  // find and update this exact doc.
+  providerMessageId?: string;
+  // Set only for messages sent by a WhatsApp campaign — lets the campaign
+  // detail view join this message's live delivery status (sent/delivered/
+  // read, kept current by the same ack/webhook pipelines as 1:1 chat) back
+  // onto the specific recipient it was sent to.
+  campaignId?: string | null;
+  campaignRecipientId?: string | null;
+  // Set for document messages (e.g. a voucher sent from Bookings) — the chat
+  // UI renders an attachment chip instead of/alongside plain body text.
+  mediaUrl?: string;
+  mediaFilename?: string;
+  isRead: boolean;
+  timestamp: any;
+  syncedAt: any;
 };
 
 export type EmailLogStatus = 'sent' | 'failed';
@@ -659,6 +757,64 @@ export type CampaignRecipient = {
   createdAt: any;
 };
 
+// Bulk WhatsApp campaigns — mirrors Campaign/CampaignRecipient above, but the
+// send goes through whatever whatsapp_accounts entry is picked (any
+// provider) instead of a mailbox, and content is plain text (no
+// subject/HTML, no unsubscribe footer — not an email concept here).
+export type WhatsAppCampaignStatus = 'paused' | 'running' | 'completed' | 'cancelled';
+
+export type WhatsAppCampaign = {
+  id: string;
+  name: string;
+  body: string;
+  accountId: string;
+  minDelaySeconds: number;
+  maxDelaySeconds: number;
+  scheduledStartAt: any;
+  status: WhatsAppCampaignStatus;
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type WhatsAppCampaignRecipientStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'retrying' | 'cancelled';
+
+export type WhatsAppCampaignRecipient = {
+  id: string;
+  campaignId: string;
+  recipientType: 'client' | 'lead';
+  recipientId: string;
+  phone: string;
+  name: string;
+  status: WhatsAppCampaignRecipientStatus;
+  attempts: number;
+  scheduledSendAt: any;
+  lastError?: string | null;
+  // Rendered content actually sent — campaign.body holds the raw
+  // {{token}} template, this is what one specific recipient received.
+  sentBody?: string | null;
+  sentAt?: any;
+  createdAt: any;
+};
+
+// Canned WhatsApp text — see src/lib/whatsapp-template.ts. Only
+// {{customer_name}} is a recognized token (that renderer leaves anything
+// else untouched rather than blanking it, unlike the email template
+// renderer). Not a secret, so this is plain client-side Firestore CRUD.
+export type WhatsAppTemplate = {
+  id: string;
+  name: string;
+  body: string;
+  createdAt: any;
+  updatedAt: any;
+  createdBy: string;
+  updatedBy: string;
+};
+
 // Append-only audit trail for higher-signal admin/email actions (Phase 4).
 // Written both server-side (mailbox API routes, via adminDb) and
 // client-side (campaign/template actions — see firestore.rules, immutable
@@ -674,12 +830,21 @@ export type AuditAction =
   | 'campaign.deleted'
   | 'template.created'
   | 'template.updated'
-  | 'template.deleted';
+  | 'template.deleted'
+  | 'whatsapp_account.created'
+  | 'whatsapp_account.deleted'
+  | 'whatsapp_campaign.started'
+  | 'whatsapp_campaign.paused'
+  | 'whatsapp_campaign.cancelled'
+  | 'whatsapp_campaign.deleted'
+  | 'whatsapp_template.created'
+  | 'whatsapp_template.updated'
+  | 'whatsapp_template.deleted';
 
 export type AuditLog = {
   id: string;
   action: AuditAction;
-  targetType: 'mailbox' | 'campaign' | 'template';
+  targetType: 'mailbox' | 'campaign' | 'template' | 'whatsapp_account' | 'whatsapp_campaign' | 'whatsapp_template';
   targetId: string;
   targetLabel: string;
   actorId: string;

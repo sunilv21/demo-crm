@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send } from 'lucide-react';
-import DOMPurify from 'isomorphic-dompurify';
+import { EmailBodyFrame } from './email-body-frame';
 import type { EmailLog, CampaignRecipient } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
@@ -140,14 +140,13 @@ export function SentTab() {
                 {selectedItem.mailboxEmail && ` · From ${selectedItem.mailboxEmail}`}
               </p>
               <p className="text-xs text-muted-foreground">
-                {selectedItem.date?.toDate ? selectedItem.date.toDate().toLocaleString() : ''}
+                {selectedItem.date?.toDate ? selectedItem.date.toDate().toLocaleString() : 'Unknown date'}
               </p>
             </div>
             {selectedItem.bodyHtml ? (
-              <div
-                className="text-sm border-t pt-3 [&_a]:text-primary [&_a]:underline [&_img]:max-w-full"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedItem.bodyHtml) }}
-              />
+              <div className="border-t pt-3">
+                <EmailBodyFrame html={selectedItem.bodyHtml} />
+              </div>
             ) : (
               <div className="whitespace-pre-wrap text-sm border-t pt-3">
                 {selectedItem.bodyText || selectedItem.bodyPreview || '(no content saved)'}

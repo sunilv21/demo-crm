@@ -1,4 +1,7 @@
-// Server-only. Encrypts/decrypts mailbox passwords at rest (AES-256-GCM).
+// Server-only. Generic AES-256-GCM secret encryption at rest — originally
+// built for mailbox passwords (Mailbox.passwordCiphertext), now reused for
+// any provider credential stored on a Firestore doc, e.g. WhatsAppAccount's
+// Twilio auth token / Meta access token.
 //
 // NEVER import this from a client component — it reads MAILBOX_ENCRYPTION_KEY,
 // a server-only secret. Only src/app/api/** routes should import it.

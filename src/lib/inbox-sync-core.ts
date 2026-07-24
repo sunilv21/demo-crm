@@ -19,10 +19,21 @@ const MAX_MESSAGES_PER_RUN = 200;
 const BODY_TEXT_CAP = 20_000;
 const BODY_HTML_CAP = 50_000;
 const SNIPPET_CAP = 200;
+// A run stuck at syncState 'syncing' longer than this (e.g. the process was
+// killed mid-sync, never reaching its `finally` cleanup) is treated as dead
+// rather than permanently blocking every future sync for that mailbox.
+const STUCK_SYNC_TIMEOUT_MS = 10 * 60 * 1000;
 
 function makeSnippet(text: string): string {
   const collapsed = text.replace(/\s+/g, ' ').trim();
   return collapsed.length > SNIPPET_CAP ? collapsed.slice(0, SNIPPET_CAP) + '…' : collapsed;
+}
+
+// HTML-only emails (no text/plain part — most marketing/transactional mail)
+// have no bodyTextRaw to snippet from; strip tags before falling back to the
+// HTML so the inbox list shows readable text instead of raw markup.
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ');
 }
 
 function cap(text: string, max: number): { value: string; truncated: boolean } {
@@ -43,14 +54,34 @@ export interface SyncResult {
 export async function syncOneMailbox(mailboxId: string): Promise<SyncResult> {
   const db = adminDb();
   const mailboxRef = db.doc(`mailboxes/${mailboxId}`);
-  const snap = await mailboxRef.get();
-  if (!snap.exists) return { ok: false, newCount: 0, error: 'Mailbox not found.' };
 
-  const mailbox = { id: snap.id, ...snap.data() } as Mailbox;
-  if (!mailbox.isEnabled) return { ok: false, newCount: 0, error: 'Mailbox is disabled.' };
-  if (mailbox.syncState === 'syncing') return { ok: false, newCount: 0, error: 'Sync already in progress.' };
+  // Atomically check-and-claim the mailbox: a plain read-then-update here let
+  // the scheduled poller and a manual "Refresh" click race and both start an
+  // IMAP session for the same mailbox. A 'syncing' run older than
+  // STUCK_SYNC_TIMEOUT_MS is assumed dead (crashed/killed before its
+  // `finally` cleanup ran) and gets reclaimed instead of blocking forever.
+  let mailbox: Mailbox;
+  try {
+    mailbox = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(mailboxRef);
+      if (!snap.exists) throw new Error('Mailbox not found.');
+      const data = { id: snap.id, ...snap.data() } as Mailbox;
+      if (!data.isEnabled) throw new Error('Mailbox is disabled.');
 
-  await mailboxRef.update({ syncState: 'syncing' });
+      if (data.syncState === 'syncing') {
+        const startedAt = data.syncStartedAt?.toDate?.() as Date | undefined;
+        const staleMs = startedAt ? Date.now() - startedAt.getTime() : Infinity;
+        if (staleMs < STUCK_SYNC_TIMEOUT_MS) {
+          throw new Error('Sync already in progress.');
+        }
+      }
+
+      tx.update(mailboxRef, { syncState: 'syncing', syncStartedAt: FieldValue.serverTimestamp() });
+      return data;
+    });
+  } catch (err: any) {
+    return { ok: false, newCount: 0, error: err?.message || 'Could not start sync.' };
+  }
 
   let client: import('imapflow').ImapFlow | undefined;
   try {
@@ -95,7 +126,7 @@ export async function syncOneMailbox(mailboxId: string): Promise<SyncResult> {
         let fetched = 0;
         for await (const msg of client.fetch(
           range,
-          { uid: true, envelope: true, source: true, flags: true },
+          { uid: true, envelope: true, source: true, flags: true, internalDate: true },
           { uid: !isFirstSync }
         )) {
           if (fetched >= MAX_MESSAGES_PER_RUN) break;
@@ -135,13 +166,21 @@ export async function syncOneMailbox(mailboxId: string): Promise<SyncResult> {
               from: { name: fromAddr?.name ?? '', address: fromAddr?.address ?? '' },
               to: toAddrs,
               subject: parsed?.subject ?? '(no subject)',
-              snippet: makeSnippet(bodyTextRaw || bodyHtmlRaw || ''),
+              snippet: makeSnippet(bodyTextRaw || stripHtml(bodyHtmlRaw ?? '')),
               bodyText: bodyText.value,
               bodyHtml: bodyHtml?.value ?? null,
               bodyTruncated: bodyText.truncated || (bodyHtml?.truncated ?? false),
               hasAttachments: attachmentsMeta.length > 0,
               attachmentsMeta,
-              date: parsed?.date ? Timestamp.fromDate(parsed.date) : FieldValue.serverTimestamp(),
+              // Prefer the message's own Date header; fall back to the
+              // server-recorded receive time (IMAP INTERNALDATE) rather than
+              // "now" — a missing header shouldn't make an old email jump to
+              // the top of the inbox.
+              date: parsed?.date
+                ? Timestamp.fromDate(parsed.date)
+                : msg.internalDate
+                  ? Timestamp.fromDate(new Date(msg.internalDate))
+                  : FieldValue.serverTimestamp(),
               isRead: msg.flags?.has('\\Seen') ?? false,
               syncedAt: FieldValue.serverTimestamp(),
             },
@@ -157,6 +196,7 @@ export async function syncOneMailbox(mailboxId: string): Promise<SyncResult> {
       await mailboxRef.update({
         syncState: 'idle',
         syncError: null,
+        syncStartedAt: FieldValue.delete(),
         lastSyncedAt: FieldValue.serverTimestamp(),
         lastSeenUid: maxUid,
         lastSeenUidValidity: uidValidity,
@@ -167,7 +207,7 @@ export async function syncOneMailbox(mailboxId: string): Promise<SyncResult> {
     }
   } catch (err: any) {
     const message = err?.message || 'IMAP sync failed.';
-    await mailboxRef.update({ syncState: 'error', syncError: message });
+    await mailboxRef.update({ syncState: 'error', syncError: message, syncStartedAt: FieldValue.delete() });
     return { ok: false, newCount: 0, error: message };
   } finally {
     try {

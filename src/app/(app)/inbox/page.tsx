@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PageHeader } from '@/components/common/page-header';
+import { ChannelSwitcher } from '@/components/common/channel-switcher';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock } from 'lucide-react';
@@ -33,7 +33,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <PageHeader title="Inbox" description="Read and send email connected to the CRM." />
+      <ChannelSwitcher active="email" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
         <TabsList>

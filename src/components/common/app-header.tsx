@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { AppSidebarNav } from './app-sidebar-nav';
 import { Menu } from 'lucide-react';
 
@@ -19,7 +19,7 @@ const Breadcrumb = () => {
 
   return (
     <nav aria-label="Breadcrumb" className="hidden md:flex">
-      <ol className="flex items-center gap-2 text-sm">
+      <ol className="flex items-center gap-1.5 text-xs">
         <li>
           <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
             Home
@@ -29,7 +29,7 @@ const Breadcrumb = () => {
           const href = `/${segments.slice(0, index + 1).join('/')}`;
           const isLast = index === segments.length - 1;
           return (
-            <li key={href} className="flex items-center gap-2">
+            <li key={href} className="flex items-center gap-1.5">
               <span className="text-muted-foreground">/</span>
               <Link
                 href={href}
@@ -59,12 +59,12 @@ export function AppHeader() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-40 flex h-10 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 print:hidden">
+    <header className="sticky top-0 z-40 flex h-8 items-center gap-2 border-b bg-background/80 backdrop-blur-sm px-3 print:hidden">
       {isMobile ? (
          <Sheet open={navOpen} onOpenChange={setNavOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-              <Menu className="h-5 w-5" />
+            <Button variant="outline" size="icon" className="h-6 w-6 shrink-0 md:hidden">
+              <Menu className="h-4 w-4" />
               <span className="sr-only">Toggle navigation menu</span>
             </Button>
           </SheetTrigger>
@@ -79,6 +79,7 @@ export function AppHeader() {
               if ((e.target as HTMLElement).closest('a')) setNavOpen(false);
             }}
           >
+             <SheetTitle className="sr-only">Navigation menu</SheetTitle>
              <AppSidebarNav isMobile={true} />
           </SheetContent>
         </Sheet>

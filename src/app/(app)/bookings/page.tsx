@@ -29,6 +29,7 @@ import {
   XCircle,
   RotateCcw,
   Mail,
+  MessageCircle,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { CancelRefundDialog } from '@/components/bookings/cancel-refund-dialog';
 import { EmailVoucherDialog } from '@/components/bookings/email-voucher-dialog';
+import { WhatsAppVoucherDialog } from '@/components/bookings/whatsapp-voucher-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -92,7 +94,11 @@ const BookingRowSkeleton = () => (
 export default function BookingsPage() {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { canViewRevenue, isAdminOrManager } = useAppUser();
+  const { canViewRevenue, isAdminOrManager, role } = useAppUser();
+  // Mirrors canUseEmail() in firestore.rules — employee/finance can't read
+  // mailboxes, so the Email Voucher action (which queries that collection)
+  // must stay hidden for them, not just fail silently when clicked.
+  const canUseEmail = role === 'admin' || role === 'manager' || role === 'agent';
   const { toast } = useToast();
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -177,6 +183,16 @@ export default function BookingsPage() {
     [firestore, voucherBooking?.clientId]
   );
   const { data: voucherClient, isLoading: isVoucherClientLoading } = useDoc<Client>(voucherClientRef);
+
+  // WhatsApp Voucher: unlike download/email above, the .docx is generated
+  // server-side at send time (src/app/api/whatsapp/send-voucher) — the
+  // dialog only needs the booking + client to prefill a recipient number.
+  const [whatsappVoucherBooking, setWhatsappVoucherBooking] = useState<Booking | null>(null);
+  const whatsappVoucherClientRef = useMemoFirebase(
+    () => (firestore && whatsappVoucherBooking?.clientId ? doc(firestore, 'clients', whatsappVoucherBooking.clientId) : null),
+    [firestore, whatsappVoucherBooking?.clientId]
+  );
+  const { data: whatsappVoucherClient } = useDoc<Client>(whatsappVoucherClientRef);
 
   const downloadVoucherFor = (booking: Booking) => {
     setVoucherMode('download');
@@ -534,13 +550,19 @@ export default function BookingsPage() {
                           {generatingVoucher && voucherBooking?.id === booking.id ? 'Generating…' : 'Voucher'}
                         </DropdownMenuItem>
                       )}
-                      {booking.bookingType === 'hotel' && (
+                      {booking.bookingType === 'hotel' && canUseEmail && (
                         <DropdownMenuItem
                           onSelect={() => emailVoucherFor(booking)}
                           disabled={generatingVoucher && voucherBooking?.id === booking.id}
                         >
                           <Mail className="mr-2 h-4 w-4" />
                           {generatingVoucher && voucherBooking?.id === booking.id && voucherMode === 'email' ? 'Generating…' : 'Email Voucher'}
+                        </DropdownMenuItem>
+                      )}
+                      {booking.bookingType === 'hotel' && canUseEmail && (
+                        <DropdownMenuItem onSelect={() => setWhatsappVoucherBooking(booking)}>
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          WhatsApp Voucher
                         </DropdownMenuItem>
                       )}
                       {booking.status === 'cancelled' ? (
@@ -624,6 +646,15 @@ export default function BookingsPage() {
           attachment={emailVoucherState.attachment}
           open={!!emailVoucherState}
           onOpenChange={(open) => !open && setEmailVoucherState(null)}
+        />
+      )}
+
+      {whatsappVoucherBooking && (
+        <WhatsAppVoucherDialog
+          booking={whatsappVoucherBooking}
+          client={whatsappVoucherClient ?? null}
+          open={!!whatsappVoucherBooking}
+          onOpenChange={(open) => !open && setWhatsappVoucherBooking(null)}
         />
       )}
 

@@ -5,16 +5,18 @@ import { collection, onSnapshot, orderBy, query, limit } from 'firebase/firestor
 import { useFirestore } from '@/firebase/provider';
 import { useAppUser } from '@/firebase/auth/use-app-user';
 import { useToast } from '@/hooks/use-toast';
-import { playCampaignCompleteChime, playMailboxAlertChime, playNewMailChime } from '@/lib/notification-sound';
-import type { Campaign, InboxMessage, Mailbox } from '@/lib/types';
+import { playCampaignCompleteChime, playMailboxAlertChime, playNewMailChime, playNewWhatsAppChime } from '@/lib/notification-sound';
+import type { Campaign, InboxMessage, Mailbox, WhatsAppMessage } from '@/lib/types';
 
 export interface NotificationContextValue {
   unseenInbox: boolean;
   unseenCampaigns: boolean;
   unseenMailboxAlerts: boolean;
+  unseenWhatsApp: boolean;
   markInboxSeen: () => void;
   markCampaignsSeen: () => void;
   markMailboxAlertsSeen: () => void;
+  markWhatsAppSeen: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
@@ -35,6 +37,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [unseenInbox, setUnseenInbox] = useState(false);
   const [unseenCampaigns, setUnseenCampaigns] = useState(false);
   const [unseenMailboxAlerts, setUnseenMailboxAlerts] = useState(false);
+  const [unseenWhatsApp, setUnseenWhatsApp] = useState(false);
 
   // Roles without inbox_messages/campaigns read access (see canUseEmail() in
   // firestore.rules) must never attach these listeners — they'd just spin on
@@ -76,6 +79,50 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       } else {
         toast({
           title: 'New email',
+          description: `${added.length} new messages arrived.`,
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firestore, canUseEmail, toast]);
+
+  useEffect(() => {
+    if (!firestore || !canUseEmail) return;
+
+    const whatsAppQuery = query(
+      collection(firestore, 'whatsapp_messages'),
+      orderBy('timestamp', 'desc'),
+      limit(50)
+    );
+
+    let isInitialSnapshot = true;
+    const unsubscribe = onSnapshot(whatsAppQuery, (snapshot) => {
+      if (isInitialSnapshot) {
+        isInitialSnapshot = false;
+        return;
+      }
+
+      const added = snapshot
+        .docChanges()
+        .filter((change) => change.type === 'added')
+        .map((change) => change.doc.data() as WhatsAppMessage)
+        .filter((message) => message.direction === 'inbound');
+
+      if (added.length === 0) return;
+
+      playNewWhatsAppChime();
+      setUnseenWhatsApp(true);
+
+      if (added.length === 1) {
+        const message = added[0];
+        toast({
+          title: 'New WhatsApp message',
+          description: `${message.contactName || message.contactPhone || 'Unknown'}: ${message.body}`,
+        });
+      } else {
+        toast({
+          title: 'New WhatsApp messages',
           description: `${added.length} new messages arrived.`,
         });
       }
@@ -172,11 +219,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       unseenInbox,
       unseenCampaigns,
       unseenMailboxAlerts,
+      unseenWhatsApp,
       markInboxSeen: () => setUnseenInbox(false),
       markCampaignsSeen: () => setUnseenCampaigns(false),
       markMailboxAlertsSeen: () => setUnseenMailboxAlerts(false),
+      markWhatsAppSeen: () => setUnseenWhatsApp(false),
     }),
-    [unseenInbox, unseenCampaigns, unseenMailboxAlerts]
+    [unseenInbox, unseenCampaigns, unseenMailboxAlerts, unseenWhatsApp]
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
