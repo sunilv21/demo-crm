@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { format } from 'date-fns';
 import Link from "next/link";
+import { clientSlug } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import { Input } from "./ui/input";
 import { Search, User } from "lucide-react";
@@ -112,7 +113,7 @@ export function CustomerLogs({ clientId }: { clientId?: string }) {
                                 {!clientId && log.clientName && (
                                     <>
                                         {' on '}
-                                        <Link href={`/clients/${log.clientId}`} className="font-semibold text-primary hover:underline">
+                                        <Link href={`/clients/${clientSlug(log.clientName ?? '', log.clientId)}`} className="font-semibold text-primary hover:underline">
                                             {log.clientName}
                                         </Link>
                                     </>

@@ -3,8 +3,9 @@
 import { useMemo, useState } from 'react';
 import { collection } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import type { FinanceAccount, FinanceTransaction, Booking, User as StaffUser } from '@/lib/types';
-import { FINANCE_COLLECTIONS, accountBalance, sumIncome, sumExpense, inMonth, thisMonthISO, bookingPaymentsAsTransactions, bookingAgentId } from '@/lib/finance';
+import type { FinanceAccount, FinanceTransaction, FinanceSupplier, Booking, User as StaffUser } from '@/lib/types';
+import { FINANCE_COLLECTIONS, accountBalance, accountBalanceLabel, sumIncome, sumExpense, inMonth, thisMonthISO, bookingPaymentsAsTransactions, bookingAgentId, matchesMonth } from '@/lib/finance';
+import { useGlobalMonthFilter } from '@/components/finance/global-month-filter-provider';
 import { formatINR, formatINRCompact } from '@/lib/utils';
 import { PageHeader } from '@/components/common/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -34,6 +35,7 @@ function groupSum(txns: FinanceTransaction[], keyFn: (t: FinanceTransaction) => 
 export default function FinanceReportsPage() {
   const firestore = useFirestore();
   const [month, setMonth] = useState(thisMonthISO());
+  const { month: globalMonth } = useGlobalMonthFilter();
 
   const accountsQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.accounts) : null), [firestore]);
   const { data: accounts } = useCollection<FinanceAccount>(accountsQuery);
@@ -41,16 +43,31 @@ export default function FinanceReportsPage() {
   const { data: transactions } = useCollection<FinanceTransaction>(txnsQuery);
   const bookingsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'bookings') : null), [firestore]);
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  const suppliersQuery = useMemoFirebase(() => (firestore ? collection(firestore, FINANCE_COLLECTIONS.suppliers) : null), [firestore]);
+  const { data: suppliers } = useCollection<FinanceSupplier>(suppliersQuery);
+  const supplierNameById = useMemo(() => new Map((suppliers ?? []).map((s) => [s.id, s.name])), [suppliers]);
   const txns = useMemo(
     () => [...(transactions ?? []), ...bookingPaymentsAsTransactions(bookings ?? [])],
     [transactions, bookings]
   );
-  const monthTxns = useMemo(() => txns.filter((t) => live(t) && inMonth(month)(t)), [txns, month]);
+  const monthTxns = useMemo(
+    () => txns.filter((t) => live(t) && inMonth(month)(t) && matchesMonth(t.date, globalMonth)),
+    [txns, month, globalMonth]
+  );
 
   const income = sumIncome(monthTxns);
   const expense = sumExpense(monthTxns);
-  const byCategory = useMemo(() => groupSum(monthTxns.filter((t) => t.type === 'expense'), (t) => t.categoryName ?? 'Uncategorised'), [monthTxns]);
-  const bySupplier = useMemo(() => groupSum(monthTxns.filter((t) => t.type === 'expense' && t.supplierName), (t) => t.supplierName ?? ''), [monthTxns]);
+  const byCategory = useMemo(() => groupSum(monthTxns.filter((t) => t.type === 'expense' && !t.excludeFromExpenseTotal), (t) => t.categoryName ?? 'Uncategorised'), [monthTxns]);
+  // Group by the stable supplierId when linked; fall back to name-keying only
+  // for legacy/manual entries with no supplierId, so a rename doesn't split
+  // a supplier's history across two rows. Wallet draw-downs are excluded —
+  // their money already counted against the supplier when the wallet was
+  // funded, so counting the per-booking draw too would double it.
+  const bySupplier = useMemo(
+    () => groupSum(monthTxns.filter((t) => t.type === 'expense' && !t.excludeFromExpenseTotal && (t.supplierId || t.supplierName)), (t) => t.supplierId || `name:${t.supplierName}`),
+    [monthTxns]
+  );
+  const supplierLabel = (key: string) => supplierNameById.get(key) ?? (key.startsWith('name:') ? key.slice(5) : key);
 
   // Collections grouped by the type of the booking they came from.
   const bookingType = useMemo(() => new Map((bookings ?? []).map((b) => [b.id, b.bookingType || 'other'])), [bookings]);
@@ -182,7 +199,7 @@ export default function FinanceReportsPage() {
             <Table>
               <TableHeader><TableRow><TableHead>Supplier</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
               <TableBody>
-                {bySupplier.map(([k, v]) => <TableRow key={k}><TableCell>{k}</TableCell><TableCell className="text-right font-medium">{formatINR(v)}</TableCell></TableRow>)}
+                {bySupplier.map(([k, v]) => <TableRow key={k}><TableCell>{supplierLabel(k)}</TableCell><TableCell className="text-right font-medium">{formatINR(v)}</TableCell></TableRow>)}
               </TableBody>
             </Table>
             {bySupplier.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No supplier payments this month.</div>}
@@ -195,9 +212,15 @@ export default function FinanceReportsPage() {
             <Table>
               <TableHeader><TableRow><TableHead>Account</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
               <TableBody>
-                {(accounts ?? []).filter((a) => a.status !== 'inactive').map((a) => (
-                  <TableRow key={a.id}><TableCell>{a.name}</TableCell><TableCell className="text-right font-semibold">{formatINR(accountBalance(a, txns))}</TableCell></TableRow>
-                ))}
+                {(accounts ?? []).filter((a) => a.status !== 'inactive').map((a) => {
+                  const bal = accountBalance(a, txns);
+                  return (
+                    <TableRow key={a.id}>
+                      <TableCell>{a.name}</TableCell>
+                      <TableCell className={`text-right font-semibold ${bal < 0 ? 'text-red-600' : ''}`}>{accountBalanceLabel(a, bal)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

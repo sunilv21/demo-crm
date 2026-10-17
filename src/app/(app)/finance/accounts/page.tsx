@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 import type { FinanceAccount, FinanceAccountType, FinanceTransaction } from '@/lib/types';
-import { FINANCE_COLLECTIONS, ACCOUNT_TYPE_LABELS, accountBalance, totalBalance } from '@/lib/finance';
+import { FINANCE_COLLECTIONS, ACCOUNT_TYPE_LABELS, accountBalance, accountBalanceLabel, totalBalance } from '@/lib/finance';
 import { formatINR } from '@/lib/utils';
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -78,14 +79,23 @@ export default function FinanceAccountsPage() {
               {!isLoading && (accounts ?? []).map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">
-                    <span className="flex items-center gap-2"><Landmark className="h-4 w-4 text-muted-foreground" />{a.name}</span>
+                    <Link href={`/finance/transactions?account=${a.id}`} className="flex items-center gap-2 text-primary hover:underline">
+                      <Landmark className="h-4 w-4 text-muted-foreground" />{a.name}
+                    </Link>
                   </TableCell>
                   <TableCell>{ACCOUNT_TYPE_LABELS[a.type]}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {a.bankName ? `${a.bankName}${a.accountNumber ? ` · ${a.accountNumber}` : ''}` : '—'}
                   </TableCell>
                   <TableCell className="text-right">{formatINR(a.openingBalance || 0)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatINR(accountBalance(a, txns))}</TableCell>
+                  {(() => {
+                    const bal = accountBalance(a, txns);
+                    return (
+                      <TableCell className={`text-right font-semibold ${bal < 0 ? 'text-red-600' : ''}`}>
+                        {accountBalanceLabel(a, bal)}
+                      </TableCell>
+                    );
+                  })()}
                   <TableCell>
                     <Badge variant="secondary" className={a.status === 'inactive' ? '' : 'bg-green-100 text-green-800 border-green-200'}>
                       {a.status === 'inactive' ? 'Inactive' : 'Active'}
@@ -131,6 +141,7 @@ function AccountDialog({ open, onOpenChange, account, onSaved }: {
   const [ifsc, setIfsc] = useState('');
   const [openingBalance, setOpeningBalance] = useState('0');
   const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Seed on open.
   useEffect(() => {
@@ -144,23 +155,39 @@ function AccountDialog({ open, onOpenChange, account, onSaved }: {
     setNotes(account?.notes ?? '');
   }, [open, account]);
 
+  // A brand-new wallet account must start at ₹0 — its balance should only
+  // ever come from a tracked "Deposit into wallet" expense (Money Out), not
+  // a typed-in starting figure, otherwise that money is never counted as a
+  // real expense and future spend from it is silently excluded from reports.
+  // Editing an existing wallet's opening balance stays allowed (corrections).
+  const lockOpeningBalance = !account && type === 'wallet';
+  useEffect(() => {
+    if (lockOpeningBalance) setOpeningBalance('0');
+  }, [lockOpeningBalance]);
+
   const save = () => {
+    if (isSubmitting) return;
     if (!firestore || !name.trim()) return;
+    setIsSubmitting(true);
     const payload = {
       name: name.trim(), type,
       bankName: bankName.trim() || null, accountNumber: accountNumber.trim() || null, ifsc: ifsc.trim() || null,
-      openingBalance: Math.round(Number(openingBalance) || 0), notes: notes.trim() || null,
+      openingBalance: lockOpeningBalance ? 0 : Math.round(Number(openingBalance) || 0), notes: notes.trim() || null,
       updatedAt: serverTimestamp(), updatedBy: user?.uid ?? null,
     };
-    if (account) {
-      setDocumentNonBlocking(doc(firestore, FINANCE_COLLECTIONS.accounts, account.id), payload, { merge: true });
-    } else {
-      addDocumentNonBlocking(collection(firestore, FINANCE_COLLECTIONS.accounts), {
-        ...payload, status: 'active', createdAt: serverTimestamp(), createdBy: user?.uid ?? null,
-      });
+    try {
+      if (account) {
+        setDocumentNonBlocking(doc(firestore, FINANCE_COLLECTIONS.accounts, account.id), payload, { merge: true });
+      } else {
+        addDocumentNonBlocking(collection(firestore, FINANCE_COLLECTIONS.accounts), {
+          ...payload, status: 'active', createdAt: serverTimestamp(), createdBy: user?.uid ?? null,
+        });
+      }
+      onSaved();
+      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
     }
-    onSaved();
-    onOpenChange(false);
   };
 
   return (
@@ -180,7 +207,15 @@ function AccountDialog({ open, onOpenChange, account, onSaved }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><Label className="text-xs">Bank name</Label><Input value={bankName} onChange={(e) => setBankName(e.target.value)} /></div>
-            <div className="space-y-1"><Label className="text-xs">Opening balance (₹)</Label><Input type="number" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} /></div>
+            <div className="space-y-1">
+              <Label className="text-xs">Opening balance (₹)</Label>
+              <Input type="number" value={openingBalance} disabled={lockOpeningBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
+              {lockOpeningBalance && (
+                <p className="text-xs text-muted-foreground">
+                  New wallet accounts start at ₹0 — fund it via Money Out → &quot;Deposit into wallet&quot; so the top-up is tracked as a real expense.
+                </p>
+              )}
+            </div>
             <div className="space-y-1"><Label className="text-xs">Account number</Label><Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} /></div>
             <div className="space-y-1"><Label className="text-xs">IFSC</Label><Input value={ifsc} onChange={(e) => setIfsc(e.target.value)} /></div>
           </div>
@@ -188,7 +223,7 @@ function AccountDialog({ open, onOpenChange, account, onSaved }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={!name.trim()}>{account ? 'Save' : 'Create'}</Button>
+          <Button onClick={save} disabled={!name.trim() || isSubmitting}>{account ? 'Save' : 'Create'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

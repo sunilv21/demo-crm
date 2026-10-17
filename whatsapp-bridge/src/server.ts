@@ -16,7 +16,9 @@ if (!BRIDGE_SECRET) {
 }
 
 const app = express();
-app.use(express.json());
+// Default 100kb limit is too small for a base64-encoded voucher document —
+// bump it well past any realistic .docx size.
+app.use(express.json({ limit: '25mb' }));
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.headers['x-bridge-secret'] !== BRIDGE_SECRET) {
@@ -57,6 +59,27 @@ app.post('/send', async (req, res) => {
   } catch (err: any) {
     console.error('send failed:', err);
     res.status(502).json({ error: err?.message || 'Failed to send message.' });
+  }
+});
+
+app.post('/send-media', async (req, res) => {
+  const { accountId, to, base64, mimetype, filename, caption, mediaUrl, campaignId, campaignRecipientId } = req.body ?? {};
+  if (!accountId || !to || !base64 || !mimetype || !filename) {
+    res.status(400).json({ error: 'accountId, to, base64, mimetype, and filename are required.' });
+    return;
+  }
+  try {
+    const campaignMeta = campaignId && campaignRecipientId ? { campaignId, campaignRecipientId } : undefined;
+    const { chatId } = await clientManager.sendMediaMessage(
+      accountId,
+      to,
+      { base64, mimetype, filename, caption, mediaUrl },
+      campaignMeta
+    );
+    res.json({ ok: true, chatId });
+  } catch (err: any) {
+    console.error('send-media failed:', err);
+    res.status(502).json({ error: err?.message || 'Failed to send media.' });
   }
 });
 

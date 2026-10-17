@@ -26,8 +26,9 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wand2, Printer, Plus, Trash2, Star } from 'lucide-react';
+import { Loader2, Wand2, Printer, Plus, Trash2, Star, Rows3, LayoutGrid, Palette } from 'lucide-react';
 import { OtherFormatPanel } from './other-format-panel';
+import { OF_TEMPLATES, type OFTemplate } from './other-format-types';
 
 // ============================================================================
 // Print constants — A4 ISO 216
@@ -155,22 +156,55 @@ function SubmitButton() {
 // panel's own print container from printing — so printing always outputs
 // only the currently-visible tab, with no extra prop needed to track that.
 export function ItineraryForm() {
-  const [activeTab, setActiveTab] = useState<'brochure' | 'other'>('brochure');
+  // Other Format is the default tab, Brochure the secondary one — same order
+  // as the tabs below.
+  const [activeTab, setActiveTab] = useState<'brochure' | 'other'>('other');
+  // Lifted up from OtherFormatPanel so the Format toggle can sit on the same
+  // fixed top row as the Brochure/Other Format tabs instead of scrolling
+  // away with that panel's own content.
+  const [template, setTemplate] = usePersistedState<OFTemplate>('skyvisa:itinerary-other-format:template', 'classic');
   return (
     <>
       <ItineraryStyles />
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <TabsList className="mb-4 print-hide print:hidden">
-          <TabsTrigger value="brochure">Brochure</TabsTrigger>
-          <TabsTrigger value="other">Other Format</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4 print-hide print:hidden">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+          <TabsList>
+            <TabsTrigger value="other">Other Format</TabsTrigger>
+            <TabsTrigger value="brochure">Brochure</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {activeTab === 'other' && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground mr-1">Format:</span>
+            {OF_TEMPLATES.map((t) => (
+              <Button
+                key={t}
+                type="button"
+                size="sm"
+                variant={template === t ? 'default' : 'outline'}
+                className="h-7 px-2.5 text-xs capitalize"
+                onClick={() => setTemplate(t)}
+              >
+                {t === 'classic' ? (
+                  <Rows3 className="mr-1 h-3.5 w-3.5" />
+                ) : t === 'branded' ? (
+                  <Palette className="mr-1 h-3.5 w-3.5" />
+                ) : (
+                  <LayoutGrid className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className={activeTab === 'brochure' ? '' : 'hidden'}>
         <BrochurePanel />
       </div>
       <div className={activeTab === 'other' ? '' : 'hidden'}>
-        <OtherFormatPanel />
+        <OtherFormatPanel template={template} />
       </div>
     </>
   );

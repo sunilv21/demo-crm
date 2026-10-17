@@ -43,7 +43,7 @@ import {
 } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
-import { copyToClipboard } from '@/lib/utils';
+import { copyToClipboard, clientSlug } from '@/lib/utils';
 
 // A booking counts toward a client's financials unless it was cancelled.
 const isLive = (b: Booking) => b.status !== 'cancelled';
@@ -353,7 +353,7 @@ export default function OrganizationDetailPage() {
                       <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-muted">
                         <User className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <Link href={`/clients/${client.id}`} className="hover:underline">{client.name}</Link>
+                      <Link href={`/clients/${clientSlug(client.name, client.id)}`} className="hover:underline">{client.name}</Link>
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -377,10 +377,10 @@ export default function OrganizationDetailPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/clients/${client.id}/bookings`}>View bookings</Link>
+                          <Link href={`/clients/${clientSlug(client.name, client.id)}/bookings`}>View bookings</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/clients/${client.id}`}>Client profile</Link>
+                          <Link href={`/clients/${clientSlug(client.name, client.id)}`}>Client profile</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onSelect={() => handleUnlinkClient(client)}>
                           <Link2Off className="mr-2 h-4 w-4" />Remove from organization

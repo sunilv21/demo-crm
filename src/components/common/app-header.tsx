@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useSidebar } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '../ui/sheet';
@@ -84,7 +84,10 @@ export function AppHeader() {
           </SheetContent>
         </Sheet>
       ) : (
-        <Breadcrumb />
+        <>
+          <SidebarTrigger className="h-6 w-6" />
+          <Breadcrumb />
+        </>
       )}
       <div className="flex-1" />
     </header>

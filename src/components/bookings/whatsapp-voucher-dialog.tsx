@@ -27,11 +27,6 @@ interface WhatsAppVoucherDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Voucher-over-WhatsApp only works for the two providers that fetch media
-// from a URL (Twilio, Meta Cloud API) — whatsapp_web has no such flow wired
-// up yet, so it's filtered out here rather than surfaced as a dead-end option.
-const SUPPORTED_PROVIDERS: WhatsAppAccount['provider'][] = ['twilio', 'meta_cloud'];
-
 export function WhatsAppVoucherDialog({ booking, client, open, onOpenChange }: WhatsAppVoucherDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
@@ -46,7 +41,7 @@ export function WhatsAppVoucherDialog({ booking, client, open, onOpenChange }: W
     return query(collection(firestore, 'whatsapp_accounts'), where('status', '==', 'connected'));
   }, [firestore]);
   const { data: allAccounts } = useCollection<WhatsAppAccount>(accountsQuery);
-  const accounts = (allAccounts || []).filter((a) => SUPPORTED_PROVIDERS.includes(a.provider));
+  const accounts = allAccounts || [];
 
   useEffect(() => {
     if (!open) return;
@@ -106,7 +101,7 @@ export function WhatsAppVoucherDialog({ booking, client, open, onOpenChange }: W
               </SelectContent>
             </Select>
             {accounts.length === 0 && (
-              <p className="text-xs text-muted-foreground">No connected Twilio/Meta WhatsApp account is available.</p>
+              <p className="text-xs text-muted-foreground">No connected WhatsApp account is available.</p>
             )}
           </div>
 
@@ -117,7 +112,7 @@ export function WhatsAppVoucherDialog({ booking, client, open, onOpenChange }: W
 
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <FileText className="h-3.5 w-3.5" />
-            Hotel booking voucher (.docx)
+            Hotel booking voucher (.pdf)
           </div>
         </div>
         <DialogFooter>

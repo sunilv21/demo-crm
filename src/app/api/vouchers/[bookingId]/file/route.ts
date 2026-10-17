@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
 import { verifyVoucherLink } from '@/lib/voucher-link';
-import { buildVoucherInput } from '@/lib/voucher-types';
-import { generateBookingVoucherDocx } from '@/app/actions/voucher-docx';
-import type { Booking, Client, Hotel } from '@/lib/types';
+import { generateVoucherForBooking } from '@/lib/voucher-generate';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const VOUCHER_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const VOUCHER_MIME = 'application/pdf';
 
 /**
  * GET /api/vouchers/[bookingId]/file?token=...&exp=...
@@ -26,33 +23,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ book
     return NextResponse.json({ error: 'This voucher link is invalid or has expired.' }, { status: 403 });
   }
 
-  const db = adminDb();
-  const bookingSnap = await db.doc(`bookings/${bookingId}`).get();
-  if (!bookingSnap.exists) {
-    return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
-  }
-  const booking = { id: bookingSnap.id, ...bookingSnap.data() } as Booking;
-
-  let client: Client | null = null;
-  if (booking.clientId) {
-    const clientSnap = await db.doc(`clients/${booking.clientId}`).get();
-    if (clientSnap.exists) client = { id: clientSnap.id, ...clientSnap.data() } as Client;
-  }
-
-  const input = buildVoucherInput(booking, client);
-  const hotelId = booking.bookingDetails?.hotelId;
-  if (hotelId) {
-    const hotelSnap = await db.doc(`hotels/${String(hotelId)}`).get();
-    if (hotelSnap.exists) {
-      const hotel = hotelSnap.data() as Hotel;
-      input.hotelTermsAndConditions = hotel.termsAndConditions;
-      input.hotelNotes = hotel.notes;
-    }
-  }
-
-  const result = await generateBookingVoucherDocx(input);
+  const result = await generateVoucherForBooking(bookingId);
   if ('error' in result) {
-    return NextResponse.json({ error: result.error }, { status: 422 });
+    const status = result.error === 'Booking not found.' ? 404 : 422;
+    return NextResponse.json({ error: result.error }, { status });
   }
 
   return new NextResponse(Buffer.from(result.base64, 'base64'), {

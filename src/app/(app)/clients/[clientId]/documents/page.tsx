@@ -26,6 +26,7 @@ import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@
 import { doc, arrayUnion, serverTimestamp, arrayRemove } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
+import { clientIdFromSlug } from '@/lib/utils';
 import { RequiredDocumentForm } from '@/components/forms/required-document-form';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,7 +66,7 @@ const PageSkeleton = () => (
 export default function ClientDocumentsPage() {
   const params = useParams();
   const firestore = useFirestore();
-  const clientId = params.clientId as string;
+  const clientId = clientIdFromSlug(params.clientId as string);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const { toast } = useToast();
 

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { clientSlug } from '@/lib/utils';
 import { useMemo } from 'react';
 import { collection, query, where } from 'firebase/firestore';
 import { Activity, ChevronRight } from 'lucide-react';
@@ -96,7 +97,7 @@ export function RecentActivity() {
               return (
                 <li key={log.id} className="py-2">
                   <Link
-                    href={`/clients/${log.clientId}`}
+                    href={`/clients/${clientSlug(log.clientName ?? '', log.clientId)}`}
                     className="flex items-center gap-3 group"
                   >
                     <div className="flex-1 min-w-0">

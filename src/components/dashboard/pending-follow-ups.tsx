@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { clientSlug } from '@/lib/utils';
 import { useMemo } from 'react';
 import { collection, query } from 'firebase/firestore';
 import { Bell, ChevronRight } from 'lucide-react';
@@ -88,7 +89,7 @@ export function PendingFollowUps() {
               return (
                 <li key={f.id} className="py-2">
                   <Link
-                    href={`/clients/${f.clientId}`}
+                    href={`/clients/${clientSlug(f.clientName ?? '', f.clientId)}`}
                     className="flex items-center gap-3 group"
                   >
                     <div className="flex-1 min-w-0">

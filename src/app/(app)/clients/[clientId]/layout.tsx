@@ -4,6 +4,7 @@ import { useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, useUser 
 import type { Client, CustomerLog } from '@/lib/types';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
+import { clientIdFromSlug } from '@/lib/utils';
 import { ClientQuickAccess } from '@/components/clients/client-quick-access';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CustomerLogForm } from '@/components/forms/customer-log-form';
@@ -17,7 +18,7 @@ function ClientDetailLayout({
   children: React.ReactNode;
 }) {
   const params = useParams();
-  const clientId = params.clientId as string;
+  const clientId = clientIdFromSlug(params.clientId as string);
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();

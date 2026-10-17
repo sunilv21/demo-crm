@@ -42,7 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, isPast } from 'date-fns';
 import { FollowUpForm } from '@/components/forms/follow-up-form';
 import { useState, useMemo } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, clientSlug } from '@/lib/utils';
 import { Card } from '../ui/card';
 import { CustomerLogForm } from '../forms/customer-log-form';
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
@@ -254,7 +254,7 @@ export function FollowUpList() {
                   return (
                     <TableRow key={followUp.id} className={cn(followUp.done && 'text-muted-foreground')}>
                         <TableCell className="font-medium">
-                            <Link href={`/clients/${followUp.clientId}`} className={cn("hover:underline flex items-center gap-2", !followUp.done && 'text-foreground' )}>
+                            <Link href={`/clients/${clientSlug(followUp.clientName ?? '', followUp.clientId)}`} className={cn("hover:underline flex items-center gap-2", !followUp.done && 'text-foreground' )}>
                                 <User className="h-4 w-4" />
                                 {followUp.clientName}
                             </Link>
@@ -300,7 +300,7 @@ export function FollowUpList() {
                                       Add Log
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => openEditDialog(followUp)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
-                                    <DropdownMenuItem asChild><Link href={`/clients/${followUp.clientId}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Client</Link></DropdownMenuItem>
+                                    <DropdownMenuItem asChild><Link href={`/clients/${clientSlug(followUp.clientName ?? '', followUp.clientId)}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Client</Link></DropdownMenuItem>
                                     <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setFollowUpToDelete(followUp); }}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete

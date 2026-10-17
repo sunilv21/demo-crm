@@ -5,6 +5,31 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Client URL slug helpers — encode the Firestore ID with a human-readable name
+// prefix so URLs show the customer name instead of a random ID string.
+// Format: "john-doe--g1LNj8IXvkgEAU4359pf"  (double-dash separator)
+// Firebase auto-IDs are alphanumeric-only (no dashes), so "--" is unambiguous.
+// clientIdFromSlug is backward-compatible: an old raw-ID URL still resolves.
+export function clientSlug(name: string, id: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${slug}--${id}`;
+}
+export function clientIdFromSlug(slug: string): string {
+  const sep = slug.lastIndexOf('--');
+  return sep !== -1 ? slug.slice(sep + 2) : slug;
+}
+
+// Normalized phone key for duplicate-client detection: strip everything but
+// digits, then keep the last 10 so "+91 98765 43210", "919876543210", and
+// "9876543210" all compare equal. Returns '' for anything too short.
+export function normalizePhoneDigits(phone: string | null | undefined): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  return digits.length >= 6 ? digits.slice(-10) : '';
+}
+
 // Copy text to the clipboard, resilient to environments where the async
 // Clipboard API is unavailable — the Electron desktop build and any non-secure
 // (non-HTTPS/LAN) context, where `navigator.clipboard` is undefined and calling
@@ -82,6 +107,7 @@ export const PAYMENT_MODE_LABELS: Record<string, string> = {
   upi: "UPI",
   bank: "Bank Transfer",
   cheque: "Cheque",
+  wallet: "Wallet",
   other: "Other",
 };
 

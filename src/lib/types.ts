@@ -171,6 +171,11 @@ export type Client = {
   organizationId?: string;
   email?: string;
   phone: string;
+  // Last 10 digits of `phone`, stripped of formatting/country-code — lets a
+  // duplicate-phone check match regardless of how the number was formatted.
+  // See normalizePhoneDigits() in lib/utils.ts. Set by ClientForm; may be
+  // absent on older client docs written before this field existed.
+  phoneDigits?: string;
   avatar: string;
   preferences: string;
   status: 'active' | 'inactive' | 'lead' | 'prospect';
@@ -198,6 +203,14 @@ export type Client = {
   // recipient pickers regardless of other filters. Set manually here or
   // automatically via the campaign email's unsubscribe link.
   doNotEmail?: boolean;
+  // Package in progress (see lib/booking-package.ts): while set, every new
+  // booking created for this client auto-joins this package instead of
+  // being priced on its own — the agent no longer has to link each one by
+  // hand. Cleared by "End package"; bookings already linked keep their link.
+  activePackageId?: string;
+  activePackageLabel?: string;
+  activePackageStartedAt?: any;
+  activePackageStartedBy?: string;
   createdAt: any;
   updatedAt: any;
   createdBy: string;
@@ -265,7 +278,7 @@ export type PaymentStatus =
 | 'paid'
 | 'refunded';
 
-export type PaymentMode = 'cash' | 'card' | 'upi' | 'bank' | 'cheque' | 'other';
+export type PaymentMode = 'cash' | 'card' | 'upi' | 'bank' | 'cheque' | 'wallet' | 'other';
 
 // A single installment/receipt against a booking.
 export type Payment = {
@@ -278,6 +291,9 @@ export type Payment = {
   createdAt?: any;
   createdBy?: string;
   createdByName?: string;
+  // Which company account this payment was deposited into (Finance → Accounts).
+  // Flows into the derived Finance transaction — see bookingPaymentsAsTransactions().
+  accountId?: string;
   // Id of the linked Finance income transaction (booking payments flow into the
   // Finance module). Used to cancel that transaction if the payment is removed.
   financeTxnId?: string;
@@ -379,6 +395,52 @@ export type Booking = {
   refundMode?: PaymentMode;
   refundReference?: string;
 
+  // Reconciliation (Finance → Reconciliation): staff confirms these against
+  // the supplier's own portal (VFS/airline/hotel extranet) or bank statement.
+  supplierCostVerified?: boolean;
+  supplierCostVerifiedAt?: any;
+  supplierCostVerifiedBy?: string;
+  supplierCostVerifiedByName?: string;
+  supplierCostVerifiedNote?: string;
+  refundVerified?: boolean;
+  refundVerifiedAt?: any;
+  refundVerifiedBy?: string;
+  refundVerifiedByName?: string;
+  refundVerifiedNote?: string;
+
+  // "Needs attention" (Reconciliation): set once a booking is cancelled
+  // AFTER its supplier cost was already verified/paid — money may be sitting
+  // with the supplier for a booking that no longer exists. Tracks how it was
+  // resolved: clawed back from the supplier ('recovered', with a linked
+  // income transaction) or accepted as a loss ('written_off', no reversal).
+  supplierCostRecoveryStatus?: 'pending' | 'recovered' | 'written_off';
+  supplierCostRecoveryAt?: any;
+  supplierCostRecoveryBy?: string;
+  supplierCostRecoveryByName?: string;
+  supplierCostRecoveryNote?: string;
+
+  // Finance-editable correction (Reconciliation): the booking was entered
+  // into the system late, so `createdAt` doesn't reflect when it was really
+  // made. When set, this ISO date (yyyy-mm-dd) is used instead of
+  // `createdAt` for the "Booking date" column/filter — `createdAt` itself is
+  // left untouched as the true record-creation timestamp.
+  bookingDateOverride?: string;
+  bookingDateOverrideBy?: string;
+  bookingDateOverrideByName?: string;
+  bookingDateOverrideAt?: any;
+
+  // Package linking: when a client buys one bundled package (e.g. flight +
+  // hotel + visa for one all-in price), each component is still its own
+  // Booking document (so vouchers/type-specific fields keep working), but
+  // they're linked together here. `packageGroupId` is shared by every
+  // booking in the package (normally = the Client's `activePackageId` at
+  // the time it was created — see lib/booking-package.ts); exactly one of
+  // them has `packageIsPrimary: true` and carries the package's real
+  // total/supplierCost. The rest normally have total=0/supplierCost=0
+  // since that money isn't priced separately.
+  packageGroupId?: string;
+  packageIsPrimary?: boolean;
+
   // Archival: once a booking is fully paid it can be archived out of the active
   // bookings list into the client's Travel History (keeps the list uncluttered).
   // Archives manually, or automatically 15 days after the full payment is received.
@@ -479,6 +541,10 @@ export type FinanceSupplier = {
   gst?: string;
   address?: string;
   notes?: string;
+  // Links this supplier to one of their Finance accounts (typically a
+  // 'wallet'-type account holding a prepaid balance for them) — lets Money
+  // Out / Reconciliation pre-select the right account when paying them.
+  linkedAccountId?: string;
   status: 'active' | 'inactive';
   createdAt: any;
   updatedAt: any;
@@ -652,6 +718,14 @@ export type WhatsAppMessage = {
   // the chat UI needs these to show something better than a raw id.
   contactName?: string | null;
   contactPhone?: string | null;
+  // Set for group messages — chatId is the group's own JID ("...@g.us") in
+  // that case, and msg.author (WhatsApp's term) identifies who within the
+  // group actually sent it, since "from" is the group, not the person.
+  isGroup?: boolean;
+  groupName?: string | null;
+  senderJid?: string | null;
+  senderName?: string | null;
+  senderPhone?: string | null;
   status?: WhatsAppMessageStatus; // outbound only
   // The provider's own message id (Twilio MessageSid / Meta wamid) — outbound
   // only, captured at send time so a later delivery/read status callback can
@@ -839,12 +913,13 @@ export type AuditAction =
   | 'whatsapp_campaign.deleted'
   | 'whatsapp_template.created'
   | 'whatsapp_template.updated'
-  | 'whatsapp_template.deleted';
+  | 'whatsapp_template.deleted'
+  | 'client.merged';
 
 export type AuditLog = {
   id: string;
   action: AuditAction;
-  targetType: 'mailbox' | 'campaign' | 'template' | 'whatsapp_account' | 'whatsapp_campaign' | 'whatsapp_template';
+  targetType: 'mailbox' | 'campaign' | 'template' | 'whatsapp_account' | 'whatsapp_campaign' | 'whatsapp_template' | 'client';
   targetId: string;
   targetLabel: string;
   actorId: string;
@@ -885,8 +960,18 @@ export type FinanceTransaction = {
   date: string; // ISO date
   // For income → destination account; expense → source account;
   // transfer → source (from) account, with toAccountId as destination.
+  // An expense can also set toAccountId to fund a wallet-type account (e.g.
+  // depositing cash into a supplier's Riya wallet) — the source is debited,
+  // the wallet is credited, and it counts as a normal expense.
   accountId: string;
   toAccountId?: string;
+  // Set when this expense draws down an already-funded wallet account (e.g.
+  // paying a booking's supplier cost out of the Riya wallet balance) — the
+  // deposit that funded the wallet was already counted as the expense, so
+  // this draw-down still reduces the wallet's balance and still links to the
+  // booking, but is excluded from expense totals/reports to avoid counting
+  // the same money leaving the business twice.
+  excludeFromExpenseTotal?: boolean;
   // Optional links to the commercial records.
   clientId?: string;
   clientName?: string;
@@ -900,9 +985,10 @@ export type FinanceTransaction = {
   reference?: string;
   remarks?: string;
   status: FinanceTxnStatus;
-  // 'booking' = derived from a booking payment; 'agent' = derived from an
-  // agent-logged expense; 'manual' = entered in the Finance module.
-  source?: 'booking' | 'agent' | 'manual';
+  // 'booking' = derived from / reconciled from a booking payment; 'agent' =
+  // derived from an agent-logged expense; 'manual' = entered in the Finance
+  // module; 'refund' = a booking refund payout.
+  source?: 'booking' | 'agent' | 'manual' | 'refund';
   bookingPaymentId?: string;
   createdAt: any;
   createdBy: string;

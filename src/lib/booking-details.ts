@@ -30,6 +30,44 @@ export function formatBookingDates(b: Pick<Booking, 'startDate' | 'endDate' | 'i
   return `${start.toLocaleDateString('en-US', noYear)} - ${end.toLocaleDateString('en-US', withYear)}`;
 }
 
+// The date the booking was actually made — distinct from `startDate` (the
+// travel/departure date). Normally this is `createdAt`, but a booking
+// entered late can have its effective date corrected via
+// `bookingDateOverride` (finance/agent-editable); `createdAt` itself is
+// never touched, so the true record-creation timestamp is preserved.
+export function bookingMadeDateISO(b: Booking): string {
+  if (b.bookingDateOverride) return b.bookingDateOverride.slice(0, 10);
+  const c: any = b.createdAt;
+  const d = c?.toDate ? c.toDate() : c ? new Date(c) : null;
+  return d && !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+}
+export function bookingMadeDate(b: Booking): Date | null {
+  const iso = bookingMadeDateISO(b);
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Number of travellers on a booking — whichever named-people array is
+// populated for its type (a booking only ever fills the one relevant to it).
+export function paxCount(b: Booking): number {
+  return b.flightPassengers?.length || b.visaApplicants?.length || b.hotelGuests?.length || 0;
+}
+
+// Quick departure→arrival (flight) or hotel name (hotel) summary for list
+// views — the full detail lives in buildDetailEntries(), this is just the
+// one line worth showing inline.
+export function flightHotelSummary(b: Booking): string {
+  const d = (b.bookingDetails || {}) as Record<string, any>;
+  if (b.bookingType === 'flight') {
+    if (d.departureAirport && d.arrivalAirport) return `${d.departureAirport} → ${d.arrivalAirport}`;
+    return d.airline || '—';
+  }
+  if (b.bookingType === 'hotel') return d.hotelName || '—';
+  if (b.bookingType === 'activity') return d.activityName || '—';
+  return '—';
+}
+
 export const DETAIL_LABELS: Record<string, string> = {
   airline: "Airline",
   pnr: "PNR",

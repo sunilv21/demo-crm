@@ -32,6 +32,7 @@ import {
   Truck,
   Trophy,
   Mail,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
@@ -66,6 +67,8 @@ import { useAuth, useUser, useAppUser, type Role } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useNotifications } from '@/components/notifications/notification-provider';
 import { NotificationDot } from '@/components/notifications/notification-dot';
+import { useGlobalMonthFilter } from '@/components/finance/global-month-filter-provider';
+import { MonthSelect } from '@/components/finance/month-select';
 
 // General CRM/management nav — everyone EXCEPT the finance role, which is scoped
 // to the Finance module only (see FINANCE_ROLES + the finance redirect guard).
@@ -112,6 +115,7 @@ const financeItems: NavItem[] = [
   { href: '/finance/accounts', icon: Wallet, label: 'Accounts', allow: FINANCE_ROLES },
   { href: '/finance/transactions', icon: ReceiptText, label: 'Transactions', allow: FINANCE_ROLES },
   { href: '/finance/suppliers', icon: Truck, label: 'Suppliers', allow: FINANCE_ROLES },
+  { href: '/finance/reconciliation', icon: ShieldCheck, label: 'Reconciliation', allow: FINANCE_ROLES },
   { href: '/agent-performance', icon: Trophy, label: 'Agent Performance', allow: FINANCE_ROLES },
   { href: '/finance/reports', icon: BarChart3, label: 'Reports', allow: FINANCE_ROLES },
   { href: '/finance/settings', icon: Settings, label: 'Settings', allow: FINANCE_ROLES },
@@ -124,6 +128,7 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
   const auth = useAuth();
   const { theme, setTheme } = useTheme();
   const { unseenInbox, unseenCampaigns, unseenMailboxAlerts } = useNotifications();
+  const { month: globalMonth, setMonth: setGlobalMonth } = useGlobalMonthFilter();
 
   const visibleTop = isRoleLoading ? [] : topNavItems.filter((i) => i.allow.includes(role));
   const visibleEmpMgmt = isRoleLoading
@@ -176,6 +181,12 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
           <Image src="/favicon.ico" alt="Sky Visa Logo" width={32} height={32} className="h-8 w-auto" />
         </Link>
       </div>
+      {role === 'finance' && (
+        <div className="px-2 pt-2 group-data-[collapsible=icon]:hidden">
+          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">Month</p>
+          <MonthSelect value={globalMonth} onChange={setGlobalMonth} className="w-full" />
+        </div>
+      )}
       <div className="flex-1 py-2 overflow-y-auto">
         <SidebarMenu>
           {visibleTop.map((item) => (
@@ -185,8 +196,8 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
                   isActive={pathname.startsWith(item.href)}
                   tooltip={item.label}
                 >
-                  <span className="relative inline-flex">
-                    <item.icon />
+                  <span className="relative inline-flex shrink-0">
+                    <item.icon className="size-4 shrink-0" />
                     {item.href === '/inbox' && (unseenInbox || unseenCampaigns || unseenMailboxAlerts) && (
                       <NotificationDot className="absolute -right-1 -top-1" />
                     )}
@@ -274,20 +285,20 @@ export function AppSidebarNav({ isMobile = false }: { isMobile?: boolean }) {
           )}
         </SidebarMenu>
       </div>
-       <div className="mt-auto border-t p-2">
+       <div className="mt-auto border-t p-2 group-data-[collapsible=icon]:px-0">
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start items-center gap-2 text-left h-auto p-2">
-                     <Avatar className="h-8 w-8">
+                <Button variant="ghost" className="w-full justify-start items-center gap-2 text-left h-auto p-2 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto">
+                     <Avatar className="h-8 w-8 shrink-0">
                         <AvatarFallback>
                             <User className="h-4 w-4 text-muted-foreground" />
                         </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col flex-1 text-sm truncate">
+                    <div className="flex flex-col flex-1 text-sm truncate group-data-[collapsible=icon]:hidden">
                         <span className="font-medium">{displayName}</span>
                         <span className="text-muted-foreground truncate">{displayEmail}</span>
                     </div>
-                    <MoreHorizontal className="h-4 w-4" />
+                    <MoreHorizontal className="h-4 w-4 shrink-0 group-data-[collapsible=icon]:hidden" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>

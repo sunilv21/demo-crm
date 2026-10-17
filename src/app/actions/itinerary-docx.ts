@@ -18,18 +18,22 @@ import {
   WidthType, AlignmentType, BorderStyle, VerticalAlignTable,
 } from 'docx';
 import { safeFilename } from '@/lib/print';
-import { AGENCY } from '@/app/(app)/itinerary-builder/other-format-types';
+import { AGENCY, formatOfMoney } from '@/app/(app)/itinerary-builder/other-format-types';
 import {
   NAVY, GOLD, LIGHTBLUE, PALEBLUE, CREAM, GREEN, RED, TEXT, MUTED, LINK, FONT, PAGE_WIDTH,
   cell, p, sectionHeading, navyBar, buildLetterhead, buildFooter, buildRunningHeader, fixedTable,
   thinBorders, noBorders,
   type RunPart,
 } from './docx-helpers';
+import { buildModernChildren } from './itinerary-docx-modern';
+import { buildBrandedChildren } from './itinerary-docx-branded';
 import type {
   OFItinerary,
   OFMeta,
+  OFTemplate,
   OFTripSummaryRow,
   OFHotelOption,
+  OFFlightRow,
   OFTourRow,
   OFDayPlan,
   OFDayItem,
@@ -109,8 +113,11 @@ function tripSummaryTable(rows: OFTripSummaryRow[]) {
 }
 
 // ---------- Hotel option table ----------
+// Pricing deliberately NOT in this banner — it belongs only in the Package
+// Cost Comparison table (costComparisonTable below), not repeated next to
+// every hotel option's name.
 function hotelOptionTable(option: OFHotelOption) {
-  const banner = `${option.label.toUpperCase()}  |  ${option.perPerson} per person  |  ${option.total} Total`;
+  const banner = option.label.toUpperCase();
   const widths = [1647, 3529, 1000, 1765, 1294, 1294, 471]; // City | Hotel | Stars | Room | Check-in | Check-out | Nts
 
   const headHotel = new TableRow({
@@ -141,6 +148,32 @@ function hotelOptionTable(option: OFHotelOption) {
     fixedTable({ width: { size: PAGE_WIDTH, type: WidthType.DXA }, columnWidths: widths, rows: [headHotel, ...bodyRows] }),
     new Paragraph({ spacing: { after: 120 } }),
   ];
+}
+
+// ---------- Flights table ----------
+function flightsTable(rows: OFFlightRow[]) {
+  const widths = [1400, 1300, 1550, 1550, 1400, 1400, 800, 1600]; // Airline | Flight No. | From | To | Departure | Arrival | Class | Baggage — sums to PAGE_WIDTH (11000)
+  const header = new TableRow({
+    children: ['Airline', 'Flight No.', 'From', 'To', 'Departure', 'Arrival', 'Class', 'Baggage'].map((t, i) =>
+      cell([p([{ text: t, bold: true, color: 'FFFFFF', size: 18 }], { spacing: { after: 0 } })], { width: widths[i], shade: NAVY })
+    ),
+  });
+  const bodyRows = rows.map(
+    (r, idx) =>
+      new TableRow({
+        children: [
+          cell([p([{ text: r.airline, bold: true, color: LINK, size: 18 }], { spacing: { after: 0 } })], { width: widths[0], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p(r.flightNo, { spacing: { after: 0 } }, 18)], { width: widths[1], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p(r.from, { spacing: { after: 0 } }, 18)], { width: widths[2], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p(r.to, { spacing: { after: 0 } }, 18)], { width: widths[3], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p(r.departure, { spacing: { after: 0 } }, 18)], { width: widths[4], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p(r.arrival, { spacing: { after: 0 } }, 18)], { width: widths[5], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p(r.travelClass, { spacing: { after: 0 } }, 18)], { width: widths[6], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          cell([p([{ text: r.baggage, color: MUTED, size: 17 }], { spacing: { after: 0 } })], { width: widths[7], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+        ],
+      })
+  );
+  return fixedTable({ width: { size: PAGE_WIDTH, type: WidthType.DXA }, columnWidths: widths, rows: [header, ...bodyRows] });
 }
 
 // ---------- Tours & Transfers table ----------
@@ -260,68 +293,73 @@ function noteLine(note: OFNoteItem) {
   });
 }
 
-// ---------- Package cost comparison ----------
-function costComparisonTable(
-  component: string,
-  sub: string,
-  opt1Label: string,
-  opt2Label: string,
-  opt1pp: string,
-  opt2pp: string,
-  opt1total: string,
-  opt2total: string
-) {
-  const widths = [4176, 1706, 1706, 1706, 1706];
-  const header = new TableRow({
-    children: [
-      cell([p([{ text: 'Component', bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 } })], { width: widths[0], shade: NAVY }),
-      cell([p([{ text: `${opt1Label} (pp)`, bold: true, color: 'FFFFFF', size: 18 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[1], shade: NAVY }),
-      cell([p([{ text: `${opt2Label} (pp)`, bold: true, color: 'FFFFFF', size: 18 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[2], shade: NAVY }),
-      cell([p([{ text: `${opt1Label} Total`, bold: true, color: 'FFFFFF', size: 18 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[3], shade: LINK }),
-      cell([p([{ text: `${opt2Label} Total`, bold: true, color: 'FFFFFF', size: 18 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[4], shade: LINK }),
-    ],
-  });
+// ---------- Column widths for tables with one first (label) column plus N
+// equal-ish option columns, summing exactly to `total` DXA. ----------
+function splitWidths(total: number, firstWidth: number, count: number): number[] {
+  const remaining = total - firstWidth;
+  const each = Math.floor(remaining / count);
+  const widths = Array(count).fill(each);
+  widths[count - 1] += remaining - each * count; // absorb rounding into the last column
+  return [firstWidth, ...widths];
+}
 
-  const row1 = new TableRow({
+// ---------- Package cost comparison ----------
+// One column per option (not two — a separate "pp" and "Total" row instead
+// of a doubled-up column per option), so the table reads as
+// Options → Option A | Option B | …, then a Per Person row and a Total row.
+function costComparisonTable(cc: OFItinerary['costComparison'], options: OFHotelOption[], currency: OFItinerary['currency']) {
+  const n = options.length;
+  const firstWidth = Math.max(1800, Math.round(PAGE_WIDTH * (n <= 3 ? 0.3 : 0.22)));
+  const widths = splitWidths(PAGE_WIDTH, firstWidth, n);
+
+  const header = new TableRow({
     children: [
       cell(
         [
-          p([{ text: component, bold: true, color: NAVY, size: 19 }], { spacing: { after: 40 } }),
-          p([{ text: sub, italic: true, color: MUTED, size: 16 }], { spacing: { after: 0 } }),
+          p([{ text: cc.componentLabel, bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 40 } }),
+          p([{ text: cc.componentSub, italic: true, color: 'FFFFFF', size: 15 }], { spacing: { after: 0 } }),
         ],
-        { width: widths[0], shade: PALEBLUE }
+        { width: widths[0], shade: NAVY }
       ),
-      cell([p([{ text: opt1pp, bold: true, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[1], shade: PALEBLUE }),
-      cell([p([{ text: opt2pp, bold: true, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[2], shade: PALEBLUE }),
-      cell([p([{ text: opt1total, bold: true, color: GOLD, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[3], shade: CREAM }),
-      cell([p([{ text: opt2total, bold: true, color: GOLD, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[4], shade: CREAM }),
+      ...options.map((o, i) =>
+        cell([p([{ text: o.label, bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[1 + i], shade: NAVY })
+      ),
     ],
   });
 
-  const row2 = new TableRow({
+  const ppRow = new TableRow({
     children: [
-      cell(
-        [p([{ text: 'TOTAL PACKAGE COST', bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 } })],
-        { width: widths[0], shade: GOLD }
+      cell([p([{ text: 'Per Person', bold: true, color: NAVY, size: 18 }], { spacing: { after: 0 } })], { width: widths[0], shade: PALEBLUE }),
+      ...options.map((o, i) =>
+        cell([p([{ text: formatOfMoney(o.perPerson, currency), bold: true, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[1 + i], shade: PALEBLUE })
       ),
-      cell([p([{ text: opt1pp, bold: true, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[1], shade: GOLD }),
-      cell([p([{ text: opt2pp, bold: true, size: 19 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[2], shade: GOLD }),
-      cell([p([{ text: opt1total, bold: true, color: NAVY, size: 20 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[3], shade: CREAM }),
-      cell([p([{ text: opt2total, bold: true, color: NAVY, size: 20 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[4], shade: CREAM }),
     ],
   });
 
-  return fixedTable({ width: { size: PAGE_WIDTH, type: WidthType.DXA }, columnWidths: widths, rows: [header, row1, row2] });
+  const totalRow = new TableRow({
+    children: [
+      cell([p([{ text: 'TOTAL PACKAGE COST', bold: true, color: 'FFFFFF', size: 18 }], { spacing: { after: 0 } })], { width: widths[0], shade: GOLD }),
+      ...options.map((o, i) =>
+        cell([p([{ text: formatOfMoney(o.total, currency), bold: true, color: NAVY, size: 20 }], { spacing: { after: 0 }, align: AlignmentType.CENTER })], { width: widths[1 + i], shade: CREAM })
+      ),
+    ],
+  });
+
+  return fixedTable({ width: { size: PAGE_WIDTH, type: WidthType.DXA }, columnWidths: widths, rows: [header, ppRow, totalRow] });
 }
 
 // ---------- Hotel differences table ----------
-function hotelDifferencesTable(rows: OFHotelDifferenceRow[], opt1Label: string, opt2Label: string) {
-  const widths = [2765, 4118, 4117];
+function hotelDifferencesTable(rows: OFHotelDifferenceRow[], options: OFHotelOption[]) {
+  const n = options.length;
+  const firstWidth = Math.max(1800, Math.round(PAGE_WIDTH * (n <= 2 ? 0.25 : 0.18)));
+  const widths = splitWidths(PAGE_WIDTH, firstWidth, n);
+
   const header = new TableRow({
     children: [
       cell([p([{ text: 'City', bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 } })], { width: widths[0], shade: NAVY }),
-      cell([p([{ text: opt1Label, bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 } })], { width: widths[1], shade: NAVY }),
-      cell([p([{ text: opt2Label, bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 } })], { width: widths[2], shade: NAVY }),
+      ...options.map((o, i) =>
+        cell([p([{ text: o.label, bold: true, color: 'FFFFFF', size: 19 }], { spacing: { after: 0 } })], { width: widths[1 + i], shade: NAVY })
+      ),
     ],
   });
   const bodyRows = rows.map(
@@ -329,8 +367,9 @@ function hotelDifferencesTable(rows: OFHotelDifferenceRow[], opt1Label: string, 
       new TableRow({
         children: [
           cell([p(r.city, { spacing: { after: 0 } }, 18)], { width: widths[0], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
-          cell([p([{ text: r.opt1, bold: true, color: LINK, size: 18 }], { spacing: { after: 0 } })], { width: widths[1], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
-          cell([p([{ text: r.opt2, bold: true, color: LINK, size: 18 }], { spacing: { after: 0 } })], { width: widths[2], shade: idx % 2 === 1 ? PALEBLUE : undefined }),
+          ...options.map((_, i) =>
+            cell([p([{ text: (r.values || [])[i] || '', bold: true, color: LINK, size: 18 }], { spacing: { after: 0 } })], { width: widths[1 + i], shade: idx % 2 === 1 ? PALEBLUE : undefined })
+          ),
         ],
       })
   );
@@ -339,13 +378,59 @@ function hotelDifferencesTable(rows: OFHotelDifferenceRow[], opt1Label: string, 
 
 // ---------- Document assembly ----------
 export async function generateOtherFormatDocx(
-  data: OFItinerary
+  data: OFItinerary,
+  template: OFTemplate = 'classic'
 ): Promise<{ base64: string; filename: string } | { error: string }> {
   try {
     const children: (Paragraph | Table)[] = [];
-    const [opt1, opt2] = data.hotelOptions;
+    const options = data.hotelOptions;
 
     children.push(...buildLetterhead(AGENCY));
+
+    if (template === 'modern' || template === 'branded') {
+      // Card/block layout — same letterhead above, same data, everything
+      // else built by itinerary-docx-modern.ts (mirrors OtherFormatPreview
+      // Modern in other-format-panel.tsx) or, for 'branded', the stronger
+      // royal-blue/orange variant in itinerary-docx-branded.ts (Word-export
+      // only for now — no dedicated preview/PDF yet).
+      children.push(...(template === 'branded' ? buildBrandedChildren(data) : buildModernChildren(data)));
+      children.push(new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 16, color: NAVY, space: 4 } }, spacing: { before: 300, after: 200 } }));
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: `This quotation has been prepared by ${AGENCY.name}. For queries, please contact us at ${AGENCY.email}`,
+              italics: true,
+              size: 18,
+              color: MUTED,
+              font: FONT,
+            }),
+          ],
+        })
+      );
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {
+              page: {
+                size: { width: 12240, height: 15840 },
+                margin: { top: 620, bottom: 620, left: 620, right: 620 },
+              },
+            },
+            headers: { default: buildHeader(data.meta) },
+            footers: { default: buildFooter(AGENCY) },
+            children,
+          },
+        ],
+      });
+
+      const buf = await Packer.toBuffer(doc);
+      const filename = safeFilename('Itinerary', data.meta.guestName || data.meta.title, 'docx');
+      return { base64: buf.toString('base64'), filename };
+    }
+
     children.push(...titleBlock(data.meta));
 
     if (data.tripSummary.length) {
@@ -353,10 +438,16 @@ export async function generateOtherFormatDocx(
       children.push(tripSummaryTable(data.tripSummary));
     }
 
-    if (opt1.hotels.length || opt2.hotels.length) {
-      children.push(sectionHeading('Hotel Accommodation — Two Options'));
-      if (opt1.hotels.length) children.push(...hotelOptionTable(opt1));
-      if (opt2.hotels.length) children.push(...hotelOptionTable(opt2));
+    if (options.some((o) => o.hotels.length)) {
+      children.push(sectionHeading(options.length > 1 ? `Hotel Accommodation — ${options.length} Options` : 'Hotel Accommodation'));
+      options.forEach((opt) => {
+        if (opt.hotels.length) children.push(...hotelOptionTable(opt));
+      });
+    }
+
+    if (data.flights.length) {
+      children.push(sectionHeading('Flights'));
+      children.push(flightsTable(data.flights));
     }
 
     if (data.tours.length) {
@@ -385,21 +476,10 @@ export async function generateOtherFormatDocx(
       data.notes.forEach((n) => children.push(noteLine(n)));
     }
 
-    const hasCostData = opt1.perPerson || opt2.perPerson || opt1.total || opt2.total;
+    const hasCostData = options.some((o) => o.perPerson || o.total);
     if (hasCostData) {
       children.push(sectionHeading('Package Cost — Comparison'));
-      children.push(
-        costComparisonTable(
-          data.costComparison.componentLabel,
-          data.costComparison.componentSub,
-          opt1.label,
-          opt2.label,
-          opt1.perPerson,
-          opt2.perPerson,
-          opt1.total,
-          opt2.total
-        )
-      );
+      children.push(costComparisonTable(data.costComparison, options, data.currency));
       if (data.costComparison.footnote) {
         children.push(
           p([{ text: data.costComparison.footnote, italic: true, color: MUTED, size: 17 }], { spacing: { before: 100, after: 0 } })
@@ -409,7 +489,7 @@ export async function generateOtherFormatDocx(
 
     if (data.hotelDifferences.length) {
       children.push(navyBar([{ text: 'HOTEL DIFFERENCES BETWEEN OPTIONS', bold: true, color: 'FFFFFF' }], { size: 20 }));
-      children.push(hotelDifferencesTable(data.hotelDifferences, opt1.label, opt2.label));
+      children.push(hotelDifferencesTable(data.hotelDifferences, options));
     }
 
     children.push(new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 16, color: NAVY, space: 4 } }, spacing: { before: 300, after: 200 } }));

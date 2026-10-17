@@ -58,7 +58,7 @@ import {
                                                               import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
                                                               import { ClientForm } from '@/components/forms/client-form';
                                                               import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-                                                              import { visaStatusGlow, copyToClipboard } from '@/lib/utils';
+                                                              import { visaStatusGlow, copyToClipboard, cn, clientSlug } from '@/lib/utils';
                                                               import Link from 'next/link';
                                                               import { useToast } from '@/hooks/use-toast';
                                                               import {
@@ -82,7 +82,9 @@ import type { DateRange } from 'react-day-picker';
 import { LastLogActivity } from '@/components/clients/last-log-activity';
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 import { ImportClientsDialog } from '@/components/clients/import-clients-dialog';
-import { Upload } from 'lucide-react';
+import { Upload, AlertTriangle, GitMerge } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { MergeClientsDialog } from '@/components/clients/merge-clients-dialog';
 
 
                                                                                 const ClientRowSkeleton = () => (
@@ -127,10 +129,38 @@ export default function ClientsPage() {
     const [followUpClient, setFollowUpClient] = useState<Client | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+    // Same-phone duplicate alert: clientId -> the OTHER client(s) sharing that
+    // phone number (never matched by name — two real customers can share a
+    // name, but shouldn't share a phone). Scanned server-side (see the API
+    // route) so it isn't limited by this page's own per-role read scope.
+    const [dupByClient, setDupByClient] = useState<Record<string, { id: string; name: string }[]>>({});
+    const refetchDuplicates = async () => {
+        if (!user) return;
+        try {
+            const token = await user.getIdToken();
+            const res = await fetch('/api/clients/duplicate-groups', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) return;
+            const result = await res.json();
+            setDupByClient(result?.byClient || {});
+        } catch {
+            // Non-critical — the page just won't show duplicate alerts this load.
+        }
+    };
+    useEffect(() => {
+        refetchDuplicates();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
+    const duplicateClientCount = Object.keys(dupByClient).length;
+    // Merge duplicate clients: candidate group passed to the dialog when its
+    // "Merge duplicate" row action is clicked.
+    const [mergeGroup, setMergeGroup] = useState<{ id: string; name: string }[] | null>(null);
     const [statusFilter, setStatusFilter] = useState('All');
     const [typeFilter, setTypeFilter] = useState('All');
     const [visaStatusFilter, setVisaStatusFilter] = useState('All');
     const [orgFilter, setOrgFilter] = useState('All');
+    const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -262,7 +292,9 @@ export default function ClientsPage() {
                     ? true
                     : user?.uid && (client.assignedEmployees?.includes(user.uid) || false) || client.createdBy === user?.uid;
 
-                return searchMatch && statusMatch && typeMatch && visaStatusMatch && orgMatch && dateMatch && assignmentMatch;
+                const dupMatch = !showDuplicatesOnly || (dupByClient[client.id]?.length > 0);
+
+                return searchMatch && statusMatch && typeMatch && visaStatusMatch && orgMatch && dateMatch && assignmentMatch && dupMatch;
             });
 
             // Non-admin queries drop the server-side orderBy, so sort here.
@@ -280,11 +312,11 @@ export default function ClientsPage() {
             }
 
             setFilteredClients(results);
-    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, orgFilter, dateRange, isAdminOrManager, user?.uid, sortOrder]);
+    }, [searchTerm, clients, statusFilter, typeFilter, visaStatusFilter, orgFilter, dateRange, isAdminOrManager, user?.uid, sortOrder, showDuplicatesOnly, dupByClient]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, orgFilter, dateRange, sortOrder]);
+    }, [searchTerm, statusFilter, typeFilter, visaStatusFilter, orgFilter, dateRange, sortOrder, showDuplicatesOnly]);
     
     const handleAddClient = (newClientData: Partial<Client>) => {
         if (!clientsQuery) return;
@@ -523,7 +555,22 @@ export default function ClientsPage() {
                     </Dialog>
                 </div>
             </PageHeader>
-            
+
+            {duplicateClientCount > 0 && (
+                <Alert variant="destructive" className="mb-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Possible duplicate clients</AlertTitle>
+                    <AlertDescription>
+                        {duplicateClientCount} client{duplicateClientCount === 1 ? '' : 's'} share a phone number
+                        with another client — look for the <AlertTriangle className="inline h-3.5 w-3.5 text-amber-600 align-text-bottom" /> next
+                        to their contact info below, or{' '}
+                        <button type="button" className="underline font-medium" onClick={() => setShowDuplicatesOnly(true)}>
+                            filter to just those clients
+                        </button>.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="bg-card border rounded-lg p-4 mb-6">
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
@@ -644,6 +691,16 @@ export default function ClientsPage() {
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>
+
+                        <Button
+                            variant={showDuplicatesOnly ? 'default' : 'outline'}
+                            className={cn('w-full sm:w-auto', showDuplicatesOnly && 'bg-amber-600 hover:bg-amber-700')}
+                            disabled={duplicateClientCount === 0}
+                            onClick={() => setShowDuplicatesOnly((v) => !v)}
+                        >
+                            <AlertTriangle className="mr-2 h-4 w-4" />
+                            Duplicates {duplicateClientCount > 0 ? `(${duplicateClientCount})` : ''}
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -784,6 +841,13 @@ export default function ClientsPage() {
                 }
             />
 
+            <MergeClientsDialog
+                open={!!mergeGroup}
+                onOpenChange={(open) => !open && setMergeGroup(null)}
+                candidates={mergeGroup || []}
+                onMerged={refetchDuplicates}
+            />
+
             <div className="bg-card border rounded-lg mt-4">
                 <Table>
                     <TableHeader>
@@ -813,7 +877,7 @@ export default function ClientsPage() {
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <Link href={`/clients/${client.id}`} className="hover:underline">{client.name}</Link>
+                                    <Link href={`/clients/${clientSlug(client.name, client.id)}`} className="hover:underline">{client.name}</Link>
                                     <div className="text-sm text-muted-foreground truncate">{client.preferredDestination || 'No destination set'}</div>
                                     {client.organizationId && orgNames.get(client.organizationId) && (
                                         <Link href={`/organizations/${client.organizationId}`} onClick={(e) => e.stopPropagation()}>
@@ -833,6 +897,14 @@ export default function ClientsPage() {
                                 <div className="flex items-center gap-2 text-sm mt-1">
                                     <Phone className="h-4 w-4 text-muted-foreground"/>
                                     <span>{client.phone}</span>
+                                    {dupByClient[client.id]?.length > 0 && (
+                                        <span
+                                            className="shrink-0"
+                                            title={`Same phone as: ${dupByClient[client.id].map((d) => d.name).join(', ')}`}
+                                        >
+                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" aria-label="Duplicate phone number" />
+                                        </span>
+                                    )}
                                 </div>
                             </TableCell>
                             <TableCell className="text-center">{client.pax || 1}</TableCell>
@@ -891,13 +963,18 @@ export default function ClientsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem asChild><Link href={`/clients/${client.id}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Details</Link></DropdownMenuItem>
+                                    <DropdownMenuItem asChild><Link href={`/clients/${clientSlug(client.name, client.id)}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Details</Link></DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setEditingClient(client)}><Pencil className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setLogClient(client)}><FilePlus2 className="mr-2 h-4 w-4"/>Add Log</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setFollowUpClient(client)}><Bell className="mr-2 h-4 w-4"/>Add Follow-up</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setBookingClient(client)}><Book className="mr-2 h-4 w-4"/>Create Booking</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setShareClient(client)}><UserPlus className="mr-2 h-4 w-4"/>Share with teammate</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handleArchiveClient(client)}><Archive className="mr-2 h-4 w-4"/>Archive</DropdownMenuItem>
+                                    {isAdminOrManager && !client.organizationId && (dupByClient[client.id]?.length ?? 0) > 0 && (
+                                        <DropdownMenuItem onSelect={() => setMergeGroup([{ id: client.id, name: client.name }, ...dupByClient[client.id]])}>
+                                            <GitMerge className="mr-2 h-4 w-4"/>Merge duplicate
+                                        </DropdownMenuItem>
+                                    )}
                                     {canDelete && (
                                         <DropdownMenuItem
                                             className="text-destructive"

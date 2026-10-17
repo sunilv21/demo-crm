@@ -16,6 +16,7 @@ import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/fire
 import { collection, query, where } from 'firebase/firestore';
 import type { Booking, Invoice } from '@/lib/types';
 import { useParams } from 'next/navigation';
+import { clientIdFromSlug } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useMemo } from 'react';
 
@@ -24,7 +25,7 @@ const statusVariant = (status?: string) =>
 
 export default function ClientInvoicesPage() {
   const params = useParams();
-  const clientId = params.clientId as string;
+  const clientId = clientIdFromSlug(params.clientId as string);
   const firestore = useFirestore();
   const { isAdminOrManager } = useAppUser();
 

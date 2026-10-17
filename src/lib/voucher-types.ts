@@ -1,6 +1,8 @@
-// Plain-serializable input for the hotel booking voucher .docx generator
-// (src/app/actions/voucher-docx.ts). Vouchers are hotel-bookings only — see
-// generateBookingVoucherDocx, which rejects any other booking type.
+// Plain-serializable input for the hotel booking voucher generators — the
+// local "Download Voucher" action still produces a .docx
+// (src/app/actions/voucher-docx.ts), while email/WhatsApp sends use the PDF
+// renderer (src/app/actions/voucher-pdf.ts) instead. Vouchers are
+// hotel-bookings only — both generators reject any other booking type.
 //
 // A Server Action's arguments must be plain JSON-serializable values — a
 // live Booking/Client can carry Firestore Timestamp instances (createdAt,
@@ -37,7 +39,7 @@ export type VoucherInput = {
   // Sourced from the linked Hotel Master record (booking.bookingDetails.hotelId)
   // at generation time, if any — replaces the generic hardcoded terms on the
   // voucher, and adds a Notes section when set. Set by the caller after
-  // buildVoucherInput(); see voucher-docx.ts.
+  // buildVoucherInput(); see voucher-docx.ts / voucher-pdf.ts.
   hotelTermsAndConditions?: string;
   hotelNotes?: string;
 };

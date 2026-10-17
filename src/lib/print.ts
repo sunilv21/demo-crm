@@ -29,22 +29,42 @@ function wrapDocument(contentHTML: string, title: string, origin: string) {
     </style></head><body><div class="print-container">${contentHTML}</div></body></html>`;
 }
 
+// Fold accents to ASCII first (José → Jose) so names stay readable rather
+// than losing the letter entirely, then reduce to filesystem-safe characters.
+export function cleanFilenamePart(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // strip combining diacritical marks
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 /**
  * Build a safe, descriptive filename with a given extension, e.g.
  *   SkyVisa-Booking-Ravi-Kumar-2026-07-15.pdf
  * Shared by pdfFilename() below and the Other Format .docx export.
  */
 export function safeFilename(label: string, subject: string | undefined, ext: string): string {
-  // Fold accents to ASCII first (José → Jose) so names stay readable rather
-  // than losing the letter entirely, then reduce to filesystem-safe characters.
-  const clean = (s: string) =>
-    s.normalize('NFD')
-      .replace(/[̀-ͯ]/g, '') // strip combining diacritical marks
-      .replace(/[^a-zA-Z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
   const date = new Date().toISOString().slice(0, 10);
-  const parts = ['SkyVisa', clean(label), subject ? clean(subject) : '', date].filter(Boolean);
+  const parts = ['SkyVisa', cleanFilenamePart(label), subject ? cleanFilenamePart(subject) : '', date].filter(Boolean);
   return `${parts.join('-')}.${ext}`;
+}
+
+/**
+ * Voucher-specific filename, e.g. "Taj-Palace-MR-SUYASH-KATARIA.docx" — no
+ * "SkyVisa"/date noise, just the hotel name (falling back to the generic
+ * "Hotel-Voucher" label when the booking has none) and the guest name, so
+ * the file is identifiable by itself once downloaded.
+ */
+export function voucherFilename(hotelName: string | undefined, clientName: string, ext: string): string {
+  const parts = [cleanFilenamePart(hotelName?.trim() || 'Hotel-Voucher'), clientName ? cleanFilenamePart(clientName) : '']
+    .filter(Boolean);
+  return `${parts.join('-')}.${ext}`;
+}
+
+/** The `title` form of voucherFilename() — no extension (the browser appends one). */
+export function voucherPdfTitle(hotelName: string | undefined, clientName: string): string {
+  return voucherFilename(hotelName, clientName, 'pdf').replace(/\.pdf$/, '');
 }
 
 /**

@@ -30,7 +30,7 @@ interface EmailVoucherDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const VOUCHER_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const VOUCHER_MIME = 'application/pdf';
 
 export function EmailVoucherDialog({ booking, client, attachment, open, onOpenChange }: EmailVoucherDialogProps) {
   const firestore = useFirestore();

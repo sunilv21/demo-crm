@@ -6,6 +6,7 @@ import { AutoLogoutWatcher } from '@/components/attendance/auto-logout-watcher';
 import { NetworkStatusListener } from '@/components/common/network-status';
 import { FinanceRoleGuard } from '@/components/common/finance-role-guard';
 import { NotificationProvider } from '@/components/notifications/notification-provider';
+import { GlobalMonthFilterProvider } from '@/components/finance/global-month-filter-provider';
 import {
   SidebarProvider,
   Sidebar,
@@ -42,8 +43,8 @@ function AppLayoutSkeleton() {
         </div>
       </div>
       <div className="flex-1 flex flex-col">
-        <header className="sticky top-0 z-40 flex h-8 items-center gap-2 border-b bg-background/80 backdrop-blur-sm px-3">
-          <Skeleton className="h-4 w-32" />
+        <header className="sticky top-0 z-40 flex h-10 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
+          <Skeleton className="h-5 w-32" />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           <Skeleton className="h-8 w-48 mb-8" />
@@ -79,20 +80,22 @@ export default function AppLayout({
   return (
     <AppUserProvider>
       <NotificationProvider>
-        <AutoLogoutWatcher />
-        <NetworkStatusListener />
-        <FinanceRoleGuard />
-        <SidebarProvider>
-          <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
-              <AppSidebarNav />
-          </Sidebar>
-          <SidebarInset className="flex flex-col min-w-0">
-            <AppHeader />
-            <main id="main-content" className="flex-1 overflow-auto min-w-0 p-4 lg:p-6">
-              {children}
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
+        <GlobalMonthFilterProvider>
+          <AutoLogoutWatcher />
+          <NetworkStatusListener />
+          <FinanceRoleGuard />
+          <SidebarProvider>
+            <Sidebar side="left" collapsible="icon" className="group-data-[collapsible=icon]:border-r print:hidden">
+                <AppSidebarNav />
+            </Sidebar>
+            <SidebarInset className="flex flex-col min-w-0">
+              <AppHeader />
+              <main id="main-content" className="flex-1 overflow-auto min-w-0 p-4 lg:p-6 print:overflow-visible print:h-auto">
+                {children}
+              </main>
+            </SidebarInset>
+          </SidebarProvider>
+        </GlobalMonthFilterProvider>
       </NotificationProvider>
     </AppUserProvider>
   );

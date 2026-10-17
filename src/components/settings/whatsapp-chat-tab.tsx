@@ -92,7 +92,10 @@ export function WhatsAppChatTab() {
   // chatId (the WhatsApp JID) isn't readable for LID-based contacts — prefer
   // a matching CRM client's name, then WhatsApp's own contact info (recorded
   // per-message by the bridge), falling back to the raw id as a last resort.
+  // Groups have no phone to match against a CRM client, so they always show
+  // the group's own name.
   function displayNameFor(latest: WhatsAppMessage | undefined, chatId: string): string {
+    if (latest?.isGroup) return latest.groupName || chatId.split('@')[0];
     const phone = latest?.contactPhone;
     if (phone) {
       const clientName = clientNameByPhone.get(phone.slice(-10));
@@ -422,6 +425,11 @@ export function WhatsAppChatTab() {
                             : 'bg-white text-[#111B21] dark:bg-[#202C33] dark:text-[#E9EDEF]'
                         )}
                       >
+                        {m.isGroup && m.direction === 'inbound' && (
+                          <div className="text-xs font-semibold text-[#25D366] dark:text-[#00A884] mb-0.5">
+                            {m.senderName || m.senderPhone || 'Unknown'}
+                          </div>
+                        )}
                         {m.mediaUrl && (
                           <a
                             href={m.mediaUrl}

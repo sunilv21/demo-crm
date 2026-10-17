@@ -7,6 +7,7 @@ import { useAppUser, useCollection, useFirestore, useMemoFirebase } from '@/fire
 import { collection, query, where } from 'firebase/firestore';
 import type { Booking } from '@/lib/types';
 import Link from 'next/link';
+import { clientSlug } from '@/lib/utils';
 import { useMemo } from 'react';
 
 export function RecentBookings() {
@@ -56,7 +57,7 @@ export function RecentBookings() {
                 </Avatar>
                 <div className="ml-4 space-y-1 min-w-0">
                   <Link
-                    href={`/clients/${booking.clientId}`}
+                    href={`/clients/${clientSlug(booking.clientName || '', booking.clientId)}`}
                     className="text-sm font-medium leading-none text-primary hover:underline truncate block"
                   >
                     {booking.clientName || 'Unknown Client'}

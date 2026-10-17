@@ -1,7 +1,9 @@
 // Shared low-level building blocks for generating .docx documents with the
 // `docx` library — the navy/gold visual system, table/paragraph helpers, and
 // the company letterhead banner. Extracted out of itinerary-docx.ts so the
-// voucher generator (voucher-docx.ts) doesn't duplicate ~150 lines of table
+// voucher generator (voucher-docx.ts — still used for the local "Download
+// Voucher" action; email/WhatsApp sends use voucher-pdf.ts's HTML/Puppeteer
+// renderer instead, see that file) doesn't duplicate ~150 lines of table
 // plumbing; both import from here.
 //
 // Deliberately takes a `CompanyIdentity` parameter everywhere rather than
@@ -81,7 +83,7 @@ export function noBorders(): ITableCellBorders {
 export type RunPart = { text: string; bold?: boolean; italic?: boolean; color?: string; size?: number };
 
 export function cell(
-  children: Paragraph[],
+  children: (Paragraph | Table)[],
   opts: { width: number; shade?: string; valign?: TableVerticalAlign; borders?: ITableCellBorders; margins?: { top: number; bottom: number; left: number; right: number } }
 ) {
   const { width, shade, valign = VerticalAlignTable.CENTER, borders = thinBorders(), margins } = opts;

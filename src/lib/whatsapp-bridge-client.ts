@@ -49,3 +49,17 @@ export function bridgeSendMessage(
 ) {
   return callBridge<{ ok: true; chatId: string }>('/send', { accountId, to, body, ...campaignMeta });
 }
+
+// Sends a file inline (base64) — whatsapp-web.js accepts file bytes
+// directly, unlike Twilio/Meta which fetch media from a URL. `mediaUrl` (if
+// given) is never fetched by the bridge; it's stored on the message doc
+// purely so the CRM's own chat history has an attachment link, same as
+// Twilio/Meta sends already get.
+export function bridgeSendMediaMessage(
+  accountId: string,
+  to: string,
+  media: { base64: string; mimetype: string; filename: string; caption?: string; mediaUrl?: string },
+  campaignMeta?: { campaignId: string; campaignRecipientId: string }
+) {
+  return callBridge<{ ok: true; chatId: string }>('/send-media', { accountId, to, ...media, ...campaignMeta });
+}

@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog';
 import Link from 'next/link';
+import { clientSlug } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +50,7 @@ import { ClientForm } from '@/components/forms/client-form';
 import { CustomerLogForm } from '@/components/forms/customer-log-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HotelsTab } from '@/components/database/hotels-tab';
+import { SuppliersTab } from '@/components/database/suppliers-tab';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
@@ -165,6 +167,7 @@ export default function DatabasePage() {
         <TabsList>
           <TabsTrigger value="archived-clients">Archived Clients</TabsTrigger>
           <TabsTrigger value="hotels">Hotels</TabsTrigger>
+          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
         </TabsList>
         <TabsContent value="archived-clients" className="mt-4 space-y-4">
       {!isAdminOrManager ? (
@@ -234,7 +237,7 @@ export default function DatabasePage() {
                                   </AvatarFallback>
                               </Avatar>
                               <div>
-                                  <Link href={`/clients/${client.id}`} className="hover:underline">{client.name}</Link>
+                                  <Link href={`/clients/${clientSlug(client.name, client.id)}`} className="hover:underline">{client.name}</Link>
                                   <div className="text-sm text-muted-foreground truncate">{client.email || 'No email'}</div>
                               </div>
                           </div>
@@ -254,7 +257,7 @@ export default function DatabasePage() {
                                 <ArchiveRestore className="mr-2 h-4 w-4" />
                                 Unarchive
                               </DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href={`/clients/${client.id}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Details</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href={`/clients/${clientSlug(client.name, client.id)}`} className="flex items-center"><Eye className="mr-2 h-4 w-4"/>View Details</Link></DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => setLogClient(client)}>
                                   <FilePlus2 className="mr-2 h-4 w-4"/>
                                   Add Log
@@ -303,6 +306,9 @@ export default function DatabasePage() {
         </TabsContent>
         <TabsContent value="hotels" className="mt-4">
           <HotelsTab />
+        </TabsContent>
+        <TabsContent value="suppliers" className="mt-4">
+          <SuppliersTab />
         </TabsContent>
       </Tabs>
     </>

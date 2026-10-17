@@ -41,7 +41,6 @@ import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useFormPersistence } from '@/hooks/use-form-persistence';
 import { DialogFooter } from '../ui/dialog';
 import { Separator } from '../ui/separator';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
 import { Label } from '../ui/label';
 
 
@@ -105,7 +104,7 @@ const formSchema = z.object({
   additionalServices: z.array(z.string()).optional(),
   preferences: z.string().optional(),
   status: z.enum(['active', 'inactive', 'lead', 'prospect']),
-  visaStatus: z.enum(['toStart', 'inProcess', 'applied', 'approved', 'rejected', 'completed', 'travelling', '']).optional(),
+  visaStatus: z.enum(['toStart', 'inProcess', 'applied', 'approved', 'rejected', 'completed', '']).optional(),
   pax: z.coerce.number().int().min(1, "PAX must be at least 1.").optional(),
   companions: z.array(z.object({
     name: z.string().min(1, 'Companion name is required.'),
@@ -137,15 +136,6 @@ interface ClientFormProps {
 // Radix <SelectItem> rejects an empty-string value, so we use this sentinel to
 // represent "no organization" and convert it back to null on submit.
 const NO_ORG = '__none__';
-
-const FormCard: React.FC<React.PropsWithChildren<{isPublicForm: boolean} & React.HTMLAttributes<HTMLDivElement>>> = ({ isPublicForm, className, ...props }) => {
-    const cardClass = isPublicForm 
-        ? "bg-white/10 backdrop-blur-md border-white/20 text-white" 
-        : "bg-card text-card-foreground";
-
-    return <Card className={cn(cardClass, className)} {...props} />;
-};
-
 
 const Combobox = ({
   field,
@@ -527,16 +517,24 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
   };
   
 
+  const sectionClass = "p-6 space-y-4";
+  const sectionTitleClass = cn("text-sm font-semibold", isPublicForm ? "text-white" : "text-foreground");
+  const sectionDescClass = cn("text-xs mt-0.5", isPublicForm ? "text-white/60" : "text-muted-foreground");
+
   return (
     <Form {...form}>
-      <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit, handleInvalid)} className="space-y-8">
+      <form ref={ref} id="client-form" onSubmit={form.handleSubmit(handleSubmit, handleInvalid)} className="space-y-6">
+        <div className={cn(
+          "rounded-xl border overflow-hidden divide-y",
+          isPublicForm ? "bg-white/10 backdrop-blur-md border-white/20 divide-white/10" : "bg-card divide-border"
+        )}>
+
         {canAssign && (
-        <FormCard isPublicForm={isPublicForm}>
-            <CardHeader>
-                <CardTitle>Assignment</CardTitle>
-                <CardDescription>Assign this client to an employee who will handle it.</CardDescription>
-            </CardHeader>
-            <CardContent>
+        <div className={sectionClass}>
+            <div>
+                <p className={sectionTitleClass}>Assignment</p>
+                <p className={sectionDescClass}>Assign this client to an employee who will handle it.</p>
+            </div>
                 <FormField
                     control={form.control}
                     name="assignedEmployees"
@@ -573,29 +571,27 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         </FormItem>
                     )}
                 />
-            </CardContent>
-        </FormCard>
+        </div>
         )}
 
-        <FormCard isPublicForm={isPublicForm}>
-            <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-                <CardDescription>
-                    Provide the main contact details for the client.
-                    {!isPublicForm && (
-                        <Button type="button" variant="link" onClick={handleClearForm} className="text-destructive p-0 h-auto ml-2">
-                            Clear Form
-                        </Button>
-                    )}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className={sectionClass}>
+            <div className="flex items-start justify-between gap-2">
+                <div>
+                    <p className={sectionTitleClass}>Contact Information</p>
+                    <p className={sectionDescClass}>Provide the main contact details for the client.</p>
+                </div>
+                {!isPublicForm && (
+                    <Button type="button" variant="ghost" size="sm" onClick={handleClearForm} className="text-destructive hover:text-destructive shrink-0 h-7 px-2 text-xs">
+                        Clear Form
+                    </Button>
+                )}
+            </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
                         name="name"
                         render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Name *</FormLabel>
                             <FormControl>
                             <Input {...field} className={formInputClass}/>
@@ -608,7 +604,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         control={form.control}
                         name="email"
                         render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                             <FormLabel className={formLabelClass}>Email</FormLabel>
                             <FormControl>
                             <Input type="email" {...field} className={formInputClass}/>
@@ -655,7 +651,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     control={form.control}
                     name="phone"
                     render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                         <FormLabel className={formLabelClass}>Phone *</FormLabel>
                         <FormControl>
                             <Input
@@ -671,15 +667,13 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     )}
                     />
                 </div>
-            </CardContent>
-        </FormCard>
-        
-        <FormCard isPublicForm={isPublicForm}>
-            <CardHeader>
-                <CardTitle>Personal Details</CardTitle>
-                <CardDescription>Enter the client's personal information.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        </div>
+
+        <div className={sectionClass}>
+            <div>
+                <p className={sectionTitleClass}>Personal Details</p>
+                <p className={sectionDescClass}>Enter the client's personal information.</p>
+            </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -696,7 +690,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             control={form.control}
                             name="gender"
                             render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                                 <FormLabel className={formLabelClass}>Gender</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
@@ -720,7 +714,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             control={form.control}
                             name="pax"
                             render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="flex flex-col">
                                     <FormLabel className={formLabelClass}>PAX (Total Travelers)</FormLabel>
                                     <FormControl>
                                         <Input type="number" min={1} {...field} className={formInputClass}/>
@@ -741,14 +735,16 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             )}
                         />
                     </div>
-                     <div className='mt-4'>
-                        <Label className={formLabelClass}>Companions</Label>
-                        <p className={cn("text-sm mt-1", isPublicForm ? 'text-white/70' : 'text-muted-foreground')}>
-                            Add details of people travelling with the client.
-                        </p>
-                        <div className="space-y-2 mt-2">
+                     <div className="space-y-2">
+                        <div>
+                            <p className={cn('text-sm font-medium leading-none', formLabelClass)}>Companions</p>
+                            <p className={cn("text-sm mt-1", isPublicForm ? 'text-white/70' : 'text-muted-foreground')}>
+                                Add details of people travelling with the client.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
                             {fields.map((field, index) => (
-                            <div key={field.id} className="flex items-center gap-2">
+                            <div key={field.id} className="flex items-start gap-2">
                                 <FormField
                                 control={form.control}
                                 name={`companions.${index}.name`}
@@ -787,7 +783,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => remove(index)}
-                                className={cn(isPublicForm ? 'text-white/80 hover:text-white' : '', 'hover:bg-destructive/10 hover:text-destructive')}
+                                className={cn('mt-0.5 shrink-0', isPublicForm ? 'text-white/80 hover:text-white' : '', 'hover:bg-destructive/10 hover:text-destructive')}
                                 >
                                 <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -798,22 +794,19 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="mt-2"
                             onClick={() => append({ name: "", type: "adult" })}
                         >
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Add Companion
                         </Button>
                     </div>
-            </CardContent>
-        </FormCard>
+        </div>
 
-        <FormCard isPublicForm={isPublicForm}>
-            <CardHeader>
-                <CardTitle>Travel Preferences</CardTitle>
-                <CardDescription>Help us understand what the client is looking for.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className={sectionClass}>
+            <div>
+                <p className={sectionTitleClass}>Travel Preferences</p>
+                <p className={sectionDescClass}>Help us understand what the client is looking for.</p>
+            </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                     {/* Travel Purpose */}
                     <FormField
@@ -897,12 +890,14 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     />
                 </div>
 
-                <div className="mt-2">
-                    <Label className={formLabelClass}>Trip Destinations</Label>
-                    <p className={cn("text-sm mt-1", isPublicForm ? 'text-white/70' : 'text-muted-foreground')}>
-                        Add each country the client will visit on this trip, with dates.
-                    </p>
-                    <div className="space-y-3 mt-2">
+                <div className="space-y-2">
+                    <div>
+                        <p className={cn('text-sm font-medium leading-none', formLabelClass)}>Trip Destinations</p>
+                        <p className={cn("text-sm mt-1", isPublicForm ? 'text-white/70' : 'text-muted-foreground')}>
+                            Add each country the client will visit on this trip, with dates.
+                        </p>
+                    </div>
+                    <div className="space-y-3">
                         {tripFields.map((tripField, index) => (
                             <div key={tripField.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end rounded-lg border p-3">
                                 <FormField
@@ -956,22 +951,19 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="mt-2"
                         onClick={() => appendTrip({ destination: '', from: undefined, to: undefined })}
                     >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Destination
                     </Button>
                 </div>
-            </CardContent>
-        </FormCard>
+        </div>
 
-        <FormCard isPublicForm={isPublicForm}>
-            <CardHeader>
-                <CardTitle>Services</CardTitle>
-                <CardDescription>Select the services the client is interested in.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className={sectionClass}>
+            <div>
+                <p className={sectionTitleClass}>Services</p>
+                <p className={sectionDescClass}>Select the services the client is interested in.</p>
+            </div>
                 <FormField
                 control={form.control}
                 name="services"
@@ -1010,14 +1002,14 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                 )}
                 />
 
-                <div>
-                    <FormLabel className={formLabelClass}>Additional Services</FormLabel>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0 mt-2">
+                <div className="space-y-2">
+                    <p className={cn('text-sm font-medium leading-none', formLabelClass)}>Additional Services</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <FormField
                         control={form.control}
                         name="additionalServices"
                         render={() => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl><Checkbox onCheckedChange={(checked) => {
                                 const current = form.getValues('additionalServices') || [];
                                 return checked ? form.setValue('additionalServices', [...current, 'travelInsurance']) : form.setValue('additionalServices', current.filter(v => v !== 'travelInsurance'))
@@ -1029,7 +1021,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         control={form.control}
                         name="additionalServices"
                         render={() => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl><Checkbox onCheckedChange={(checked) => {
                                 const current = form.getValues('additionalServices') || [];
                                 return checked ? form.setValue('additionalServices', [...current, 'airportPickup']) : form.setValue('additionalServices', current.filter(v => v !== 'airportPickup'))
@@ -1041,7 +1033,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         control={form.control}
                         name="additionalServices"
                         render={() => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl><Checkbox onCheckedChange={(checked) => {
                                 const current = form.getValues('additionalServices') || [];
                                 return checked ? form.setValue('additionalServices', [...current, 'localTours']) : form.setValue('additionalServices', current.filter(v => v !== 'localTours'))
@@ -1065,21 +1057,19 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                     </FormItem>
                 )}
                 />
-            </CardContent>
-        </FormCard>
-        
+        </div>
+
         {!isPublicForm && (
-            <FormCard isPublicForm={isPublicForm}>
-                <CardHeader>
-                    <CardTitle>Internal Details</CardTitle>
-                    <CardDescription>Status and tracking information for internal use.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+        <div className={sectionClass}>
+            <div>
+                <p className={sectionTitleClass}>Internal Details</p>
+                <p className={sectionDescClass}>Status and tracking information for internal use.</p>
+            </div>
                     <FormField
                         control={form.control}
                         name="organizationId"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                                 <FormLabel>Organization</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value || NO_ORG}>
                                     <FormControl>
@@ -1104,7 +1094,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                         control={form.control}
                         name="status"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                             <FormLabel>Status</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
@@ -1127,7 +1117,7 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             control={form.control}
                             name="visaStatus"
                             render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="flex flex-col">
                                 <FormLabel>Visa Status</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
@@ -1142,7 +1132,6 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                                     <SelectItem value="approved">Approved</SelectItem>
                                     <SelectItem value="rejected">Rejected</SelectItem>
                                     <SelectItem value="completed">Completed</SelectItem>
-                                    <SelectItem value="travelling">Travelling</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -1150,10 +1139,11 @@ export const ClientForm = React.forwardRef<HTMLFormElement, ClientFormProps>(({ 
                             )}
                         />
                     </div>
-                </CardContent>
-            </FormCard>
+        </div>
         )}
-        
+
+        </div>{/* end unified card */}
+
         {isPublicForm ? (
              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" size="lg" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

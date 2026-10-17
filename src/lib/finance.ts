@@ -4,8 +4,9 @@ import type {
   FinanceAccountType,
   Booking,
   AgentExpense,
+  User,
 } from '@/lib/types';
-import { PAYMENT_MODE_LABELS } from '@/lib/utils';
+import { PAYMENT_MODE_LABELS, formatINR } from '@/lib/utils';
 import { ledgerFor } from '@/lib/payments';
 
 // Firestore collection names for the Finance module.
@@ -17,6 +18,15 @@ export const FINANCE_COLLECTIONS = {
   methods: 'payment_methods',
   agentExpenses: 'agent_expenses',
 } as const;
+
+// The supplier/portal/rental-company/agency directory's category list — one
+// place so Finance → Suppliers, Database → Suppliers, and the booking form's
+// quick-add dialog all offer the exact same options.
+export const SUPPLIER_CATEGORIES = [
+  'VFS', 'BLS', 'Embassy', 'DMC', 'B2B Portal', 'Booking Portal', 'Agency', 'Airline', 'Hotel',
+  'Transport', 'Rental Company', 'Tour Operator', 'Insurance', 'Courier', 'Marketing',
+  'Software / SaaS', 'Bank / Gateway', 'Employee', 'Landlord', 'Utility', 'Government', 'Other',
+] as const;
 
 export const ACCOUNT_TYPE_LABELS: Record<FinanceAccountType, string> = {
   cash: 'Cash',
@@ -36,7 +46,12 @@ export function txnDeltaForAccount(t: FinanceTransaction, accountId: string): nu
   if (!live(t)) return 0;
   const amt = t.amount || 0;
   if (t.type === 'income') return t.accountId === accountId ? amt : 0;
-  if (t.type === 'expense') return t.accountId === accountId ? -amt : 0;
+  if (t.type === 'expense') {
+    if (t.accountId === accountId) return -amt;
+    // Funds a wallet account (e.g. depositing into a supplier's balance).
+    if (t.toAccountId === accountId) return amt;
+    return 0;
+  }
   // transfer: leaves accountId, arrives toAccountId
   if (t.type === 'transfer') {
     if (t.accountId === accountId) return -amt;
@@ -50,13 +65,39 @@ export function accountBalance(account: FinanceAccount, transactions: FinanceTra
   return (account.openingBalance || 0) + transactions.reduce((s, t) => s + txnDeltaForAccount(t, account.id), 0);
 }
 
+/** For a wallet-type account that's gone negative (spent more than was
+ * deposited — e.g. a person's card used past what they were given), read
+ * this as money owed to that person/portal, not a plain negative balance. */
+export function accountBalanceLabel(account: FinanceAccount, balance: number): string {
+  if (balance < 0 && account.type === 'wallet') return `Owed ${formatINR(Math.abs(balance))}`;
+  return formatINR(balance);
+}
+
 /** Total balance across a set of accounts. */
 export function totalBalance(accounts: FinanceAccount[], transactions: FinanceTransaction[]): number {
   return accounts.reduce((s, a) => s + accountBalance(a, transactions), 0);
 }
 
+// Reconciliation ("Buy Price" / "Needs Attention" tabs): how much has
+// actually been paid toward each booking's supplier cost, from live expense
+// transactions tagged to it. One place for this so both tabs stay in sync.
+export function paidToSupplierByBooking(transactions: FinanceTransaction[]): Map<string, number> {
+  const out = new Map<string, number>();
+  transactions.forEach((t) => {
+    if (t.status === 'cancelled' || t.type !== 'expense' || !t.bookingId || t.categoryName !== 'Supplier Cost') return;
+    out.set(t.bookingId, (out.get(t.bookingId) || 0) + (t.amount || 0));
+  });
+  return out;
+}
+
 const dayKey = (iso?: string) => (iso ? iso.slice(0, 10) : '');
 const monthKey = (iso?: string) => (iso ? iso.slice(0, 7) : '');
+
+/** True if `dateISO` falls in `month` ('YYYY-MM'). An empty `month` means "all months". */
+export function matchesMonth(dateISO: string | undefined | null, month: string): boolean {
+  if (!month) return true;
+  return !!dateISO && dateISO.slice(0, 7) === month;
+}
 
 /** Sum of income (money in) over live transactions, optionally within a date/month scope. */
 export function sumIncome(transactions: FinanceTransaction[], filter?: (t: FinanceTransaction) => boolean): number {
@@ -67,12 +108,17 @@ export function sumIncome(transactions: FinanceTransaction[], filter?: (t: Finan
 
 export function sumExpense(transactions: FinanceTransaction[], filter?: (t: FinanceTransaction) => boolean): number {
   return transactions
-    .filter((t) => live(t) && t.type === 'expense' && (!filter || filter(t)))
+    .filter((t) => live(t) && t.type === 'expense' && !t.excludeFromExpenseTotal && (!filter || filter(t)))
     .reduce((s, t) => s + (t.amount || 0), 0);
 }
 
 export const onDate = (isoDate: string) => (t: FinanceTransaction) => dayKey(t.date) === isoDate;
 export const inMonth = (isoMonth: string) => (t: FinanceTransaction) => monthKey(t.date) === isoMonth;
+
+/** True if `dateISO` falls in or before `month` ('YYYY-MM') — used to replay a
+ * balance as it stood at the end of a selected month. An empty `month` means
+ * "no cutoff" (i.e. every transaction). */
+export const uptoMonth = (isoMonth: string) => (t: FinanceTransaction) => !isoMonth || monthKey(t.date) <= isoMonth;
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 export const thisMonthISO = () => new Date().toISOString().slice(0, 7);
@@ -103,12 +149,13 @@ export function bookingPaymentsAsTransactions(bookings: Booking[]): FinanceTrans
       out.push({
         id: `bk_${b.id}_${p.id}`,
         type: 'income',
-        amount: p.amount,
+        amount: Math.round(p.amount),
         date: (p.date || '').slice(0, 10) || bookingDateISO(b),
-        accountId: '',
+        accountId: p.accountId || '',
         clientId: b.clientId,
         clientName: b.clientName,
         bookingId: b.id,
+        bookingPaymentId: p.id,
         paymentMethod: PAYMENT_MODE_LABELS[p.mode] ?? p.mode,
         reference: p.reference,
         remarks: p.id === 'opening' ? 'Booking collected (recorded earlier)' : 'Booking payment',
@@ -134,7 +181,7 @@ export function agentExpensesAsTransactions(expenses: AgentExpense[], nameById?:
     .map((e) => ({
       id: `ae_${e.id}`,
       type: 'expense',
-      amount: e.amount,
+      amount: Math.round(e.amount),
       date: (e.date || '').slice(0, 10),
       accountId: '',
       supplierName: e.payee || undefined,
@@ -166,10 +213,23 @@ export function bookingAgentId(
   return null;
 }
 
+// Display name of who booked it, for Reconciliation and similar admin views:
+// the credited sales agent (see bookingAgentId above) if there is one, else
+// whoever created the booking (e.g. an employee-created booking no agent has
+// claimed) — so every row shows a name instead of blank.
+export function bookingAgentName(
+  b: Pick<Booking, 'agentId' | 'createdBy'>,
+  userById: Map<string, Pick<User, 'name' | 'role'>>
+): string {
+  const agentUid = bookingAgentId(b, (uid) => userById.get(uid)?.role);
+  const uid = agentUid || b.createdBy;
+  return (uid && userById.get(uid)?.name) || 'Unknown';
+}
+
 // Unified payment methods — the same labels the booking Payments dialog uses
 // (PaymentMode), so agent-collected payments and finance entries speak one
 // vocabulary. Extra outgoing-only options are appended for expenses.
 export const UNIFIED_METHODS = Object.values(PAYMENT_MODE_LABELS);
 export const DEFAULT_IN_METHODS = [...UNIFIED_METHODS];
 export const DEFAULT_OUT_METHODS = [...UNIFIED_METHODS, 'Salary Transfer'];
-export const DEFAULT_EXPENSE_CATEGORIES = ['Visa Fees', 'Air Ticket', 'Hotel', 'Courier', 'Fuel', 'Rent', 'Salary', 'Internet', 'Marketing', 'Software', 'Miscellaneous'];
+export const DEFAULT_EXPENSE_CATEGORIES = ['Visa Fees', 'Air Ticket', 'Hotel', 'Courier', 'Fuel', 'Rent', 'Salary', 'Internet', 'Marketing', 'Software', 'Miscellaneous', 'Others'];

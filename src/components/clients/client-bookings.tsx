@@ -18,6 +18,7 @@ import {
 } from "../ui/table";
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { Plane, Flag, Bed, Car, PlusCircle, ChevronRight, Stamp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,9 @@ const BookingRowSkeleton = ({ cols }: { cols: number }) => (
 export function ClientBookings({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
   const { canViewRevenue } = useAppUser();
+  const params = useParams();
+  // Use the raw URL param (slug) for nav links so the slug stays in the URL.
+  const clientSlugParam = params.clientId as string;
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !clientId) return null;
@@ -74,7 +78,7 @@ export function ClientBookings({ clientId }: { clientId: string }) {
         <div className="flex flex-row items-center justify-between">
           <CardTitle>Bookings</CardTitle>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/clients/${clientId}/bookings`}>
+            <Link href={`/clients/${clientSlugParam}/bookings`}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Manage
             </Link>

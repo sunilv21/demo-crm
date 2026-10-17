@@ -5,6 +5,7 @@ import { useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlo
 import type { Booking, Client, VisaHistoryItem, PreviousTrip } from '@/lib/types';
 import { collection, doc, query, where, arrayUnion, serverTimestamp, arrayRemove } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
+import { clientIdFromSlug } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plane, Bed, Car, Flag, Calendar, Globe, PlusCircle, CheckCircle, XCircle, MoreHorizontal, Clock, Archive, ArchiveRestore } from 'lucide-react';
@@ -40,7 +41,7 @@ const TripCardSkeleton = () => (
 export default function ClientHistoryPage() {
   const firestore = useFirestore();
   const params = useParams();
-  const clientId = params.clientId as string;
+  const clientId = clientIdFromSlug(params.clientId as string);
   const [isTripFormOpen, setIsTripFormOpen] = useState(false);
   const [isVisaFormOpen, setIsVisaFormOpen] = useState(false);
   const [editingVisa, setEditingVisa] = useState<VisaHistoryItem | null>(null);

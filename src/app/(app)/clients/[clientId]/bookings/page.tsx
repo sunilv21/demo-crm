@@ -54,6 +54,7 @@ import { useAppUser, useCollection, useDoc, useFirestore, useMemoFirebase, addDo
 import { collection, doc, query, where, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
+import { clientIdFromSlug } from '@/lib/utils';
 import Link from 'next/link';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
@@ -108,7 +109,7 @@ export default function ClientBookingsPage() {
   const { user } = useUser();
   const { canViewRevenue } = useAppUser();
   const params = useParams();
-  const clientId = params.clientId as string;
+  const clientId = clientIdFromSlug(params.clientId as string);
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
